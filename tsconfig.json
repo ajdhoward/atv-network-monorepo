@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["services/atv-core/src/**/*"],
+  "exclude": ["node_modules", ".wrangler", "dist"]
+}

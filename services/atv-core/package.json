@@ -1,0 +1,1 @@
+{ "name": "@atv/atv-core", "main": "src/index.ts", "scripts": { "dev": "wrangler dev", "typecheck": "tsc --noEmit" } }

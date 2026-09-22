@@ -1,0 +1,1 @@
+{ "name": "@atv/partykit-remote", "main": "src/server.ts", "scripts": { "dev": "partykit dev" } }

@@ -1,0 +1,25 @@
+name = "atv-core-orchestrator"
+main = "services/atv-core/src/index.ts"
+compatibility_date = "2026-09-21"
+
+[[routes]]
+pattern = "atv.acidwurx.org/*"
+zone_name = "acidwurx.org"
+
+[vars]
+GITHUB_USERNAME = "ajdhoward"
+SYSTEM_ENV = "production"
+
+[[kv_namespaces]]
+binding = "ATV_CACHE"
+id = "7e635f2e4ac44488a336f9d509b63061"
+
+[[kv_namespaces]]
+binding = "ATV_CONFIG"
+id = "a59048e76fbd47c185bd4fc62fc3111a"
+
+[placement]
+mode = "smart"
+
+[observability]
+enabled = true
