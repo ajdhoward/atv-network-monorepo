@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "gdrive": { "identsFolder": "/ATV Network/Idents", "lineupFolder": "/ATV Network/Lineup", "clientId": "" },
+  "torbox": { "apiKeyRef": "TORBOX_KEY", "enabled": false },
+  "tmdb": { "apiKeyRef": "TMDB_KEY" },
+  "simkl": { "clientId": "" },
+  "player": { "profile": "auto", "forcedSubsOnly": true },
+  "channels": []
+}
