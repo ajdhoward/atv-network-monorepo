@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "atv-core",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    { "pattern": "api.atv.acidwurx.org", "custom_domain": true },
+    { "pattern": "atv.acidwurx.org", "custom_domain": true }
+  ],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "kv_namespaces": [
+    { "binding": "ATV_CACHE", "id": "placeholder", "preview_id": "placeholder" },
+    { "binding": "ATV_TELEMETRY", "id": "placeholder", "preview_id": "placeholder" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "REMOTE_HUB", "class_name": "RemoteHub", "script_name": "partykit-remote" }]
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "GITHUB_USERNAME": "ajdhoward",
+    "GITHUB_REPO": "atv-network-private-backup",
+    "VERSION": "5.0.0-public-template",
+    "SIMKL_API_ORIGIN": "https://api.simkl.com",
+    "TMDB_API_ORIGIN": "https://api.themoviedb.org/3",
+    "TORBOX_API_ORIGIN": "https://api.torbox.app/v1/api",
+    "GDRIVE_API_ORIGIN": "https://www.googleapis.com/drive/v3",
+    "TRAKT_API_ORIGIN": "https://api.trakt.tv",
+    "STREMIO_ADDON_TIMEOUT_MS": "1500",
+    "EDGE_CACHE_TTL_SEC": "300",
+    "PROVIDER_TIMEOUT_MS": "1500",
+    "CIRCUIT_OPEN_MS": "60000",
+    "RULES_BUDGET_MS": "8"
+  }
+}

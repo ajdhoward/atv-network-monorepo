@@ -1,0 +1,7 @@
+{
+  "name": "partykit-remote",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-21",
+  "routes": [{ "pattern": "remote.atv.acidwurx.org", "custom_domain": true }],
+  "durable_objects": { "bindings": [{ "name": "REMOTE_HUB", "class_name": "RemoteHub" }], "migrations": [{ "tag": "v1", "new_classes": ["RemoteHub"] }] }
+}
