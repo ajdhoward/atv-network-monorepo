@@ -135,6 +135,8 @@ describe("GET /api/guide", () => {
     expect(body.truncated).toBeUndefined();
     expect(body.nextCursor).toBeNull();
     expect(res.headers.get("cache-control")).toContain("s-maxage=60");
+    expect(res.headers.get("access-control-expose-headers")).toContain("ETag");
+    expect(res.headers.get("access-control-allow-headers")).toContain("If-None-Match");
   });
 
   it("pages deterministically with limit and cursor", async () => {

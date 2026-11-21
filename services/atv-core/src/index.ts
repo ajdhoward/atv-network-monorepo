@@ -10,7 +10,11 @@ export type { Env };
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  // If-None-Match and the ETag/X-Request-Id response headers are not
+  // CORS-safelisted, so a cross-origin client could not use the 304 path or
+  // read the request id without these two lines.
+  "Access-Control-Allow-Headers": "Content-Type, If-None-Match",
+  "Access-Control-Expose-Headers": "ETag, X-Request-Id",
   "X-Content-Type-Options": "nosniff",
 };
 

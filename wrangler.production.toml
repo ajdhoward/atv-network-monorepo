@@ -33,7 +33,9 @@ id = "a59048e76fbd47c185bd4fc62fc3111a"
 directory = "./apps/tv-client/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api", "/api/*"]
+# /admin is Worker-routed too, exactly as in wrangler.toml: the bare path has
+# to redirect and deep links fall back to the admin shell, not the TV client.
+run_worker_first = ["/api", "/api/*", "/admin", "/admin/*"]
 
 [placement]
 mode = "smart"
