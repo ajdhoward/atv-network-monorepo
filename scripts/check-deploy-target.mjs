@@ -8,6 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
+import { sharedProductionIds } from "./lib/kv-namespaces.mjs";
 
 const PROD_WORKER = "atv-core-orchestrator";
 const PROD_HOST = "atv.acidwurx.org";
@@ -29,6 +30,22 @@ const isProduction = name === PROD_WORKER || patterns.some((p) => p.startsWith(P
 const target = `${name}${patterns.length ? ` (${patterns.join(", ")})` : " (workers.dev, no route)"}`;
 
 if (!isProduction) {
+  // A sandbox that still binds production KV writes into the live namespaces: the
+  // guide snapshot cron and any seed run would touch production data. Separate
+  // namespaces come from `pnpm kv:staging`.
+  const shared = sharedProductionIds(text);
+  if (shared.length > 0 && process.env.ATV_ALLOW_SHARED_KV !== "1") {
+    console.error("check-deploy-target: refusing to deploy with production KV bindings.");
+    console.error(`  config: ${basename(configPath)} -> ${target}`);
+    console.error(`  shared namespace ids: ${shared.join(", ")}`);
+    console.error("");
+    console.error("This Worker writes (guide snapshot, seeding), so sharing production KV");
+    console.error("would modify the live namespaces. Create the staging ones first:");
+    console.error("  pnpm kv:staging");
+    console.error("");
+    console.error("Intentional shared-namespace deploy: ATV_ALLOW_SHARED_KV=1 pnpm deploy");
+    process.exit(1);
+  }
   console.log(`check-deploy-target: ok — ${basename(configPath)} -> ${target}`);
   process.exit(0);
 }

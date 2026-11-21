@@ -6,6 +6,7 @@
     "typecheck": "tsc --noEmit && pnpm --filter @atv/tv-client typecheck && pnpm --filter @atv/admin-cms typecheck",
     "build:client": "pnpm --filter @atv/tv-client build",
     "build:admin": "pnpm --filter @atv/admin-cms build",
+    "kv:staging": "node scripts/staging-kv.mjs",
     "seed": "node scripts/seed-kv.mjs",
     "smoke": "node scripts/smoke.mjs",
     "deploy": "node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:client && wrangler deploy --config wrangler.toml",

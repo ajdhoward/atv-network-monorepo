@@ -10,6 +10,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { sharedProductionIds } from './lib/kv-namespaces.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -17,6 +18,18 @@ const flag = (name, fallback) => {
   return i === -1 ? fallback : args[i + 1];
 };
 const dryRun = args.includes('--dry-run');
+
+// Seeding writes ATV_CONFIG, so a sandbox config still bound to the production
+// namespaces would overwrite the live lineup. Create the staging ones instead.
+if (!dryRun && process.env.ATV_ALLOW_SHARED_KV !== '1') {
+  const shared = sharedProductionIds(fs.readFileSync('wrangler.toml', 'utf8'));
+  if (shared.length) {
+    console.error('✗ wrangler.toml still binds production KV: ' + shared.join(', '));
+    console.error('  Create separate staging namespaces first: pnpm kv:staging');
+    console.error('  Or seed production on purpose: ATV_ALLOW_SHARED_KV=1 pnpm seed');
+    process.exit(1);
+  }
+}
 const file = flag('file', 'packages/ui-shared/src/config.example.json');
 
 let config;

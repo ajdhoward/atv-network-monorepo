@@ -23,7 +23,8 @@ services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
 apps/tv-client/public/_headers      response headers for the served client
-scripts/seed-kv.mjs                 pushes runtime config into production KV
+scripts/staging-kv.mjs             creates the sandbox KV namespaces and points wrangler.toml at them
+scripts/seed-kv.mjs                 pushes runtime config into the bound KV namespaces
 scripts/smoke.mjs                   post-deploy check of the live origin
 scripts/validate-config.mjs         validates a seed config before uploading
 wrangler.toml                       sandbox worker atv-core-v2: KV bindings, assets, no route
@@ -61,6 +62,7 @@ by this Worker, so the deploy does not include it.
 
 `ATV_CONFIG`:
 
+The sandbox has separate namespaces (see [Deploy](#deploy)); these keys describe the production ones.
 | Key | Shape | Used by |
 | --- | --- | --- |
 | `channels` | `[{id,name,country,category,genre[]}]` (or `system_config.channels`) | `/api/guide` |
@@ -85,8 +87,11 @@ pnpm deploy          # guard -> build client -> wrangler deploy --config wrangle
 pnpm smoke <origin>  # checks a deployed origin; see below for Access
 ```
 
-`pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. It shares the production KV
-namespaces and writes only `guide:latest`, which production does not read.
+`pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. It binds its own namespaces,
+`atv-cache-staging` and `atv-config-staging`, created once with `pnpm kv:staging` (which rewrites the
+namespace ids in `wrangler.toml`). Both `pnpm seed` and `pnpm deploy` refuse to run while the config
+still binds production KV, so the sandbox cannot write the live lineup; `ATV_ALLOW_SHARED_KV=1`
+overrides that deliberately.
 
 Production is `wrangler.production.toml`, and this repo does **not** deploy it.
 `scripts/check-deploy-target.mjs` refuses any config naming `atv-core-orchestrator` or routing
