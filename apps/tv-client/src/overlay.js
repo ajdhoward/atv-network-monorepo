@@ -41,12 +41,16 @@ export function initOverlays(playerManager, channels) {
     if (paused && e.key !== " ") {
       banner.style.transform = "translateY(0)";
       document.getElementById("bannerNow").textContent = `Now Paused: ${channels[0]?.name}`;
-      document.getElementById("bannerNext").innerHTML = channels
-        .map(
-          (c) =>
-            `<span style="border:1px solid #333;padding:6px 10px;border-radius:20px">${c.name}</span>`,
-        )
-        .join("");
+      // textContent, never innerHTML: names come from the seeded lineup and must
+      // not be parsed as markup.
+      document.getElementById("bannerNext").replaceChildren(
+        ...channels.map((c) => {
+          const chip = document.createElement("span");
+          chip.style.cssText = "border:1px solid #333;padding:6px 10px;border-radius:20px";
+          chip.textContent = c.name;
+          return chip;
+        }),
+      );
       setTimeout(() => (banner.style.transform = "translateY(100%)"), 4000);
     }
   });

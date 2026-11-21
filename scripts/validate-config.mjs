@@ -36,7 +36,7 @@ for (const [i, ident] of (raw.idents || []).entries()) {
 }
 
 if (problems.length) {
-  console.error("⚠ CRITICAL FAILURE: Layout Config Collision Detected. Inspection Required.");
+  console.error(`✗ ${file} does not match the config shape:`);
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }

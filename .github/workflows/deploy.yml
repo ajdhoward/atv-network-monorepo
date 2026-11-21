@@ -30,9 +30,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      - run: pnpm format:check
       - run: pnpm test
-      - run: pnpm run build:client
-      - run: pnpm run build:admin
+      # build:deploy is client + admin + the pack step the Worker's asset
+      # directory depends on, so CI exercises the same build the deploy does.
+      - run: pnpm run build:deploy
+      - run: node scripts/check-deploy-target.mjs wrangler.toml
   deploy:
     needs: verify
     if: github.event_name == 'workflow_dispatch'
@@ -49,6 +52,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:deploy
+      # The committed wrangler.toml still carries production's namespace ids as a
+      # placeholder, so the check below (and the deploy) needs staging ids first.
+      # This is idempotent: existing atv-*-staging namespaces are reused.
+      - name: Create the sandbox KV namespaces
+        if: inputs.target == 'v2'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: d9491f1ab703e0a99b69919230410f2a
+        run: pnpm kv:staging
       # Fails loudly unless the operator chose the sandbox, or set the override while
       # asking for production on purpose.
       - name: Check deploy target
@@ -64,9 +76,11 @@ jobs:
           wranglerVersion: "4.166.0"
           command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
       # The sandbox host is not behind Access, so its smoke test can always run.
+      # --allow-empty: a first deploy lands on a brand-new, unseeded namespace;
+      # content is an operator step, a broken route is not.
       - name: Smoke test (sandbox)
         if: ${{ inputs.target == 'v2' && steps.deploy.outputs.deployment-url != '' }}
-        run: pnpm smoke ${{ steps.deploy.outputs.deployment-url }}
+        run: pnpm smoke ${{ steps.deploy.outputs.deployment-url }} --allow-empty
       # Production only, and only with a service token: Cloudflare Access answers every
       # unauthenticated path with a redirect, so an un-tokened smoke test always fails.
       - name: Smoke test

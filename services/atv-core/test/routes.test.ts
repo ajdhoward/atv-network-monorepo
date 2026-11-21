@@ -94,6 +94,22 @@ describe("GET /api/health", () => {
     expect(body.schemaVersion).toBe(1);
   });
 
+  it("degrades when the config schema is one the guide would refuse", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels, config_meta: meta(channels, { schemaVersion: 2 }) });
+    const { body } = await call(worker, env, "/api/health");
+    expect(body.status).toBe("degraded");
+    expect(body.config).toMatchObject({ seeded: true, schemaMatches: false });
+  });
+
+  it("reports a checksum mismatch without changing the status", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels, config_meta: meta(channels, { checksum: "deadbeef" }) });
+    const { body } = await call(worker, env, "/api/health");
+    expect(body.status).toBe("ok");
+    expect(body.config.checksumMatches).toBe(false);
+  });
+
   it("reports a degraded worker when nothing is seeded", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv();

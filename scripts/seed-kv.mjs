@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Pushes the runtime config the Worker reads into the production KV namespaces.
+// Pushes the runtime config the Worker reads into the KV namespaces bound by
+// wrangler.toml (the staging ones once `pnpm kv:staging` has run).
 //
 //   node scripts/seed-kv.mjs                     # uses packages/ui-shared/src/config.example.json
 //   node scripts/seed-kv.mjs --file ./atv.json   # any file with the same shape
@@ -42,6 +43,14 @@ try {
 }
 if (config.version !== 1 || !Array.isArray(config.channels)) {
   console.error("✗ Config failed validation: expected version 1 and a channels array.");
+  process.exit(1);
+}
+// The default file is the empty example config. Seeding it by accident produces a
+// deployed worker with a 0-channel guide, which looks like a bug in the Worker.
+if (!config.channels.length && !args.includes("--allow-empty")) {
+  console.error(`✗ ${file} has no channels; seeding it would serve an empty guide.`);
+  console.error("  Pass a real lineup:  node scripts/seed-kv.mjs --file ./atv-config.json");
+  console.error("  Or seed an empty lineup on purpose: --allow-empty");
   process.exit(1);
 }
 

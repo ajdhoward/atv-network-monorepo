@@ -1,9 +1,10 @@
 # Sandbox target: deploys to atv-core-v2 (workers.dev, no route).
 # Production lives in wrangler.production.toml and is deliberately not the default.
 #
-# The KV namespaces are shared with production on purpose: this Worker only writes
-# `guide:latest`, which does not collide with production's `guide:compiled:*` keys,
-# and ATV_CONFIG is currently empty in production.
+# The namespace ids below are production's and are only a placeholder: this Worker
+# writes (guide snapshot cron, seeding), so it must not share them. `pnpm kv:staging`
+# creates atv-cache-staging/atv-config-staging and rewrites these two blocks; until
+# then scripts/check-deploy-target.mjs refuses `pnpm deploy`.
 name = "atv-core-v2"
 main = "services/atv-core/src/index.ts"
 compatibility_date = "2026-09-21"

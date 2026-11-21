@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 // Post-deploy smoke check.
-//   node scripts/smoke.mjs [baseUrl]        # default https://atv.acidwurx.org
+//   node scripts/smoke.mjs [baseUrl] [--allow-empty]
+//
+// --allow-empty treats a worker with no seeded lineup as a pass (a freshly
+// created staging namespace), while still failing on every route that is
+// broken. Without it an unseeded deployment is a failure.
+//
 // Behind Cloudflare Access, supply a service token:
 //   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... node scripts/smoke.mjs
-const base = (process.argv[2] || process.env.ATV_BASE_URL || "https://atv.acidwurx.org").replace(
+const args = process.argv.slice(2);
+const allowEmpty = args.includes("--allow-empty") || process.env.ATV_SMOKE_ALLOW_EMPTY === "1";
+const explicitBase = args.find((arg) => !arg.startsWith("-"));
+const base = (explicitBase || process.env.ATV_BASE_URL || "https://atv.acidwurx.org").replace(
   /\/+$/,
   "",
 );
@@ -24,6 +32,14 @@ function record(name, ok, detail) {
 async function get(path) {
   const res = await fetch(base + path, { headers, redirect: "manual" });
   return { res, text: await res.text() };
+}
+
+function parse(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 try {
@@ -58,26 +74,63 @@ try {
     record("client bundle referenced", false, "index.html has no /assets/*.js");
   }
 
-  const health = await get("/api/health");
-  let healthBody = null;
-  try {
-    healthBody = JSON.parse(health.text);
-  } catch {
-    /* handled below */
-  }
+  // /admin is routed by the Worker rather than the asset layer, so a regression
+  // in that branch (it once redirected to itself) does not show up in `/`.
+  const adminRedirect = await get("/admin");
   record(
-    "GET /api/health (seeded)",
-    health.res.status === 200 && healthBody?.config?.seeded === true,
-    `HTTP ${health.res.status}${healthBody?.config ? `, ${healthBody.config.channels} channels` : " — run `pnpm seed`"}`,
+    "GET /admin (redirect)",
+    adminRedirect.res.status === 308 &&
+      (adminRedirect.res.headers.get("location") || "").endsWith("/admin/"),
+    `HTTP ${adminRedirect.res.status}`,
   );
 
-  const guide = await get("/api/guide");
-  let guideBody = null;
-  try {
-    guideBody = JSON.parse(guide.text);
-  } catch {
-    /* handled below */
+  const admin = await get("/admin/");
+  const adminHtml = (admin.res.headers.get("content-type") || "").includes("text/html");
+  record(
+    "GET /admin/",
+    admin.res.status === 200 && adminHtml && /<div id="?root"?/.test(admin.text),
+    `HTTP ${admin.res.status}`,
+  );
+
+  const adminAssetPath = (admin.text.match(/\/admin\/assets\/[^"']+\.js/) || [])[0];
+  if (adminAssetPath) {
+    const adminAsset = await get(adminAssetPath);
+    const js = (adminAsset.res.headers.get("content-type") || "").includes("javascript");
+    record(
+      `GET ${adminAssetPath}`,
+      adminAsset.res.status === 200 && js,
+      `HTTP ${adminAsset.res.status}`,
+    );
+  } else {
+    record("admin bundle referenced", false, "/admin/ has no /admin/assets/*.js");
   }
+
+  const health = await get("/api/health");
+  const healthBody = parse(health.text);
+  const seeded = healthBody?.config?.seeded === true;
+  if (seeded) {
+    record(
+      "GET /api/health (seeded)",
+      health.res.status === 200,
+      `HTTP ${health.res.status}, ${healthBody.config.channels} channels`,
+    );
+  } else if (allowEmpty) {
+    console.log(
+      `WARN  /api/health is not seeded (HTTP ${health.res.status}, ${healthBody?.config?.channels ?? 0} channels) — allowed by --allow-empty`,
+    );
+  } else {
+    record(
+      "GET /api/health (seeded)",
+      false,
+      `HTTP ${health.res.status}${healthBody?.config ? `, ${healthBody.config.channels} channels` : ""} — run \`pnpm seed\``,
+    );
+  }
+  if (healthBody?.config?.schemaMatches === false) {
+    record("/api/health schema", false, "config_meta schemaVersion is not the worker's");
+  }
+
+  const guide = await get("/api/guide");
+  const guideBody = parse(guide.text);
   record(
     "GET /api/guide",
     guide.res.status === 200 && Array.isArray(guideBody?.channels),
@@ -86,6 +139,14 @@ try {
   if (Array.isArray(guideBody?.channels) && guideBody.channels.length === 0) {
     console.log("WARN  guide has 0 channels — seed ATV_CONFIG with `pnpm seed`");
   }
+
+  const page = await get("/api/guide?limit=1");
+  const pageBody = parse(page.text);
+  record(
+    "GET /api/guide?limit=1",
+    page.res.status === 200 && Array.isArray(pageBody?.channels) && pageBody.channels.length <= 1,
+    `HTTP ${page.res.status}, ${pageBody?.channels?.length ?? "?"} channel(s), nextCursor ${pageBody?.nextCursor ?? "none"}`,
+  );
 
   const etag = guide.res.headers.get("etag");
   if (etag) {
@@ -112,6 +173,14 @@ try {
     "GET /api/idents/random",
     [302, 503].includes(ident.res.status),
     `HTTP ${ident.res.status}${ident.res.status === 503 ? " (no idents seeded)" : ""}`,
+  );
+
+  const unknown = await get("/api/does-not-exist");
+  record(
+    "GET /api/does-not-exist (JSON 404)",
+    unknown.res.status === 404 &&
+      (unknown.res.headers.get("content-type") || "").includes("application/json"),
+    `HTTP ${unknown.res.status}`,
   );
 } catch (err) {
   record("connect", false, err instanceof Error ? err.message : String(err));

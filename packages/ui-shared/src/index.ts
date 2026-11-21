@@ -17,12 +17,19 @@ export type ChannelDef = {
   genres: string[];
   lineup?: string[];
 };
+// Wire shape of GET /api/guide (see services/atv-core/src/index.ts). Pages are
+// requested with ?limit=&cursor=; `nextCursor` is null on the last page.
 export type GuidePayload = {
   generatedAt: number;
-  channels: ChannelDef[];
   eTag: string;
-  total?: number;
-  truncated?: boolean;
+  schemaVersion: number;
+  total: number;
+  returned: number;
+  limit: number;
+  nextCursor: string | null;
+  counts: { country: Record<string, number>; category: Record<string, number> };
+  channels: ChannelDef[];
+  warning?: string;
 };
 export type LogPacket = {
   deviceId: string;

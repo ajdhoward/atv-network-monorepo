@@ -43,8 +43,8 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 
 | Route                      | Behaviour                                                                                                                                                                                                                                                   |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/status`          | build/env/uptime JSON                                                                                                                                                                                                                                       |
-| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty                                                                                                                                           |
+| `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                          |
+| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift                   |
 | `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
 | `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS                                                                                                                                                                 |
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                        |
@@ -52,6 +52,8 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
+`/admin/` is served without authentication in the sandbox: it is a UI shell that makes no privileged
+calls, but in production it must stay behind Cloudflare Access (see below).
 
 Anything else outside `/api/*` and `/admin/*` is served from the built client, with SPA fallback (so
 `/remote` loads the app).
@@ -112,10 +114,15 @@ pnpm kv:copy                          # copy channels/system_config/idents/gdriv
 pnpm install --frozen-lockfile
 pnpm typecheck && pnpm lint && pnpm test
 pnpm kv:staging                       # first time only, authenticated wrangler
-node scripts/seed-kv.mjs --file ./atv-config.json
+pnpm kv:copy                          # usual: clone the production lineup into staging
+node scripts/seed-kv.mjs --file ./atv-config.json   # or seed a lineup kept outside git
 pnpm deploy                           # guard -> build:deploy -> wrangler deploy (atv-core-v2)
 pnpm smoke <origin>                   # workers.dev host is not behind Access
 ```
+
+`pnpm seed` refuses a config with no channels (the default `config.example.json` is an empty
+skeleton) unless `--allow-empty` is passed, so a deploy cannot silently serve a 0-channel guide.
+`pnpm smoke --allow-empty` is the matching post-deploy switch for a freshly created namespace.
 
 `pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. Production is
 `wrangler.production.toml`, and this repo does **not** deploy it:
@@ -125,9 +132,12 @@ pnpm smoke <origin>                   # workers.dev host is not behind Access
 Replacing production without first importing the deployed source (`4fb54df2`, 2026-10-24) would
 remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins.
 
-CI (`verify`) runs install, typecheck, lint, tests and both builds on every push. Deployment is a
-manual `workflow_dispatch` with a target choice; a `v2` run also smokes the deployment URL, which is
-safe because that host is not behind Access.
+CI (`verify`) runs install, typecheck, lint, `format:check`, tests and the full `build:deploy` on
+every push, then runs the deploy guard in dry-run form. Deployment is a manual `workflow_dispatch`
+with a target choice. A `v2` run first executes the idempotent `pnpm kv:staging` (so the guard and
+`wrangler deploy` see staging namespace ids instead of the committed production placeholders), then
+smokes the deployment URL with `--allow-empty`, which is safe because that host is not behind Access
+and a new namespace starts unseeded.
 
 Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
 `acidwurx.org` zone and the KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
@@ -154,6 +164,8 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   mirror are both inactive.
 - Analytics Engine counters for resolve hit/miss and ident redirects are not wired: it needs an
   `ATV_METRICS` dataset binding, which is left out so the sandbox deploy cannot fail on it.
+- `apps/tv-client` has no test runner: guide paging, the `localStorage` fallback and the player swap
+  are only exercised by hand. The Worker side is covered by `services/atv-core/test`.
 
 ## Notes
 

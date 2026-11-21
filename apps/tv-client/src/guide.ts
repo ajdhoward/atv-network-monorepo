@@ -47,9 +47,11 @@ function writeCache(channels: Channel[]): void {
 
 async function fetchPage(cursor?: string): Promise<GuidePage> {
   const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  // Deliberately cacheable: /api/guide answers `max-age=30` with an ETag, so
+  // the browser revalidates with If-None-Match instead of refetching the body.
+  // `cache: "no-store"` here would disable that and the CDN hint both ways.
   const res = await fetch(`/api/guide${query}`, {
     headers: { accept: "application/json" },
-    cache: "no-store",
   });
   if (!res.ok) throw new Error(`guide responded ${res.status}`);
   const contentType = res.headers.get("content-type") || "";

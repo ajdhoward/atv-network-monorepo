@@ -231,13 +231,19 @@ async function handleHealth(env: Env): Promise<Response> {
     readJson<{ generatedAt?: number; total?: number }>(env.ATV_CACHE, "guide:latest"),
   ]);
   const seeded = lineup.channels.length > 0;
+  // /api/guide refuses a schema it does not know. Health has to say so too,
+  // otherwise a monitor sees `ok` while every guide request is a 503.
+  const schemaMatches = meta ? meta.schemaVersion === CONFIG_SCHEMA_VERSION : null;
+  const checksumMatches = meta ? meta.checksum === checksum(lineup.raw) : null;
   return json({
-    status: seeded ? "ok" : "degraded",
+    status: seeded && schemaMatches !== false ? "ok" : "degraded",
     schemaVersion: meta?.schemaVersion ?? null,
     config: {
       seeded,
       channels: lineup.channels.length,
       updatedAt: meta?.updatedAt ?? null,
+      schemaMatches,
+      checksumMatches,
     },
     guideSnapshot: snapshot
       ? { generatedAt: snapshot.generatedAt ?? null, total: snapshot.total ?? null }
