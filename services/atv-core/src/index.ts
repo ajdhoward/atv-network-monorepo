@@ -1,14 +1,10 @@
 import type { ChannelDef } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
+import { readJson, type Env } from "./env";
 import { resolveStream } from "./resolver";
 import { runRulesIndex } from "./rules";
 
-export interface Env {
-  ATV_CACHE: any;
-  ATV_CONFIG: any;
-  GITHUB_USERNAME: string;
-  SYSTEM_ENV: string;
-}
+export type { Env };
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -47,10 +43,10 @@ function statusBody(env: Env) {
 }
 
 async function loadChannels(env: Env): Promise<ChannelDef[]> {
-  const direct = await env.ATV_CONFIG.get("channels", "json");
+  const direct = await readJson<unknown>(env.ATV_CONFIG, "channels");
   const system = Array.isArray(direct)
     ? null
-    : await env.ATV_CONFIG.get("system_config", "json");
+    : await readJson<{ channels?: unknown }>(env.ATV_CONFIG, "system_config");
   const raw = Array.isArray(direct) ? direct : system?.channels;
   if (!Array.isArray(raw)) return [];
   return raw
@@ -117,9 +113,11 @@ async function handleResolve(url: URL, env: Env): Promise<Response> {
 }
 
 async function handleIdent(env: Env): Promise<Response> {
-  const stored = await env.ATV_CONFIG.get("idents", "json");
+  const stored = await readJson<unknown>(env.ATV_CONFIG, "idents");
   const urls = (Array.isArray(stored) ? stored : [])
-    .map((entry: any) => (typeof entry === "string" ? entry : entry?.url))
+    .map((entry: unknown) =>
+      typeof entry === "string" ? entry : (entry as { url?: unknown } | null)?.url,
+    )
     .filter((u: unknown): u is string => typeof u === "string" && u.startsWith("https://"));
   if (urls.length === 0) {
     return json(
@@ -158,7 +156,7 @@ export default {
     }
   },
 
-  async scheduled(_event: { cron: string; scheduledTime: number }, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       snapshotGuide(env).catch((err) => {
         console.error("guide snapshot failed", err instanceof Error ? err.message : err);
