@@ -77,6 +77,20 @@ jobs:
           packageManager: pnpm
           wranglerVersion: "4.166.0"
           command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # Optional: with an ATV_SEED_CONFIG repository secret holding the lineup JSON,
+      # the deploy also seeds staging, so the guide is not empty. The secret keeps
+      # stream URLs out of this public repo; without it the deploy is still valid.
+      - name: Seed the sandbox lineup
+        if: inputs.target == 'v2'
+        env:
+          ATV_SEED_CONFIG: ${{ secrets.ATV_SEED_CONFIG }}
+        run: |
+          if [ -z "$ATV_SEED_CONFIG" ]; then
+            echo "No ATV_SEED_CONFIG secret; skipping seed (smoke allows an empty guide)."
+            exit 0
+          fi
+          printf '%s' "$ATV_SEED_CONFIG" > "$RUNNER_TEMP/atv-seed.json"
+          node scripts/seed-kv.mjs --file "$RUNNER_TEMP/atv-seed.json"
       # The sandbox host is not behind Access, so its smoke test can always run.
       # --allow-empty: a first deploy lands on a brand-new, unseeded namespace;
       # content is an operator step, a broken route is not.

@@ -125,11 +125,18 @@ pnpm smoke <origin>                   # workers.dev host is not behind Access
 `atv-config-staging` before the guard runs. The ids it writes into `wrangler.toml` are
 account-specific: commit them or let the next run rewrite them — both work, and CI runs the same step.
 
+The sandbox is `https://atv-core-v2.acidwurx.workers.dev`: the account's workers.dev subdomain is
+`acidwurx`, the Worker does not exist until the first deploy, and that host is not behind Access.
+
 Production's `ATV_CONFIG` currently holds no keys, so `pnpm kv:copy` has nothing to copy and exits
 non-zero. The sandbox lineup therefore comes from a seed file. `pnpm seed` refuses a config with no
 channels (the default `config.example.json` is an empty skeleton) unless `--allow-empty` is passed, so
 a deploy cannot silently serve a 0-channel guide; `pnpm smoke --allow-empty` is the matching
 post-deploy switch for a freshly created namespace.
+
+Because this repository is public, the seed file stays out of git (`.gitignore` covers
+`atv-config.json`). For CI, store the same JSON in the repository secret `ATV_SEED_CONFIG`; the deploy
+job seeds staging with it when present and skips the step when it is absent.
 
 `pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. Production is
 `wrangler.production.toml`, and this repo does **not** deploy it:
@@ -142,11 +149,14 @@ remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provide
 CI (`verify`) runs install, typecheck, lint, `format:check`, tests and the full `build:deploy` on
 every push. Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run first executes
 the idempotent `pnpm kv:staging` (so the guard and `wrangler deploy` see staging namespace ids instead
-of the committed production placeholders), then smokes the deployment URL with `--allow-empty`, which
-is safe because that host is not behind Access and a new namespace starts unseeded.
+of the committed production placeholders), seeds from `ATV_SEED_CONFIG` when that secret is set, then
+smokes the deployment URL with `--allow-empty`, which is safe because that host is not behind Access
+and a new namespace starts unseeded.
 
-Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
-`acidwurx.org` zone and the KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
+Requires an authenticated wrangler (`npx wrangler login`) or a `CLOUDFLARE_API_TOKEN` with
+Account → Workers Scripts → Edit, Account → Workers KV Storage → Edit and Account → Account Settings
+→ Read. No zone or DNS permission is needed for the workers.dev sandbox (the route only matters for
+`deploy:prod`). CI already has the `CF_API_TOKEN` repository secret.
 
 ### Cloudflare Access
 

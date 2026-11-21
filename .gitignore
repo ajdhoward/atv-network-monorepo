@@ -4,3 +4,6 @@ dist/
 .env
 *.log
 .DS_Store
+
+# Seed lineup: channel ids and stream URLs must not land in this public repo.
+atv-config.json
