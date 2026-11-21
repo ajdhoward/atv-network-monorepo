@@ -9,8 +9,12 @@ export class PlayerManager {
     this.buffer.style.visibility = "hidden";
     this.hoverTimer = null;
   }
-  attach(root) { root.append(this.active, this.buffer);
-    this.active.addEventListener('ended', () => this.swap());
+  attach(root) { root.append(this.active, this.buffer); this.bind(this.active); }
+  // Swap() replaces this.active, so every transition has to re-bind the handler.
+  bind(video) {
+    if (video.dataset.atvEnded) return;
+    video.dataset.atvEnded = "1";
+    video.addEventListener('ended', () => this.swap());
   }
   detectProfile() {
     const is4K = window.screen.width >= 3840 || window.devicePixelRatio >= 2;
@@ -24,10 +28,18 @@ export class PlayerManager {
     }, 350);
   }
   prebuffer(url) { this.buffer.src = url; this.buffer.load(); }
-  play(url) { this.active.src = url; this.active.play(); this.setupForcedSubs(); }
+  play(url) {
+    this.bind(this.active);
+    this.active.src = url;
+    // textTracks is empty until metadata loads.
+    this.active.addEventListener('loadedmetadata', () => this.setupForcedSubs(), { once: true });
+    this.active.play();
+  }
   swap() {
     const tmp = this.active; this.active = this.buffer; this.buffer = tmp;
-    this.active.style.visibility = "visible"; this.buffer.style.visibility = "hidden"; this.active.play();
+    this.active.style.visibility = "visible"; this.buffer.style.visibility = "hidden";
+    this.bind(this.active);
+    this.active.play();
   }
   setupForcedSubs() {
     for (const track of this.active.textTracks) {

@@ -2,7 +2,9 @@ export function initOverlays(playerManager, channels) {
   const dog = document.createElement('div');
   dog.textContent = "ATV"; dog.className = "dog";
   dog.style.cssText = "position:absolute;top:24px;right:24px;opacity:0;transition:opacity .4s,transform .4s;background:rgba(0,0,0,.4);padding:4px 10px;border-radius:8px;color:white;font-weight:700;z-index:10;";
-  playerManager.active.addEventListener('play', () => { dog.style.opacity="0.7"; setTimeout(()=> dog.style.opacity="0", 4000); });
+  // Capture on document: the player swaps video elements, so a listener bound to
+  // the initial one stops firing after the first transition.
+  document.addEventListener('play', () => { dog.style.opacity="0.7"; setTimeout(()=> dog.style.opacity="0", 4000); }, true);
   document.body.appendChild(dog);
   let paused = false;
   const identHub = document.createElement('div');
