@@ -77,6 +77,14 @@ Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOK
 Deploy does **not** seed KV: run `node scripts/seed-kv.mjs` once (and again whenever the lineup changes),
 or `/api/guide` serves an empty lineup and `/api/resolve` answers 404.
 
+### Cloudflare Access
+
+`atv.acidwurx.org` currently sits behind Cloudflare Access — an unauthenticated request to any path,
+including `/api/status`, is redirected to `acidwurx.cloudflareaccess.com`. Players and the TV client
+cannot follow that, so before deploying for real either add an Access policy that bypasses `/api/*`
+and the client shell, or issue a Service Token and send `CF-Access-Client-Id` / `CF-Access-Client-Secret`
+from the client. Both are Zero Trust dashboard settings, not repository changes.
+
 ## Notes
 
 `DEPLOY_FINAL.sh`, `DEPLOY_FINAL.bat`, `DEPLOY_GH.sh` and `FIX.sh` are the author's local one-shot helpers
