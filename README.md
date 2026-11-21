@@ -1,60 +1,74 @@
 # ATV Network
 
-Monorepo for the ATV streaming network: a Cloudflare Worker serving the API and the TV client,
-a React admin CMS, and shared types.
+Monorepo for the ATV streaming network: a Cloudflare Worker serving the API, the TV client and the
+admin CMS, a React admin app, and shared types.
 
 > **Deployment status (2026-11-21).** This repository deploys the sandbox worker `atv-core-v2`
 > (workers.dev, no route). The live `atv-core-orchestrator` behind `atv.acidwurx.org` is a larger,
 > separate implementation that is **not** in this repo: it was last changed in the Cloudflare
-> dashboard on 2026-10-24 and holds D1, a Durable Object, telemetry and an admin token.
-> See [Deploy](#deploy).
+> dashboard on 2026-10-24 (version `4fb54df2`) and holds D1, a Durable Object, telemetry and an admin
+> token. The deployed script cannot be imported from here (the API returns a truncated bundle), so
+> production replacement still starts with downloading that source. See [Deploy](#deploy).
 
 - Worker + API: `services/atv-core`
 - TV client (Vite + TS): `apps/tv-client` — built to `apps/tv-client/dist` and served as Worker assets
-- Admin CMS (React): `apps/admin-cms` — not served by the Worker yet
+- Admin CMS (React): `apps/admin-cms` — built into `apps/tv-client/dist/admin` and served at `/admin/`
 - Shared types/schema: `packages/ui-shared`
 
 ## Layout
 
 ```
-services/atv-core/src/index.ts      router: /api/status, /api/guide, /api/resolve, /api/idents/random
-services/atv-core/src/rules.ts      guide indexing (country/category groups, 8 ms budget)
+services/atv-core/src/index.ts      router: /api/status, /api/health, /api/guide, /api/resolve, /api/idents/random
+services/atv-core/src/env.ts        Env bindings + typed JSON/memo KV reads
+services/atv-core/src/config-meta.ts config schema version + checksum
+services/atv-core/src/rules.ts      guide indexing (country/category groups, deterministic)
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
+services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
-apps/tv-client/public/_headers      response headers for the served client
-scripts/staging-kv.mjs             creates the sandbox KV namespaces and points wrangler.toml at them
-scripts/seed-kv.mjs                 pushes runtime config into the bound KV namespaces
-scripts/smoke.mjs                   post-deploy check of the live origin
+apps/admin-cms/src/                 admin CMS
+scripts/staging-kv.mjs              creates the sandbox KV namespaces and points wrangler.toml at them
+scripts/copy-kv.mjs                 copies the production lineup into the staging namespaces
+scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) into the bound KV
+scripts/smoke.mjs                   post-deploy check of a deployed origin
 scripts/validate-config.mjs         validates a seed config before uploading
-wrangler.toml                       sandbox worker atv-core-v2: KV bindings, 10-minute guide cron, assets, no route
-wrangler.production.toml            production worker atv-core-orchestrator: route + assets (reference only)
-scripts/check-deploy-target.mjs     blocks deploys that would replace production
+scripts/pack-assets.mjs             copies the admin build under the TV client's assets
+scripts/check-deploy-target.mjs     blocks deploys that would replace production or write prod KV
+scripts/test/                       deploy-guard suite
+wrangler.toml                       sandbox worker atv-core-v2: KV bindings, cron, assets, /admin
+wrangler.production.toml            production worker atv-core-orchestrator (reference only)
 ```
 
 ## API
 
-| Route | Behaviour |
-| --- | --- |
-| `GET /api/status` | build/env/uptime JSON |
-| `GET /api/guide` | channels indexed from KV `ATV_CONFIG/channels`, memoised 30 s; the 10-minute cron snapshots it to `ATV_CACHE/guide:latest` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS |
-| `GET /api/idents/random` | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset |
+| Route                      | Behaviour                                                                                                                                                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/status`          | build/env/uptime JSON                                                                                                                                                                                                                                       |
+| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty                                                                                                                                           |
+| `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS                                                                                                                                                                 |
+| `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                        |
+| `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                |
 
-Anything not under `/api/*` is served from the built client, with SPA fallback (so `/remote` loads the app).
+Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
+failures return a generic 503 and are logged with the same id instead of echoing the exception.
+
+Anything else outside `/api/*` and `/admin/*` is served from the built client, with SPA fallback (so
+`/remote` loads the app).
 
 ## Local development
 
 ```bash
 pnpm install
-pnpm typecheck                       # worker + tv-client + admin-cms
-pnpm test                            # worker route suite (Vitest, in-memory KV)
-pnpm run build:client
+pnpm typecheck                       # worker + tv-client + admin-cms + tests
+pnpm lint                            # ESLint
+pnpm test                            # worker routes + deploy guard (Vitest, in-memory KV)
+pnpm run build:deploy                # client + admin + pack admin under dist/admin
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
 
-The admin CMS builds with `pnpm run build:admin` (output in `apps/admin-cms/dist`); it is not served
-by this Worker, so the deploy does not include it.
+The admin CMS is not served by `vite`; `pnpm run build:deploy` packs it into
+`apps/tv-client/dist/admin` and the Worker serves it at `/admin/`.
 
 `wrangler dev --local` uses a local KV store; seed it the same way as production but without `--remote`
 (`npx wrangler kv key put channels --binding=ATV_CONFIG --local --path=channels.json`).
@@ -63,52 +77,60 @@ by this Worker, so the deploy does not include it.
 
 `ATV_CONFIG`:
 
-The sandbox has separate namespaces (see [Deploy](#deploy)); these keys describe the production ones.
-| Key | Shape | Used by |
-| --- | --- | --- |
-| `channels` | `[{id,name,country,category,genre[]}]` (or `system_config.channels`) | `/api/guide` |
-| `idents` | `["https://…"]` media URLs | `/api/idents/random` |
-| `gdrive_map` | `{ "<id>": "https://…" }` | `/api/resolve` |
+| Key           | Shape                                                                | Used by                      |
+| ------------- | -------------------------------------------------------------------- | ---------------------------- |
+| `channels`    | `[{id,name,country,category,genre[]}]` (or `system_config.channels`) | `/api/guide`                 |
+| `idents`      | `["https://…"]` media URLs                                           | `/api/idents/random`         |
+| `gdrive_map`  | `{ "<id>": "https://…" }`                                            | `/api/resolve`               |
+| `config_meta` | `{schemaVersion, checksum, channels, updatedAt}`                     | schema guard in `/api/guide` |
 
 `ATV_CACHE` is written by the Worker's cron trigger (`guide:latest`, every 10 minutes); no manual
-seeding needed. The request path never writes KV, so the snapshot costs one write per interval
-rather than one per cold isolate.
+seeding needed. The request path never writes KV, so the snapshot costs one write per interval rather
+than one per cold isolate.
 
-Seed it from a config file (`version: 1`, `channels: []`, optional `idents` / `gdrive_map`):
+`config_meta` is written by `scripts/seed-kv.mjs`. A lineup whose `schemaVersion` differs from the
+Worker's (`1`) is refused with `503 config_schema_mismatch`; channels edited without re-seeding add
+`warning: "config_checksum_mismatch"` to the guide payload.
+
+### Sandbox vs production KV
+
+The sandbox has its own namespaces (`atv-cache-staging`, `atv-config-staging`). It must never bind the
+production ids: seeding and the snapshot cron both write.
 
 ```bash
-node scripts/seed-kv.mjs --file ./atv-config.json --dry-run   # print the commands
-node scripts/seed-kv.mjs --file ./atv-config.json             # upload to production KV
+pnpm kv:staging                       # create (or reuse) the namespaces and patch wrangler.toml
+pnpm kv:copy -- --dry-run             # inspect copying the production lineup into staging
+pnpm kv:copy                          # copy channels/system_config/idents/gdrive_map/config_meta
 ```
+
+`pnpm seed` and `pnpm deploy` refuse to run while `wrangler.toml` still contains a production KV id;
+`ATV_ALLOW_SHARED_KV=1` overrides that deliberately.
 
 ## Deploy
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm deploy          # guard -> build client -> wrangler deploy --config wrangler.toml (atv-core-v2)
-pnpm smoke <origin>  # checks a deployed origin; see below for Access
+pnpm typecheck && pnpm lint && pnpm test
+pnpm kv:staging                       # first time only, authenticated wrangler
+node scripts/seed-kv.mjs --file ./atv-config.json
+pnpm deploy                           # guard -> build:deploy -> wrangler deploy (atv-core-v2)
+pnpm smoke <origin>                   # workers.dev host is not behind Access
 ```
 
-`pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. It binds its own namespaces,
-`atv-cache-staging` and `atv-config-staging`, created once with `pnpm kv:staging` (which rewrites the
-namespace ids in `wrangler.toml`). Both `pnpm seed` and `pnpm deploy` refuse to run while the config
-still binds production KV, so the sandbox cannot write the live lineup; `ATV_ALLOW_SHARED_KV=1`
-overrides that deliberately.
-
-Production is `wrangler.production.toml`, and this repo does **not** deploy it.
+`pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. Production is
+`wrangler.production.toml`, and this repo does **not** deploy it:
 `scripts/check-deploy-target.mjs` refuses any config naming `atv-core-orchestrator` or routing
-`atv.acidwurx.org` unless `ATV_ALLOW_PROD_DEPLOY=1` is set. CI only deploys on a manual run that
-selects the target; pushing to `main` runs install, typecheck, client build and admin build only.
+`atv.acidwurx.org` unless `ATV_ALLOW_PROD_DEPLOY=1` is set.
 
 Replacing production without first importing the deployed source (`4fb54df2`, 2026-10-24) would
 remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins.
 
-Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
-`acidwurx.org` zone and both KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
+CI (`verify`) runs install, typecheck, lint, tests and both builds on every push. Deployment is a
+manual `workflow_dispatch` with a target choice; a `v2` run also smokes the deployment URL, which is
+safe because that host is not behind Access.
 
-Deploy does **not** seed KV: run `node scripts/seed-kv.mjs` once (and again whenever the lineup changes),
-or `/api/guide` serves an empty lineup and `/api/resolve` answers 404.
+Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
+`acidwurx.org` zone and the KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
 
 ### Cloudflare Access
 
@@ -116,19 +138,25 @@ The zone-wide application `acidwurx.org` covers `*.acidwurx.org` and the apex wi
 device-posture/login policy and no service-token include. Unauthenticated requests to
 `atv.acidwurx.org`, `api.atv…`, `remote.atv…` and `stremio-addon…` are redirected to
 `acidwurx.cloudflareaccess.com`, so players, Stremio clients and this repo's smoke check cannot reach
-them. Fixing it is a Zero Trust change: scope the application to the hosts that need a login, and add
-a policy with `any_valid_service_token` so CI can send `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`.
+them. Fixing it is a Zero Trust change: scope the application to the hosts that need a login, keep
+`/admin` behind one, and add a policy with `any_valid_service_token` so CI can send
+`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`.
 
 ### Still open before production is complete
 
+- The deployed `4fb54df2` source is not in git; download it from the dashboard before any
+  `deploy:prod`, and treat `services/atv-core` as the sandbox generation until then.
 - No assets on `atv-core-orchestrator`, so nothing serves the TV client at `atv.acidwurx.org`.
 - `ATV_VAULT_KEY` is not set on `atv-edge-admin`, so credential sealing and `/api/sync` cannot work.
-- `TRAKT_CLIENT_SECRET` is an empty var, and `SyncRoom` is exported without a Durable Object binding.
+- `TRAKT_CLIENT_SECRET` is an empty var, and `SyncRoom` is exported without a Durable Object binding
+  (`services/partykit-remote` holds a `RemoteHub` stub that is not bound either).
 - `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
   mirror are both inactive.
+- Analytics Engine counters for resolve hit/miss and ident redirects are not wired: it needs an
+  `ATV_METRICS` dataset binding, which is left out so the sandbox deploy cannot fail on it.
 
 ## Notes
 
-`DEPLOY_FINAL.sh`, `DEPLOY_FINAL.bat`, `DEPLOY_GH.sh` and `FIX.sh` are the author's local one-shot helpers
-(OAuth login, `gh secret set`, push). They assume a `/home/adam/Downloads/cf-token.txt` file and are not
-required — the commands above do the same work.
+Observability samples 10% of requests (`head_sampling_rate = 0.1`); 100% burned the free log allowance
+on `/api/guide` polls. The guide snapshot runs from a `*/10` cron trigger, declared in `wrangler.toml`
+only — production's Worker is not built from this repo.
