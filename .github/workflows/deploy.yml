@@ -26,3 +26,11 @@ jobs:
           packageManager: pnpm
           wranglerVersion: "4.166.0"
           command: deploy --config wrangler.toml
+      # Verifies what was just deployed. Skipped until a service token exists,
+      # because Cloudflare Access answers every unauthenticated path with a redirect.
+      - name: Smoke test
+        if: ${{ secrets.CF_ACCESS_CLIENT_ID != '' }}
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: pnpm smoke https://atv.acidwurx.org
