@@ -15,8 +15,11 @@ services/atv-core/src/index.ts      router: /api/status, /api/guide, /api/resolv
 services/atv-core/src/rules.ts      guide indexing (country/category groups, 8 ms budget)
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
-apps/tv-client/src/                 player, overlays, D-pad handling
+apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
+apps/tv-client/public/_headers      response headers for the served client
 scripts/seed-kv.mjs                 pushes runtime config into production KV
+scripts/smoke.mjs                   post-deploy check of the live origin
+scripts/validate-config.mjs         validates a seed config before uploading
 wrangler.toml                       worker, route atv.acidwurx.org/*, KV bindings, assets
 ```
 
@@ -35,10 +38,13 @@ Anything not under `/api/*` is served from the built client, with SPA fallback (
 
 ```bash
 pnpm install
-pnpm typecheck
+pnpm typecheck                       # worker + tv-client + admin-cms
 pnpm run build:client
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
+
+The admin CMS builds with `pnpm run build:admin` (output in `apps/admin-cms/dist`); it is not served
+by this Worker, so the deploy does not include it.
 
 `wrangler dev --local` uses a local KV store; seed it the same way as production but without `--remote`
 (`npx wrangler kv key put channels --binding=ATV_CONFIG --local --path=channels.json`).
@@ -65,9 +71,10 @@ node scripts/seed-kv.mjs --file ./atv-config.json             # upload to produc
 ## Deploy
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm deploy          # builds the client, then wrangler deploy --config wrangler.toml
+pnpm smoke           # checks the live origin; see below for Access
 ```
 
 Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
@@ -84,6 +91,9 @@ including `/api/status`, is redirected to `acidwurx.cloudflareaccess.com`. Playe
 cannot follow that, so before deploying for real either add an Access policy that bypasses `/api/*`
 and the client shell, or issue a Service Token and send `CF-Access-Client-Id` / `CF-Access-Client-Secret`
 from the client. Both are Zero Trust dashboard settings, not repository changes.
+
+The smoke check needs the same treatment: with a service token, pass it through
+`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` so `pnpm smoke` can reach the origin.
 
 ## Notes
 

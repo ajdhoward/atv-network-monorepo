@@ -1,3 +1,4 @@
+import type { ChannelDef } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { resolveStream } from "./resolver";
 import { runRulesIndex } from "./rules";
@@ -9,18 +10,11 @@ export interface Env {
   SYSTEM_ENV: string;
 }
 
-type ChannelDef = {
-  id: string;
-  name: string;
-  country: string;
-  category: string;
-  genres: string[];
-};
-
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "X-Content-Type-Options": "nosniff",
 };
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -81,11 +75,12 @@ async function handleGuide(env: Env): Promise<Response> {
     return json(guideMemo.payload);
   }
   const channels = await loadChannels(env);
-  const { byCountry, byCategory, list } = runRulesIndex(channels);
+  const { byCountry, byCategory, list, truncated } = runRulesIndex(channels);
   const payload = {
     generatedAt: Date.now(),
     eTag: `"guide-${list.length}-${Date.now()}"`,
     total: list.length,
+    truncated,
     counts: {
       country: Object.fromEntries([...byCountry].map(([k, v]) => [k, v.length])),
       category: Object.fromEntries([...byCategory].map(([k, v]) => [k, v.length])),
@@ -94,8 +89,9 @@ async function handleGuide(env: Env): Promise<Response> {
   };
   // One KV write per isolate per lineup change (or every 10 min), not per request:
   // KV is billed and rate limited on writes, reads are the cheap path.
+  // A truncated index is a partial view of the lineup, so never snapshot it.
   const fingerprint = `${payload.total}|${list.map((c) => c.id).join(",")}`;
-  if (fingerprint !== lastBackupKey || Date.now() - lastBackupAt > BACKUP_INTERVAL_MS) {
+  if (!truncated && (fingerprint !== lastBackupKey || Date.now() - lastBackupAt > BACKUP_INTERVAL_MS)) {
     await backupConfig(env, payload);
     lastBackupKey = fingerprint;
     lastBackupAt = Date.now();

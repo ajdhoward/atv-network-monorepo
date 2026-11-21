@@ -7,8 +7,10 @@ export type SystemConfig = {
   player: { profile: 'auto' | '4k' | '1080p'; forcedSubsOnly: boolean };
   channels: ChannelDef[];
 };
-export type ChannelDef = { id: string; name: string; category: string; country: string; genre: string[]; lineup: string[] };
-export type GuidePayload = { generatedAt: number; channels: ChannelDef[]; eTag: string };
+// The API normalises every channel to this shape (see services/atv-core): the
+// seed config may spell genres as `genre`, but the wire format is `genres`.
+export type ChannelDef = { id: string; name: string; country: string; category: string; genres: string[]; lineup?: string[] };
+export type GuidePayload = { generatedAt: number; channels: ChannelDef[]; eTag: string; total?: number; truncated?: boolean };
 export type LogPacket = { deviceId: string; bufferRate: number; wsLatency: number; linkResolveMs: number; ts: number };
 export const CONFIG_SCHEMA_VERSION = 1;
 export function validateConfig(c: any): c is SystemConfig {

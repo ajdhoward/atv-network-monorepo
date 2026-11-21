@@ -3,9 +3,11 @@
   "private": true,
   "packageManager": "pnpm@9.1.0",
   "scripts": {
-    "typecheck": "tsc --noEmit && pnpm --filter @atv/tv-client typecheck",
+    "typecheck": "tsc --noEmit && pnpm --filter @atv/tv-client typecheck && pnpm --filter @atv/admin-cms typecheck",
     "build:client": "pnpm --filter @atv/tv-client build",
+    "build:admin": "pnpm --filter @atv/admin-cms build",
     "seed": "node scripts/seed-kv.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "deploy": "pnpm run build:client && wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
