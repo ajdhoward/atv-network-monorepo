@@ -17,6 +17,7 @@ jobs:
   # atv-core-orchestrator is not built from this repo, so a push must never replace it.
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,8 +26,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm run build:client
       - run: pnpm run build:admin
@@ -34,6 +37,7 @@ jobs:
     needs: verify
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,8 +46,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:client
+      - run: pnpm run build:deploy
       # Fails loudly unless the operator chose the sandbox, or set the override while
       # asking for production on purpose.
       - name: Check deploy target
@@ -51,12 +56,17 @@ jobs:
           ATV_ALLOW_PROD_DEPLOY: ${{ inputs.target == 'production' && '1' || '0' }}
         run: node scripts/check-deploy-target.mjs ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
       - uses: cloudflare/wrangler-action@v4
+        id: deploy
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: d9491f1ab703e0a99b69919230410f2a
           packageManager: pnpm
           wranglerVersion: "4.166.0"
           command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # The sandbox host is not behind Access, so its smoke test can always run.
+      - name: Smoke test (sandbox)
+        if: ${{ inputs.target == 'v2' && steps.deploy.outputs.deployment-url != '' }}
+        run: pnpm smoke ${{ steps.deploy.outputs.deployment-url }}
       # Production only, and only with a service token: Cloudflare Access answers every
       # unauthenticated path with a redirect, so an un-tokened smoke test always fails.
       - name: Smoke test

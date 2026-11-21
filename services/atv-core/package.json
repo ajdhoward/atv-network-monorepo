@@ -1,1 +1,11 @@
-{ "name": "@atv/atv-core", "main": "src/index.ts", "scripts": { "dev": "wrangler dev --config ../../wrangler.toml", "typecheck": "tsc --noEmit" }, "dependencies": { "@atv/ui-shared": "workspace:*" } }
+{
+  "name": "@atv/atv-core",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev --config ../../wrangler.toml",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atv/ui-shared": "workspace:*"
+  }
+}

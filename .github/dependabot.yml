@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # wrangler and workers-types drive the deploy format, so they are grouped and
+  # reviewed together rather than arriving as separate PRs.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      cloudflare:
+        patterns:
+          - wrangler
+          - "@cloudflare/*"
+      tooling:
+        patterns:
+          - typescript
+          - vitest
+          - eslint
+          - "@eslint/*"
+          - typescript-eslint
+          - prettier
+          - vite
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
