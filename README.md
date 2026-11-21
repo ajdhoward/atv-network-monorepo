@@ -48,6 +48,7 @@ Anything not under `/api/*` is served from the built client, with SPA fallback (
 ```bash
 pnpm install
 pnpm typecheck                       # worker + tv-client + admin-cms
+pnpm test                            # worker route suite (Vitest, in-memory KV)
 pnpm run build:client
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```

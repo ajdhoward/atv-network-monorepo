@@ -27,6 +27,7 @@ jobs:
           node-version: 22
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm run build:client
       - run: pnpm run build:admin
   deploy:
