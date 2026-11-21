@@ -31,6 +31,7 @@ id = "a59048e76fbd47c185bd4fc62fc3111a"
 
 [assets]
 directory = "./apps/tv-client/dist"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api", "/api/*"]
 

@@ -1,7 +1,8 @@
 export class RemoteHub {
   sessions: Map<string, WebSocket> = new Map();
   async fetch(req: Request): Promise<Response> {
-    if (req.headers.get("Upgrade") !== "websocket") return new Response("expected ws", { status: 426 });
+    if (req.headers.get("Upgrade") !== "websocket")
+      return new Response("expected ws", { status: 426 });
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     server.accept();
@@ -14,4 +15,9 @@ export class RemoteHub {
     return new Response(null, { status: 101, webSocket: client });
   }
 }
-export default { async fetch(req: Request, env: any) { const hub = new RemoteHub(); return hub.fetch(req); } };
+export default {
+  async fetch(req: Request, _env: any) {
+    const hub = new RemoteHub();
+    return hub.fetch(req);
+  },
+};

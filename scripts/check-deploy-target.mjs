@@ -51,7 +51,9 @@ if (!isProduction) {
 }
 
 if (process.env.ATV_ALLOW_PROD_DEPLOY === "1") {
-  console.warn(`check-deploy-target: PRODUCTION deploy allowed — ${basename(configPath)} -> ${target}`);
+  console.warn(
+    `check-deploy-target: PRODUCTION deploy allowed — ${basename(configPath)} -> ${target}`,
+  );
   process.exit(0);
 }
 

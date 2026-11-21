@@ -26,13 +26,21 @@ id = "a59048e76fbd47c185bd4fc62fc3111a"
 [triggers]
 crons = ["*/10 * * * *"]
 
+# The asset directory carries the TV client at / and the admin CMS at /admin
+# (packed by scripts/pack-assets.mjs). The Worker handles /admin itself so it
+# can redirect the bare path and serve assets from the same binding.
 [assets]
 directory = "./apps/tv-client/dist"
+# Without an explicit binding name the Worker cannot reach the assets it serves.
+binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api", "/api/*"]
+run_worker_first = ["/api", "/api/*", "/admin", "/admin/*"]
 
 [placement]
 mode = "smart"
 
 [observability]
 enabled = true
+# 10% of requests is plenty for a personal network; 100% burns the free log
+# allowance on /api/guide polls.
+head_sampling_rate = 0.1

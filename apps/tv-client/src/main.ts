@@ -1,9 +1,9 @@
-import { PlayerManager } from './playerManager.js';
-import { initOverlays } from './overlay.js';
-import { loadGuide, type Channel } from './guide.js';
-import { createGrid } from './grid.js';
+import { PlayerManager } from "./playerManager.js";
+import { initOverlays } from "./overlay.js";
+import { loadGuide, type Channel } from "./guide.js";
+import { createGrid } from "./grid.js";
 
-const root = document.getElementById('root')!;
+const root = document.getElementById("root")!;
 const pm = new PlayerManager();
 pm.attach(root);
 
@@ -26,7 +26,7 @@ async function play(channel: Channel) {
       grid.notice(`${channel.name} has no stream configured`);
       return;
     }
-    grid.notice('');
+    grid.notice("");
     grid.hide();
     pm.play(url);
   } catch {
@@ -35,40 +35,41 @@ async function play(channel: Channel) {
 }
 
 loadGuide()
-  .then((channels) => {
+  .then(({ channels, stale }) => {
     grid.setChannels(channels);
-    initOverlays(pm, channels.length ? channels : [{ name: 'ATV' }]);
-    if (!channels.length) grid.notice('No channels available right now.');
+    initOverlays(pm, channels.length ? channels : [{ name: "ATV" }]);
+    if (!channels.length) grid.notice("No channels available right now.");
+    else if (stale) grid.notice("Showing the last saved guide — reconnecting…");
   })
   .catch(() => {
-    grid.notice('Guide unavailable — reload to retry.');
+    grid.notice("Guide unavailable — reload to retry.");
   });
 
 // D-pad / remote handling: the grid owns focus while it is on screen.
-document.addEventListener('keydown', (e) => {
+document.addEventListener("keydown", (e) => {
   switch (e.key) {
-    case 'ArrowRight':
-    case 'ArrowLeft':
-    case 'ArrowUp':
-    case 'ArrowDown':
+    case "ArrowRight":
+    case "ArrowLeft":
+    case "ArrowUp":
+    case "ArrowDown":
       e.preventDefault();
       if (!grid.visible) {
         grid.show();
         return;
       }
-      if (e.key === 'ArrowRight') grid.move(1, 0);
-      if (e.key === 'ArrowLeft') grid.move(-1, 0);
-      if (e.key === 'ArrowDown') grid.move(0, 1);
-      if (e.key === 'ArrowUp') grid.move(0, -1);
+      if (e.key === "ArrowRight") grid.move(1, 0);
+      if (e.key === "ArrowLeft") grid.move(-1, 0);
+      if (e.key === "ArrowDown") grid.move(0, 1);
+      if (e.key === "ArrowUp") grid.move(0, -1);
       return;
-    case 'Enter':
+    case "Enter":
       e.preventDefault();
       if (grid.visible) grid.playFocused();
       else grid.show();
       return;
-    case 'Escape':
-    case 'Backspace':
-    case 'BrowserBack':
+    case "Escape":
+    case "Backspace":
+    case "BrowserBack":
       e.preventDefault();
       grid.show();
       return;

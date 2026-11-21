@@ -8,6 +8,6 @@
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["services/atv-core/src/**/*", "services/atv-core/test/**/*"],
+  "include": ["services/atv-core/src/**/*", "services/atv-core/test/**/*", "scripts/test/**/*"],
   "exclude": ["node_modules", ".wrangler", "dist"]
 }

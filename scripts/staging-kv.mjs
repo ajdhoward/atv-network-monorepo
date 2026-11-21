@@ -87,7 +87,9 @@ let text = readFileSync(CONFIG, "utf8");
 let changed = 0;
 for (const [binding, id] of Object.entries(ids)) {
   const re = bindingBlock(text, binding);
-  const next = re.test(text) ? text.replace(re, `[[kv_namespaces]]\nbinding = "${binding}"\nid = "${id}"`) : text;
+  const next = re.test(text)
+    ? text.replace(re, `[[kv_namespaces]]\nbinding = "${binding}"\nid = "${id}"`)
+    : text;
   if (next !== text) {
     text = next;
     changed++;
