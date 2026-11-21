@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.1.0",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && pnpm --filter @atv/tv-client typecheck",
     "build:client": "pnpm --filter @atv/tv-client build",
     "seed": "node scripts/seed-kv.mjs",
     "deploy": "pnpm run build:client && wrangler deploy --config wrangler.toml"

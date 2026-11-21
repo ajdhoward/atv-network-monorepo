@@ -38,7 +38,7 @@ loadGuide()
   .then((channels) => {
     grid.setChannels(channels);
     initOverlays(pm, channels.length ? channels : [{ name: 'ATV' }]);
-    if (!channels.length) grid.notice('No channels yet — seed the lineup with `pnpm seed`.');
+    if (!channels.length) grid.notice('No channels available right now.');
   })
   .catch(() => {
     grid.notice('Guide unavailable — reload to retry.');
