@@ -26,6 +26,7 @@ services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
+apps/tv-client/test/                guide paging + offline-cache tests
 apps/admin-cms/src/                 admin CMS
 scripts/staging-kv.mjs              creates the sandbox KV namespaces and points wrangler.toml at them
 scripts/copy-kv.mjs                 copies the production lineup into the staging namespaces
@@ -64,7 +65,7 @@ Anything else outside `/api/*` and `/admin/*` is served from the built client, w
 pnpm install
 pnpm typecheck                       # worker + tv-client + admin-cms + tests
 pnpm lint                            # ESLint
-pnpm test                            # worker routes + deploy guard (Vitest, in-memory KV)
+pnpm test                            # worker routes, deploy guard and guide loader (Vitest)
 pnpm run build:deploy                # client + admin + pack admin under dist/admin
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
@@ -89,6 +90,9 @@ The admin CMS is not served by `vite`; `pnpm run build:deploy` packs it into
 `ATV_CACHE` is written by the Worker's cron trigger (`guide:latest`, every 10 minutes); no manual
 seeding needed. The request path never writes KV, so the snapshot costs one write per interval rather
 than one per cold isolate.
+
+`pnpm seed -- --prune` also deletes the keys this script owns that the config no longer supplies
+(an emptied `idents`, for example). Without it those keys keep being served.
 
 `config_meta` is written by `scripts/seed-kv.mjs`. A lineup whose `schemaVersion` differs from the
 Worker's (`1`) is refused with `503 config_schema_mismatch`; channels edited without re-seeding add
@@ -178,8 +182,8 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   The unbound `RemoteHub` stub belongs to the live worker; this repo no longer carries a copy.
 - `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
   mirror are both inactive.
-- `apps/tv-client` has no test runner: guide paging, the `localStorage` fallback and the player swap
-  are only exercised by hand. The Worker side is covered by `services/atv-core/test`.
+- The player swap and the overlays are still exercised by hand; `apps/tv-client/test` covers guide
+  paging and the `localStorage` fallback, and `services/atv-core/test` covers the Worker.
 
 ## Notes
 

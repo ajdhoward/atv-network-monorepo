@@ -5,6 +5,7 @@
 //   node scripts/seed-kv.mjs                     # uses packages/ui-shared/src/config.example.json
 //   node scripts/seed-kv.mjs --file ./atv.json   # any file with the same shape
 //   node scripts/seed-kv.mjs --dry-run           # print the wrangler commands only
+//   node scripts/seed-kv.mjs --prune             # also delete owned keys this file omits
 //
 // Requires an authenticated wrangler (`npx wrangler login` or CLOUDFLARE_API_TOKEN).
 import fs from "fs";
@@ -84,6 +85,12 @@ if (!config.channels.length) {
   console.warn("⚠ No channels in this file: /api/guide will serve an empty lineup.");
 }
 
+// The keys this script owns. Without --prune, a key dropped from the config (an
+// emptied `idents`, say) keeps being served from KV forever.
+const OWNED_KEYS = ["channels", "system_config", "config_meta", "idents", "gdrive_map"];
+const prune = args.includes("--prune");
+const writtenKeys = new Set(entries.map(([, key]) => key));
+
 let failed = 0;
 for (const [binding, key, value] of entries) {
   const tmp = path.join(os.tmpdir(), `atv-kv-${binding}-${key}.json`);
@@ -108,6 +115,29 @@ for (const [binding, key, value] of entries) {
   const run = spawnSync("npx", cmd, { stdio: "inherit" });
   if (run.status !== 0) failed++;
   fs.rmSync(tmp, { force: true });
+}
+
+if (prune) {
+  for (const key of OWNED_KEYS.filter((candidate) => !writtenKeys.has(candidate))) {
+    const cmd = [
+      "wrangler",
+      "kv",
+      "key",
+      "delete",
+      key,
+      "--binding=ATV_CONFIG",
+      "--remote",
+      "--config",
+      "wrangler.toml",
+    ];
+    console.log(`→ delete ATV_CONFIG/${key}`);
+    if (dryRun) {
+      console.log(`  npx ${cmd.join(" ")}`);
+      continue;
+    }
+    const run = spawnSync("npx", cmd, { stdio: "inherit" });
+    if (run.status !== 0) failed++;
+  }
 }
 
 if (failed) {
