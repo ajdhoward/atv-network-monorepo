@@ -4,7 +4,8 @@
   "packageManager": "pnpm@9.1.0",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy --config wrangler.toml"
+    "build:client": "pnpm --filter @atv/tv-client build",
+    "deploy": "pnpm run build:client && wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260922.1",

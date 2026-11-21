@@ -18,6 +18,11 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
+[assets]
+directory = "./apps/tv-client/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
 [placement]
 mode = "smart"
 

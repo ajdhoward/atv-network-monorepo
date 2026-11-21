@@ -1,10 +1,10 @@
-type RawItem = { id: string; country: string; category: string; genres: string[] };
-export function runRulesIndex(payload: RawItem[]): { byCountry: Map<string, RawItem[]>, byCategory: Map<string, RawItem[]>, list: RawItem[] } {
+export type RawItem = { id: string; country: string; category: string; genres: string[] };
+export function runRulesIndex<T extends RawItem>(payload: T[]): { byCountry: Map<string, T[]>, byCategory: Map<string, T[]>, list: T[] } {
   const start = performance.now();
-  const byCountry = new Map<string, RawItem[]>();
-  const byCategory = new Map<string, RawItem[]>();
-  const byGenre = new Map<string, RawItem[]>();
-  const list: RawItem[] = [];
+  const byCountry = new Map<string, T[]>();
+  const byCategory = new Map<string, T[]>();
+  const byGenre = new Map<string, T[]>();
+  const list: T[] = [];
   const MAX_MS = 8.0;
   for (let i = 0; i < payload.length; i++) {
     if (i % 250 === 0 && performance.now() - start > MAX_MS) {
