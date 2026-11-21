@@ -1,7 +1,13 @@
 # ATV Network
 
-Monorepo for the ATV streaming network: a Cloudflare Worker (`atv-core-orchestrator`) serving
-the API and the TV client, a React admin CMS, and shared types.
+Monorepo for the ATV streaming network: a Cloudflare Worker serving the API and the TV client,
+a React admin CMS, and shared types.
+
+> **Deployment status (2026-11-21).** This repository deploys the sandbox worker `atv-core-v2`
+> (workers.dev, no route). The live `atv-core-orchestrator` behind `atv.acidwurx.org` is a larger,
+> separate implementation that is **not** in this repo: it was last changed in the Cloudflare
+> dashboard on 2026-10-24 and holds D1, a Durable Object, telemetry and an admin token.
+> See [Deploy](#deploy).
 
 - Worker + API: `services/atv-core`
 - TV client (Vite + TS): `apps/tv-client` — built to `apps/tv-client/dist` and served as Worker assets
@@ -20,7 +26,9 @@ apps/tv-client/public/_headers      response headers for the served client
 scripts/seed-kv.mjs                 pushes runtime config into production KV
 scripts/smoke.mjs                   post-deploy check of the live origin
 scripts/validate-config.mjs         validates a seed config before uploading
-wrangler.toml                       worker, route atv.acidwurx.org/*, KV bindings, assets
+wrangler.toml                       sandbox worker atv-core-v2: KV bindings, assets, no route
+wrangler.production.toml            production worker atv-core-orchestrator: route + assets (reference only)
+scripts/check-deploy-target.mjs     blocks deploys that would replace production
 ```
 
 ## API
@@ -73,27 +81,43 @@ node scripts/seed-kv.mjs --file ./atv-config.json             # upload to produc
 ```bash
 pnpm install --frozen-lockfile
 pnpm typecheck
-pnpm deploy          # builds the client, then wrangler deploy --config wrangler.toml
-pnpm smoke           # checks the live origin; see below for Access
+pnpm deploy          # guard -> build client -> wrangler deploy --config wrangler.toml (atv-core-v2)
+pnpm smoke <origin>  # checks a deployed origin; see below for Access
 ```
 
+`pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. It shares the production KV
+namespaces and writes only `guide:latest`, which production does not read.
+
+Production is `wrangler.production.toml`, and this repo does **not** deploy it.
+`scripts/check-deploy-target.mjs` refuses any config naming `atv-core-orchestrator` or routing
+`atv.acidwurx.org` unless `ATV_ALLOW_PROD_DEPLOY=1` is set. CI only deploys on a manual run that
+selects the target; pushing to `main` runs install, typecheck, client build and admin build only.
+
+Replacing production without first importing the deployed source (`4fb54df2`, 2026-10-24) would
+remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins.
+
 Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
-`acidwurx.org` zone and both KV namespaces. Pushing to `main` runs the same steps in
-`.github/workflows/deploy.yml` using the `CF_API_TOKEN` repository secret.
+`acidwurx.org` zone and both KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
 
 Deploy does **not** seed KV: run `node scripts/seed-kv.mjs` once (and again whenever the lineup changes),
 or `/api/guide` serves an empty lineup and `/api/resolve` answers 404.
 
 ### Cloudflare Access
 
-`atv.acidwurx.org` currently sits behind Cloudflare Access — an unauthenticated request to any path,
-including `/api/status`, is redirected to `acidwurx.cloudflareaccess.com`. Players and the TV client
-cannot follow that, so before deploying for real either add an Access policy that bypasses `/api/*`
-and the client shell, or issue a Service Token and send `CF-Access-Client-Id` / `CF-Access-Client-Secret`
-from the client. Both are Zero Trust dashboard settings, not repository changes.
+The zone-wide application `acidwurx.org` covers `*.acidwurx.org` and the apex with a
+device-posture/login policy and no service-token include. Unauthenticated requests to
+`atv.acidwurx.org`, `api.atv…`, `remote.atv…` and `stremio-addon…` are redirected to
+`acidwurx.cloudflareaccess.com`, so players, Stremio clients and this repo's smoke check cannot reach
+them. Fixing it is a Zero Trust change: scope the application to the hosts that need a login, and add
+a policy with `any_valid_service_token` so CI can send `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`.
 
-The smoke check needs the same treatment: with a service token, pass it through
-`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` so `pnpm smoke` can reach the origin.
+### Still open before production is complete
+
+- No assets on `atv-core-orchestrator`, so nothing serves the TV client at `atv.acidwurx.org`.
+- `ATV_VAULT_KEY` is not set on `atv-edge-admin`, so credential sealing and `/api/sync` cannot work.
+- `TRAKT_CLIENT_SECRET` is an empty var, and `SyncRoom` is exported without a Durable Object binding.
+- `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
+  mirror are both inactive.
 
 ## Notes
 

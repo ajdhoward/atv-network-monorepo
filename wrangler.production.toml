@@ -1,0 +1,41 @@
+# PRODUCTION. Do not deploy from this branch.
+#
+# atv-core-orchestrator is NOT built from this repository. It was last changed in the
+# Cloudflare dashboard on 2026-10-24 (version 4fb54df2) and owns bindings this file does
+# not declare: D1 `DB`, Durable Object `REMOTE_HUB` -> partykit-remote/RemoteHub,
+# ATV_TELEMETRY, ATV_ADMIN_TOKEN and five provider origins. `wrangler deploy` with this
+# config replaces all of that with the smaller Worker in services/atv-core.
+#
+# Use wrangler.toml (atv-core-v2, workers.dev) for anything you want to try.
+# Replacing production requires: ATV_ALLOW_PROD_DEPLOY=1 pnpm deploy:prod
+name = "atv-core-orchestrator"
+main = "services/atv-core/src/index.ts"
+compatibility_date = "2026-09-21"
+account_id = "d9491f1ab703e0a99b69919230410f2a"
+
+[[routes]]
+pattern = "atv.acidwurx.org/*"
+zone_name = "acidwurx.org"
+
+[vars]
+GITHUB_USERNAME = "ajdhoward"
+SYSTEM_ENV = "production"
+
+[[kv_namespaces]]
+binding = "ATV_CACHE"
+id = "7e635f2e4ac44488a336f9d509b63061"
+
+[[kv_namespaces]]
+binding = "ATV_CONFIG"
+id = "a59048e76fbd47c185bd4fc62fc3111a"
+
+[assets]
+directory = "./apps/tv-client/dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api", "/api/*"]
+
+[placement]
+mode = "smart"
+
+[observability]
+enabled = true

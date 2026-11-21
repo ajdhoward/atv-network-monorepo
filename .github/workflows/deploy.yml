@@ -2,11 +2,20 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deploy target"
+        type: choice
+        options: [v2, production]
+        default: v2
 concurrency:
-  group: deploy-production
+  group: deploy-${{ github.event.inputs.target || 'verify' }}
   cancel-in-progress: false
 jobs:
-  deploy:
+  # Every push to main is verified. Nothing is deployed automatically: the live
+  # atv-core-orchestrator is not built from this repo, so a push must never replace it.
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,17 +28,38 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm run build:client
+      - run: pnpm run build:admin
+  deploy:
+    needs: verify
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.1.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:client
+      # Fails loudly unless the operator chose the sandbox, or set the override while
+      # asking for production on purpose.
+      - name: Check deploy target
+        env:
+          ATV_ALLOW_PROD_DEPLOY: ${{ inputs.target == 'production' && '1' || '0' }}
+        run: node scripts/check-deploy-target.mjs ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
       - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: d9491f1ab703e0a99b69919230410f2a
           packageManager: pnpm
           wranglerVersion: "4.166.0"
-          command: deploy --config wrangler.toml
-      # Verifies what was just deployed. Skipped until a service token exists,
-      # because Cloudflare Access answers every unauthenticated path with a redirect.
+          command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # Production only, and only with a service token: Cloudflare Access answers every
+      # unauthenticated path with a redirect, so an un-tokened smoke test always fails.
       - name: Smoke test
-        if: ${{ secrets.CF_ACCESS_CLIENT_ID != '' }}
+        if: ${{ inputs.target == 'production' && secrets.CF_ACCESS_CLIENT_ID != '' }}
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}

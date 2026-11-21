@@ -1,15 +1,17 @@
-name = "atv-core-orchestrator"
+# Sandbox target: deploys to atv-core-v2 (workers.dev, no route).
+# Production lives in wrangler.production.toml and is deliberately not the default.
+#
+# The KV namespaces are shared with production on purpose: this Worker only writes
+# `guide:latest`, which does not collide with production's `guide:compiled:*` keys,
+# and ATV_CONFIG is currently empty in production.
+name = "atv-core-v2"
 main = "services/atv-core/src/index.ts"
 compatibility_date = "2026-09-21"
 account_id = "d9491f1ab703e0a99b69919230410f2a"
 
-[[routes]]
-pattern = "atv.acidwurx.org/*"
-zone_name = "acidwurx.org"
-
 [vars]
 GITHUB_USERNAME = "ajdhoward"
-SYSTEM_ENV = "production"
+SYSTEM_ENV = "sandbox"
 
 [[kv_namespaces]]
 binding = "ATV_CACHE"

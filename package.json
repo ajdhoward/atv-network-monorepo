@@ -8,7 +8,8 @@
     "build:admin": "pnpm --filter @atv/admin-cms build",
     "seed": "node scripts/seed-kv.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "deploy": "pnpm run build:client && wrangler deploy --config wrangler.toml"
+    "deploy": "node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:client && wrangler deploy --config wrangler.toml",
+    "deploy:prod": "node scripts/check-deploy-target.mjs wrangler.production.toml && pnpm run build:client && wrangler deploy --config wrangler.production.toml"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260922.1",
