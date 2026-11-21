@@ -105,24 +105,31 @@ pnpm kv:copy -- --dry-run             # inspect copying the production lineup in
 pnpm kv:copy                          # copy channels/system_config/idents/gdrive_map/config_meta
 ```
 
-`pnpm seed` and `pnpm deploy` refuse to run while `wrangler.toml` still contains a production KV id;
-`ATV_ALLOW_SHARED_KV=1` overrides that deliberately.
+`pnpm kv:copy` exits non-zero if it could not read a single key, so a copy that did nothing cannot
+look like a populated sandbox. `pnpm deploy` now performs the `kv:staging` step itself.
+
+`pnpm seed` refuses to run while `wrangler.toml` still contains a production KV id; `pnpm deploy`
+avoids that by provisioning the staging namespaces first. `ATV_ALLOW_SHARED_KV=1` overrides the
+refusal deliberately.
 
 ## Deploy
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm typecheck && pnpm lint && pnpm test
-pnpm kv:staging                       # first time only, authenticated wrangler
-pnpm kv:copy                          # usual: clone the production lineup into staging
-node scripts/seed-kv.mjs --file ./atv-config.json   # or seed a lineup kept outside git
-pnpm deploy                           # guard -> build:deploy -> wrangler deploy (atv-core-v2)
+pnpm deploy                           # kv:staging -> guard -> build:deploy -> deploy atv-core-v2
+node scripts/seed-kv.mjs --file ./atv-config.json   # a lineup kept outside git
 pnpm smoke <origin>                   # workers.dev host is not behind Access
 ```
 
-`pnpm seed` refuses a config with no channels (the default `config.example.json` is an empty
-skeleton) unless `--allow-empty` is passed, so a deploy cannot silently serve a 0-channel guide.
-`pnpm smoke --allow-empty` is the matching post-deploy switch for a freshly created namespace.
+`pnpm deploy` runs `pnpm kv:staging` first, so a fresh clone provisions `atv-cache-staging` and
+`atv-config-staging` before the guard runs. The ids it writes into `wrangler.toml` are
+account-specific: commit them or let the next run rewrite them — both work, and CI runs the same step.
+
+Production's `ATV_CONFIG` currently holds no keys, so `pnpm kv:copy` has nothing to copy and exits
+non-zero. The sandbox lineup therefore comes from a seed file. `pnpm seed` refuses a config with no
+channels (the default `config.example.json` is an empty skeleton) unless `--allow-empty` is passed, so
+a deploy cannot silently serve a 0-channel guide; `pnpm smoke --allow-empty` is the matching
+post-deploy switch for a freshly created namespace.
 
 `pnpm deploy` targets `atv-core-v2` on its workers.dev hostname. Production is
 `wrangler.production.toml`, and this repo does **not** deploy it:
@@ -133,11 +140,10 @@ Replacing production without first importing the deployed source (`4fb54df2`, 20
 remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins.
 
 CI (`verify`) runs install, typecheck, lint, `format:check`, tests and the full `build:deploy` on
-every push, then runs the deploy guard in dry-run form. Deployment is a manual `workflow_dispatch`
-with a target choice. A `v2` run first executes the idempotent `pnpm kv:staging` (so the guard and
-`wrangler deploy` see staging namespace ids instead of the committed production placeholders), then
-smokes the deployment URL with `--allow-empty`, which is safe because that host is not behind Access
-and a new namespace starts unseeded.
+every push. Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run first executes
+the idempotent `pnpm kv:staging` (so the guard and `wrangler deploy` see staging namespace ids instead
+of the committed production placeholders), then smokes the deployment URL with `--allow-empty`, which
+is safe because that host is not behind Access and a new namespace starts unseeded.
 
 Requires an authenticated wrangler (`npx wrangler login`) or `CLOUDFLARE_API_TOKEN` with access to the
 `acidwurx.org` zone and the KV namespaces. CI uses the `CF_API_TOKEN` repository secret.
@@ -158,12 +164,10 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   `deploy:prod`, and treat `services/atv-core` as the sandbox generation until then.
 - No assets on `atv-core-orchestrator`, so nothing serves the TV client at `atv.acidwurx.org`.
 - `ATV_VAULT_KEY` is not set on `atv-edge-admin`, so credential sealing and `/api/sync` cannot work.
-- `TRAKT_CLIENT_SECRET` is an empty var, and `SyncRoom` is exported without a Durable Object binding
-  (`services/partykit-remote` holds a `RemoteHub` stub that is not bound either).
+- `TRAKT_CLIENT_SECRET` is an empty var, and `SyncRoom` is exported without a Durable Object binding.
+  The unbound `RemoteHub` stub belongs to the live worker; this repo no longer carries a copy.
 - `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
   mirror are both inactive.
-- Analytics Engine counters for resolve hit/miss and ident redirects are not wired: it needs an
-  `ATV_METRICS` dataset binding, which is left out so the sandbox deploy cannot fail on it.
 - `apps/tv-client` has no test runner: guide paging, the `localStorage` fallback and the player swap
   are only exercised by hand. The Worker side is covered by `services/atv-core/test`.
 
@@ -172,3 +176,7 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
 Observability samples 10% of requests (`head_sampling_rate = 0.1`); 100% burned the free log allowance
 on `/api/guide` polls. The guide snapshot runs from a `*/10` cron trigger, declared in `wrangler.toml`
 only — production's Worker is not built from this repo.
+
+Resolve and ident counters write to the `ATV_METRICS` Analytics Engine dataset. The binding is
+declared in `wrangler.toml` and optional: Analytics Engine creates the dataset on first write, and a
+missing binding or a failed write never changes a response.

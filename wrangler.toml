@@ -22,6 +22,12 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
+# Resolve/ident counters. Analytics Engine creates the dataset on the first write,
+# so this binding needs no setup step and the Worker no-ops without it.
+[[analytics_engine_datasets]]
+binding = "ATV_METRICS"
+dataset = "atv_metrics"
+
 # The guide snapshot (`scheduled()`) fires every 10 minutes. Production has no
 # trigger: its Worker is not built from this repo.
 [triggers]

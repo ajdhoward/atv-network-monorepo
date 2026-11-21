@@ -35,7 +35,9 @@ jobs:
       # build:deploy is client + admin + the pack step the Worker's asset
       # directory depends on, so CI exercises the same build the deploy does.
       - run: pnpm run build:deploy
-      - run: node scripts/check-deploy-target.mjs wrangler.toml
+      # The guard itself is covered by scripts/test. It cannot run here: the
+      # committed wrangler.toml still carries production's namespace ids as a
+      # placeholder and is only patched by kv:staging in the deploy job.
   deploy:
     needs: verify
     if: github.event_name == 'workflow_dispatch'

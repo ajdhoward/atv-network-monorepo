@@ -10,7 +10,7 @@
     "kv:staging": "node scripts/staging-kv.mjs",
     "seed": "node scripts/seed-kv.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "deploy": "node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:deploy && wrangler deploy --config wrangler.toml",
+    "deploy": "node scripts/staging-kv.mjs && node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:deploy && wrangler deploy --config wrangler.toml",
     "deploy:prod": "node scripts/check-deploy-target.mjs wrangler.production.toml && pnpm run build:deploy && wrangler deploy --config wrangler.production.toml",
     "test": "vitest run",
     "lint": "eslint .",

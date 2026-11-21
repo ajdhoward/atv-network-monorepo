@@ -2,7 +2,7 @@
 #
 # atv-core-orchestrator is NOT built from this repository. It was last changed in the
 # Cloudflare dashboard on 2026-10-24 (version 4fb54df2) and owns bindings this file does
-# not declare: D1 `DB`, Durable Object `REMOTE_HUB` -> partykit-remote/RemoteHub,
+# not declare: D1 `DB`, Durable Object `REMOTE_HUB` -> RemoteHub (in the live script),
 # ATV_TELEMETRY, ATV_ADMIN_TOKEN and five provider origins. `wrangler deploy` with this
 # config replaces all of that with the smaller Worker in services/atv-core.
 #

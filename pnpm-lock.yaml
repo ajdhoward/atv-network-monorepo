@@ -76,8 +76,6 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui-shared
 
-  services/partykit-remote: {}
-
 packages:
 
   '@babel/code-frame@7.29.7':

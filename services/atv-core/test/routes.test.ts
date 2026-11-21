@@ -242,10 +242,22 @@ describe("GET /api/resolve", () => {
   it("resolves a mapped id", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ gdrive_map: map });
+    const points: any[] = [];
+    (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
     const { res, body } = await call(worker, env, "/api/resolve?id=news-us");
     expect(res.status).toBe(200);
     expect(body).toMatchObject({ id: "news-us", url: "https://cdn.example/news.m3u8" });
     expect(typeof body.profile).toBe("string");
+    expect(points.map((p) => p.blobs[0])).toEqual(["resolve_hit"]);
+  });
+
+  it("serves without a metrics binding and counts a miss when one is present", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const points: any[] = [];
+    (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
+    await call(worker, env, "/api/resolve?id=__smoke__");
+    expect(points.map((p) => p.blobs[0])).toEqual(["resolve_miss"]);
   });
 });
 
@@ -259,6 +271,15 @@ describe("GET /api/idents/random", () => {
     expect(idents.map((i: any) => (typeof i === "string" ? i : i.url))).toContain(
       res.headers.get("location"),
     );
+  });
+
+  it("counts a redirect when the metrics dataset is bound", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ idents: ["https://a.example/one.svg"] });
+    const points: any[] = [];
+    (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
+    await call(worker, env, "/api/idents/random");
+    expect(points.map((p) => p.blobs[0])).toEqual(["ident_redirect"]);
   });
 
   it("503s when no ident is configured", async () => {

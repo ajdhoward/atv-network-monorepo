@@ -48,6 +48,16 @@ function failure(
   return json({ error: message, code, requestId }, status, headers);
 }
 
+// Best-effort counters: the dataset is optional and a metrics failure must never
+// change a response, so both the missing binding and a throw are swallowed.
+function count(env: Env, event: string, index?: string): void {
+  try {
+    env.ATV_METRICS?.writeDataPoint({ blobs: [event, index ?? ""], doubles: [1] });
+  } catch {
+    /* analytics is optional */
+  }
+}
+
 function logFailure(requestId: string, path: string, err: unknown): void {
   console.error(
     JSON.stringify({
@@ -193,11 +203,18 @@ async function handleResolve(url: URL, env: Env, requestId: string): Promise<Res
   if (!id) return failure("missing_id", "missing id", requestId, 400);
   try {
     const link = await resolveStream(id, env);
+    count(env, "resolve_hit", id);
     return json({ id, url: link.url, profile: link.profile }, 200, { "Cache-Control": "no-store" });
   } catch (err) {
     const message = err instanceof Error ? err.message : "resolve failed";
-    if (message === "not found") return failure("not_found", message, requestId, 404);
-    if (message.startsWith("insecure url")) return failure("insecure_url", message, requestId, 502);
+    if (message === "not found") {
+      count(env, "resolve_miss", id);
+      return failure("not_found", message, requestId, 404);
+    }
+    if (message.startsWith("insecure url")) {
+      count(env, "resolve_insecure", id);
+      return failure("insecure_url", message, requestId, 502);
+    }
     logFailure(requestId, "/api/resolve", err);
     return failure("resolve_failed", "resolve failed", requestId, 502);
   }
@@ -211,6 +228,7 @@ async function handleIdent(env: Env, requestId: string): Promise<Response> {
     )
     .filter((u: unknown): u is string => typeof u === "string" && u.startsWith("https://"));
   if (urls.length === 0) {
+    count(env, "ident_empty");
     return json(
       {
         error: "no idents configured",
@@ -222,6 +240,7 @@ async function handleIdent(env: Env, requestId: string): Promise<Response> {
     );
   }
   const url = urls[Math.floor(Math.random() * urls.length)];
+  count(env, "ident_redirect");
   return new Response(null, {
     status: 302,
     headers: { Location: url, "Cache-Control": "no-store", ...CORS },

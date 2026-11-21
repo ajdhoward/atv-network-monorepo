@@ -9,6 +9,9 @@ export interface Env {
   SYSTEM_ENV: string;
   // Static assets (TV client + admin CMS under /admin).
   ASSETS: Fetcher;
+  // Optional: declared in wrangler.toml. Analytics Engine creates the dataset on
+  // the first write, so the counters are a no-op when the binding is absent.
+  ATV_METRICS?: AnalyticsEngineDataset;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast
