@@ -198,7 +198,37 @@ async function handleGuide(env: Env, url: URL, request: Request): Promise<Respon
   return json(page, 200, headers);
 }
 
-async function handleResolve(url: URL, env: Env, requestId: string): Promise<Response> {
+// Fail open: a limiter error must not take the API down, and a missing binding
+// (local dev, or a deployment without [[ratelimits]]) simply means no limiting.
+// The key is the client IP, so one caller cannot exhaust another's allowance.
+async function allowRequest(
+  env: Env,
+  request: Request,
+  bucket: string,
+  requestId: string,
+): Promise<boolean> {
+  const limiter = env.ATV_RATE_LIMITER;
+  if (!limiter) return true;
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  try {
+    const { success } = await limiter.limit({ key: `${bucket}:${ip}` });
+    return success;
+  } catch (err) {
+    logFailure(requestId, `rate-limit:${bucket}`, err);
+    return true;
+  }
+}
+
+async function handleResolve(
+  url: URL,
+  env: Env,
+  requestId: string,
+  request: Request,
+): Promise<Response> {
+  if (!(await allowRequest(env, request, "resolve", requestId))) {
+    count(env, "resolve_rate_limited");
+    return failure("rate_limited", "too many requests", requestId, 429, { "Retry-After": "60" });
+  }
   const id = url.searchParams.get("id");
   if (!id) return failure("missing_id", "missing id", requestId, 400);
   try {
@@ -337,7 +367,9 @@ export default {
           response = await guard(requestId, path, () => handleGuide(env, url, request));
           break;
         case "/api/resolve":
-          response = await guard(requestId, path, () => handleResolve(url, env, requestId));
+          response = await guard(requestId, path, () =>
+            handleResolve(url, env, requestId, request),
+          );
           break;
         case "/api/idents/random":
           response = await guard(requestId, path, () => handleIdent(env, requestId));

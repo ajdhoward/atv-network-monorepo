@@ -26,7 +26,7 @@ services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
-apps/tv-client/test/                guide paging + offline-cache tests
+apps/tv-client/test/                guide, player and overlay tests
 apps/admin-cms/src/                 admin CMS
 scripts/staging-kv.mjs              creates the sandbox KV namespaces and points wrangler.toml at them
 scripts/copy-kv.mjs                 copies the production lineup into the staging namespaces
@@ -47,7 +47,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                          |
 | `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift                   |
 | `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS                                                                                                                                                                 |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                                                              |
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                        |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                |
 
@@ -182,14 +182,18 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   The unbound `RemoteHub` stub belongs to the live worker; this repo no longer carries a copy.
 - `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
   mirror are both inactive.
-- The player swap and the overlays are still exercised by hand; `apps/tv-client/test` covers guide
-  paging and the `localStorage` fallback, and `services/atv-core/test` covers the Worker.
+- The channel grid's focus and scroll behaviour is still exercised by hand; `apps/tv-client/test`
+  covers the guide loader, the player swap and the overlay banner.
 
 ## Notes
 
 Observability samples 10% of requests (`head_sampling_rate = 0.1`); 100% burned the free log allowance
 on `/api/guide` polls. The guide snapshot runs from a `*/10` cron trigger, declared in `wrangler.toml`
 only — production's Worker is not built from this repo.
+
+`/api/resolve` is rate limited per client IP by the `ATV_RATE_LIMITER` binding: 60 requests per
+minute, applied per Cloudflare location. The binding is optional, the Worker fails open if it errors,
+and the limit is approximate — it deters abuse rather than metering traffic.
 
 Resolve and ident counters write to the `ATV_METRICS` Analytics Engine dataset. The binding is
 declared in `wrangler.toml` and optional: Analytics Engine creates the dataset on first write, and a

@@ -12,6 +12,8 @@ export interface Env {
   // Optional: declared in wrangler.toml. Analytics Engine creates the dataset on
   // the first write, so the counters are a no-op when the binding is absent.
   ATV_METRICS?: AnalyticsEngineDataset;
+  // Optional Workers Rate Limiting binding. Without it the API does not limit.
+  ATV_RATE_LIMITER?: RateLimit;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

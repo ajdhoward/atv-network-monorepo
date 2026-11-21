@@ -251,6 +251,40 @@ describe("GET /api/resolve", () => {
     expect(points.map((p) => p.blobs[0])).toEqual(["resolve_hit"]);
   });
 
+  it("429s with Retry-After when the rate limiter refuses", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const keys: string[] = [];
+    (env as any).ATV_RATE_LIMITER = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: false };
+      },
+    };
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("60");
+    expect(body).toMatchObject({ code: "rate_limited", error: "too many requests" });
+    expect(keys).toEqual(["resolve:203.0.113.9"]);
+  });
+
+  it("fails open when the rate limiter itself errors", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_RATE_LIMITER = {
+      limit: async () => {
+        throw new Error("limiter unavailable");
+      },
+    };
+
+    const { res } = await call(worker, env, "/api/resolve?id=news-us");
+    expect(res.status).toBe(200);
+  });
+
   it("serves without a metrics binding and counts a miss when one is present", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ gdrive_map: map });

@@ -22,6 +22,17 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
+# Per-IP limiter for /api/resolve. Approximate and applied per Cloudflare
+# location; 60 requests/minute is well above a browser's hover-prefetch rate.
+# The binding is optional in code, so removing this block disables limiting.
+[[ratelimits]]
+name = "ATV_RATE_LIMITER"
+namespace_id = "4210"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
 # Resolve/ident counters. Analytics Engine creates the dataset on the first write,
 # so this binding needs no setup step and the Worker no-ops without it.
 [[analytics_engine_datasets]]
