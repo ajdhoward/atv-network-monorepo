@@ -27,7 +27,7 @@ scripts/staging-kv.mjs             creates the sandbox KV namespaces and points 
 scripts/seed-kv.mjs                 pushes runtime config into the bound KV namespaces
 scripts/smoke.mjs                   post-deploy check of the live origin
 scripts/validate-config.mjs         validates a seed config before uploading
-wrangler.toml                       sandbox worker atv-core-v2: KV bindings, assets, no route
+wrangler.toml                       sandbox worker atv-core-v2: KV bindings, 10-minute guide cron, assets, no route
 wrangler.production.toml            production worker atv-core-orchestrator: route + assets (reference only)
 scripts/check-deploy-target.mjs     blocks deploys that would replace production
 ```
@@ -37,7 +37,7 @@ scripts/check-deploy-target.mjs     blocks deploys that would replace production
 | Route | Behaviour |
 | --- | --- |
 | `GET /api/status` | build/env/uptime JSON |
-| `GET /api/guide` | channels indexed from KV `ATV_CONFIG/channels`, memoised 30 s, snapshotted to `ATV_CACHE/guide:latest` |
+| `GET /api/guide` | channels indexed from KV `ATV_CONFIG/channels`, memoised 30 s; the 10-minute cron snapshots it to `ATV_CACHE/guide:latest` |
 | `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS |
 | `GET /api/idents/random` | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset |
 
@@ -69,7 +69,9 @@ The sandbox has separate namespaces (see [Deploy](#deploy)); these keys describe
 | `idents` | `["https://…"]` media URLs | `/api/idents/random` |
 | `gdrive_map` | `{ "<id>": "https://…" }` | `/api/resolve` |
 
-`ATV_CACHE` is written by the Worker (`guide:latest`); no manual seeding needed.
+`ATV_CACHE` is written by the Worker's cron trigger (`guide:latest`, every 10 minutes); no manual
+seeding needed. The request path never writes KV, so the snapshot costs one write per interval
+rather than one per cold isolate.
 
 Seed it from a config file (`version: 1`, `channels: []`, optional `idents` / `gdrive_map`):
 

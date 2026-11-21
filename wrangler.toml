@@ -21,6 +21,11 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
+# The guide snapshot (`scheduled()`) fires every 10 minutes. Production has no
+# trigger: its Worker is not built from this repo.
+[triggers]
+crons = ["*/10 * * * *"]
+
 [assets]
 directory = "./apps/tv-client/dist"
 not_found_handling = "single-page-application"

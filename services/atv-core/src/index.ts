@@ -65,18 +65,12 @@ async function loadChannels(env: Env): Promise<ChannelDef[]> {
 }
 
 const GUIDE_TTL_MS = 30_000;
-const BACKUP_INTERVAL_MS = 10 * 60_000;
 let guideMemo: { at: number; payload: any } | null = null;
-let lastBackupKey = "";
-let lastBackupAt = 0;
 
-async function handleGuide(env: Env): Promise<Response> {
-  if (guideMemo && Date.now() - guideMemo.at < GUIDE_TTL_MS) {
-    return json(guideMemo.payload);
-  }
+async function buildGuidePayload(env: Env) {
   const channels = await loadChannels(env);
   const { byCountry, byCategory, list, truncated } = runRulesIndex(channels);
-  const payload = {
+  return {
     generatedAt: Date.now(),
     eTag: `"guide-${list.length}-${Date.now()}"`,
     total: list.length,
@@ -87,17 +81,27 @@ async function handleGuide(env: Env): Promise<Response> {
     },
     channels: list,
   };
-  // One KV write per isolate per lineup change (or every 10 min), not per request:
-  // KV is billed and rate limited on writes, reads are the cheap path.
-  // A truncated index is a partial view of the lineup, so never snapshot it.
-  const fingerprint = `${payload.total}|${list.map((c) => c.id).join(",")}`;
-  if (!truncated && (fingerprint !== lastBackupKey || Date.now() - lastBackupAt > BACKUP_INTERVAL_MS)) {
-    await backupConfig(env, payload);
-    lastBackupKey = fingerprint;
-    lastBackupAt = Date.now();
+}
+
+async function handleGuide(env: Env): Promise<Response> {
+  if (guideMemo && Date.now() - guideMemo.at < GUIDE_TTL_MS) {
+    return json(guideMemo.payload);
   }
+  const payload = await buildGuidePayload(env);
   guideMemo = { at: Date.now(), payload };
   return json(payload);
+}
+
+// Runs on the Cron Trigger in wrangler.toml, not on a request: a write in the
+// request path costs one KV write per cold isolate instead of one per interval.
+// A truncated index is a partial view of the lineup, so never snapshot it.
+async function snapshotGuide(env: Env): Promise<void> {
+  const payload = await buildGuidePayload(env);
+  if (payload.truncated) {
+    console.warn("guide snapshot skipped: rules index truncated");
+    return;
+  }
+  await backupConfig(env, payload);
 }
 
 async function handleResolve(url: URL, env: Env): Promise<Response> {
@@ -152,5 +156,13 @@ export default {
       default:
         return json({ error: "not found", path: url.pathname }, 404);
     }
+  },
+
+  async scheduled(_event: { cron: string; scheduledTime: number }, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
+    ctx.waitUntil(
+      snapshotGuide(env).catch((err) => {
+        console.error("guide snapshot failed", err instanceof Error ? err.message : err);
+      }),
+    );
   },
 };
