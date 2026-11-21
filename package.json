@@ -5,6 +5,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build:client": "pnpm --filter @atv/tv-client build",
+    "seed": "node scripts/seed-kv.mjs",
     "deploy": "pnpm run build:client && wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {

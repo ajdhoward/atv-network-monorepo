@@ -63,7 +63,16 @@ async function loadChannels(env: Env): Promise<ChannelDef[]> {
     }));
 }
 
+const GUIDE_TTL_MS = 30_000;
+const BACKUP_INTERVAL_MS = 10 * 60_000;
+let guideMemo: { at: number; payload: any } | null = null;
+let lastBackupKey = "";
+let lastBackupAt = 0;
+
 async function handleGuide(env: Env): Promise<Response> {
+  if (guideMemo && Date.now() - guideMemo.at < GUIDE_TTL_MS) {
+    return json(guideMemo.payload);
+  }
   const channels = await loadChannels(env);
   const { byCountry, byCategory, list } = runRulesIndex(channels);
   const payload = {
@@ -76,7 +85,15 @@ async function handleGuide(env: Env): Promise<Response> {
     },
     channels: list,
   };
-  await backupConfig(env, payload);
+  // One KV write per isolate per lineup change (or every 10 min), not per request:
+  // KV is billed and rate limited on writes, reads are the cheap path.
+  const fingerprint = `${payload.total}|${list.map((c) => c.id).join(",")}`;
+  if (fingerprint !== lastBackupKey || Date.now() - lastBackupAt > BACKUP_INTERVAL_MS) {
+    await backupConfig(env, payload);
+    lastBackupKey = fingerprint;
+    lastBackupAt = Date.now();
+  }
+  guideMemo = { at: Date.now(), payload };
   return json(payload);
 }
 
