@@ -35,6 +35,13 @@ function json(data: unknown, status = 200, headers: Record<string, string> = {})
   });
 }
 
+function guard(handler: () => Promise<Response>): Promise<Response> {
+  return handler().catch((err) => {
+    const message = err instanceof Error ? err.message : "internal error";
+    return json({ error: "service unavailable", detail: message }, 503);
+  });
+}
+
 function statusBody(env: Env) {
   return {
     name: "ATV Core",
@@ -141,11 +148,11 @@ export default {
       case "/api/status":
         return json(statusBody(env));
       case "/api/guide":
-        return handleGuide(env);
+        return guard(() => handleGuide(env));
       case "/api/resolve":
-        return handleResolve(url, env);
+        return guard(() => handleResolve(url, env));
       case "/api/idents/random":
-        return handleIdent(env);
+        return guard(() => handleIdent(env));
       default:
         return json({ error: "not found", path: url.pathname }, 404);
     }

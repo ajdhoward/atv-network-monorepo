@@ -1,6 +1,7 @@
 name = "atv-core-orchestrator"
 main = "services/atv-core/src/index.ts"
 compatibility_date = "2026-09-21"
+account_id = "d9491f1ab703e0a99b69919230410f2a"
 
 [[routes]]
 pattern = "atv.acidwurx.org/*"
@@ -21,7 +22,7 @@ id = "a59048e76fbd47c185bd4fc62fc3111a"
 [assets]
 directory = "./apps/tv-client/dist"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api", "/api/*"]
 
 [placement]
 mode = "smart"
