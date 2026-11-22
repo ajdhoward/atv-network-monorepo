@@ -32,6 +32,8 @@ scripts/staging-kv.mjs              creates the sandbox KV namespaces and points
 scripts/copy-kv.mjs                 copies the production lineup into the staging namespaces
 scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) into the bound KV
 scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
+scripts/check-streams.mjs           audits /api/resolve per channel, optionally probing each link
+scripts/budget.mjs                  models monthly usage against the Workers Paid allowance
 scripts/smoke.mjs                   post-deploy check of a deployed origin
 scripts/validate-config.mjs         validates a seed config before uploading
 scripts/pack-assets.mjs             copies the admin build under the TV client's assets
@@ -43,14 +45,14 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 
 ## API
 
-| Route                      | Behaviour                                                                                                                                                                                                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                          |
-| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift                   |
-| `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                               |
-| `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                        |
-| `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                |
+| Route                      | Behaviour                                                                                                                                                                                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                                                      |
+| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, resolve:{configured,invalid,missing}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift         |
+| `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60, stale-while-revalidate=300` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                                                           |
+| `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                    |
+| `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                            |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
@@ -74,8 +76,15 @@ npx wrangler dev --config wrangler.toml --port 8788 --local
 The admin CMS is not served by `vite`; `pnpm run build:deploy` packs it into
 `apps/tv-client/dist/admin` and the Worker serves it at `/admin/`.
 
-`wrangler dev --local` uses a local KV store; seed it the same way as production but without `--remote`
-(`npx wrangler kv key put channels --binding=ATV_CONFIG --local --path=channels.json`).
+`wrangler dev --local` reads its own KV store. Seed it from your lineup with one command — no
+Cloudflare credentials are involved:
+
+```bash
+pnpm seed:local -- --file ./atv-config.json     # writes to the store `wrangler dev --local` reads
+pnpm seed:local -- --file ./atv-config.json --dry-run   # print the wrangler calls instead
+```
+
+The local store lives under `.wrangler/state`, so deleting that directory reseeds from scratch.
 
 ## KV data the Worker needs
 
@@ -226,6 +235,35 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   mirror are both inactive.
 - The channel grid's focus and scroll behaviour is still exercised by hand; `apps/tv-client/test`
   covers the guide loader, the resolve retry, the player swap and the overlay banner.
+
+## Budget
+
+This network is built to cost the Workers Paid minimum ($5/month per account) and nothing more. The
+included monthly allowances, checked against Cloudflare's pricing pages on 2026-11-22:
+
+| Included on Workers Paid | Allowance                                           |
+| ------------------------ | --------------------------------------------------- |
+| Worker requests          | 10,000,000 / month (static asset requests are free) |
+| CPU time                 | 30,000,000 ms / month                               |
+| KV reads                 | 10,000,000 / month                                  |
+| KV writes                | 1,000,000 / month                                   |
+| Durable Object requests  | 1,000,000 / month                                   |
+| Durable Object duration  | 400,000 GB-s / month                                |
+
+`pnpm budget` models this deployment against those numbers and exits non-zero when a metric would
+leave them, so it can gate a decision rather than only print a table:
+
+```bash
+pnpm budget                                  # household default: 3 TVs, 30 days
+pnpm budget -- --tvs 10 --resolves 120        # a busier network
+```
+
+The model assumes no CDN cache and no isolate memo, so its figures are upper bounds. What keeps real
+usage far below them: the guide is memoised 30 s and cached at the edge for 60 s (plus
+`stale-while-revalidate=300`), KV JSON reads are memoised per isolate for 60 s, `/api/resolve` is
+capped at 300 requests/minute per IP, KV is written only by the `*/10` cron and by seeding, and
+observability samples 10% of requests. No D1, R2, Queues or third-party API is used, so there is no
+second bill to trip. Actual usage is on the dashboard under Workers & Pages → the Worker → Metrics.
 
 ## Notes
 

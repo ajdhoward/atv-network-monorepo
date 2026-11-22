@@ -6,8 +6,13 @@
 //   node scripts/seed-kv.mjs --file ./atv.json   # any file with the same shape
 //   node scripts/seed-kv.mjs --dry-run           # print the wrangler commands only
 //   node scripts/seed-kv.mjs --prune             # also delete owned keys this file omits
+//   node scripts/seed-kv.mjs --local --file atv-config.json   # the `wrangler dev` store
 //
-// Requires an authenticated wrangler (`npx wrangler login` or CLOUDFLARE_API_TOKEN).
+// --local writes the store `wrangler dev --local` reads instead of remote KV, so
+// a fresh clone can run the TV client with a real lineup and needs no Cloudflare
+// credentials. The remote-only guard is skipped there: local keys are not shared.
+//
+// Remote seeding requires an authenticated wrangler (`npx wrangler login` or CLOUDFLARE_API_TOKEN).
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -21,10 +26,11 @@ const flag = (name, fallback) => {
   return i === -1 ? fallback : args[i + 1];
 };
 const dryRun = args.includes("--dry-run");
+const local = args.includes("--local");
 
 // Seeding writes ATV_CONFIG, so a sandbox config still bound to the production
 // namespaces would overwrite the live lineup. Create the staging ones instead.
-if (!dryRun && process.env.ATV_ALLOW_SHARED_KV !== "1") {
+if (!dryRun && !local && process.env.ATV_ALLOW_SHARED_KV !== "1") {
   const shared = sharedProductionIds(fs.readFileSync("wrangler.toml", "utf8"));
   if (shared.length) {
     console.error("✗ wrangler.toml still binds production KV: " + shared.join(", "));
@@ -102,7 +108,7 @@ for (const [binding, key, value] of entries) {
     "put",
     key,
     `--binding=${binding}`,
-    "--remote",
+    ...(local ? ["--local"] : ["--remote"]),
     "--config",
     "wrangler.toml",
     `--path=${tmp}`,
@@ -126,7 +132,7 @@ if (prune) {
       "delete",
       key,
       "--binding=ATV_CONFIG",
-      "--remote",
+      ...(local ? ["--local"] : ["--remote"]),
       "--config",
       "wrangler.toml",
     ];

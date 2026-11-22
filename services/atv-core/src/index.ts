@@ -2,7 +2,7 @@ import type { ChannelDef } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
 import { kvJson, readJson, type Env } from "./env";
-import { resolveStream } from "./resolver";
+import { resolveStream, streamCoverage } from "./resolver";
 import { runRulesIndex } from "./rules";
 
 export type { Env };
@@ -208,7 +208,10 @@ async function handleGuide(env: Env, url: URL, request: Request): Promise<Respon
   const page = paginate(payload, url);
   const headers = {
     ...CORS,
-    "Cache-Control": "public, max-age=30, s-maxage=60",
+    // The lineup changes only on a re-seed, so letting the edge serve a stale
+    // copy for a few minutes while it revalidates removes origin requests
+    // without showing a channel list older than the CDN TTL by much.
+    "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300",
     ETag: payload.eTag,
   };
   if (etagMatches(request.headers.get("If-None-Match"), payload.eTag)) {
@@ -352,6 +355,12 @@ async function handleHealth(env: Env): Promise<Response> {
   // otherwise a monitor sees `ok` while every guide request is a 503.
   const schemaMatches = meta ? meta.schemaVersion === CONFIG_SCHEMA_VERSION : null;
   const checksumMatches = meta ? meta.checksum === checksum(lineup.raw) : null;
+  // Operators watch playback break without a signal saying which channels have
+  // no link at all; counts are enough for that and leak nothing.
+  const resolve = await streamCoverage(
+    env,
+    lineup.channels.map((channel) => channel.id),
+  );
   return json({
     status: seeded && schemaMatches !== false ? "ok" : "degraded",
     schemaVersion: meta?.schemaVersion ?? null,
@@ -362,6 +371,7 @@ async function handleHealth(env: Env): Promise<Response> {
       schemaMatches,
       checksumMatches,
     },
+    resolve,
     guideSnapshot: snapshot
       ? { generatedAt: snapshot.generatedAt ?? null, total: snapshot.total ?? null }
       : null,

@@ -110,6 +110,41 @@ describe("GET /api/health", () => {
     expect(body.config.checksumMatches).toBe(false);
   });
 
+  it("counts the links resolve can answer for without echoing any", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({
+      channels,
+      gdrive_map: { "news-us": "https://cdn.example/news.m3u8" },
+    });
+    const { body } = await call(worker, env, "/api/health");
+    expect(body.resolve).toEqual({ configured: 1, invalid: 0, missing: 1 });
+    // Counts only: a health endpoint is the first thing exposed to a monitor.
+    expect(JSON.stringify(body)).not.toContain("cdn.example");
+  });
+
+  it("counts a non-HTTPS link as invalid rather than configured", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({
+      channels,
+      gdrive_map: { "news-us": "http://cdn.example/news.m3u8" },
+    });
+    const { body } = await call(worker, env, "/api/health");
+    expect(body.resolve).toEqual({ configured: 0, invalid: 1, missing: 1 });
+  });
+
+  it("counts the secret link it would actually serve over the KV one", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({
+      channels,
+      gdrive_map: { "sport-uk": "https://cdn.example/sport.m3u8" },
+    });
+    (env as any).ATV_GDRIVE_MAP = JSON.stringify({
+      "news-us": "https://secret.example/news.m3u8",
+    });
+    const { body } = await call(worker, env, "/api/health");
+    expect(body.resolve).toEqual({ configured: 2, invalid: 0, missing: 0 });
+  });
+
   it("reports a degraded worker when nothing is seeded", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv();
@@ -135,6 +170,9 @@ describe("GET /api/guide", () => {
     expect(body.truncated).toBeUndefined();
     expect(body.nextCursor).toBeNull();
     expect(res.headers.get("cache-control")).toContain("s-maxage=60");
+    // A lineup that changes only on a re-seed can be served stale briefly while
+    // the edge revalidates, which keeps CDN hits off the origin.
+    expect(res.headers.get("cache-control")).toContain("stale-while-revalidate=300");
     expect(res.headers.get("access-control-expose-headers")).toContain("ETag");
     expect(res.headers.get("access-control-allow-headers")).toContain("If-None-Match");
   });

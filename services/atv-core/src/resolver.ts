@@ -43,6 +43,27 @@ function operatorMap(env: Env): Record<string, string> | null {
   return map;
 }
 
+export type StreamCoverage = { configured: number; invalid: number; missing: number };
+
+// How much of the lineup /api/resolve can answer for. Reports counts only: the
+// links themselves stay out of every response, so health stays safe to expose.
+// An id the secret covers is checked there rather than in KV, the same
+// precedence resolveStream uses.
+export async function streamCoverage(env: Env, ids: string[]): Promise<StreamCoverage> {
+  const operator = operatorMap(env);
+  const stored = await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map");
+  let configured = 0;
+  let invalid = 0;
+  for (const id of ids) {
+    const url = operator?.[id] ?? stored?.[id];
+    if (typeof url !== "string" || !url) continue;
+    // A non-HTTPS link resolves to a 502, so it is neither usable nor missing.
+    if (url.startsWith("https://")) configured++;
+    else invalid++;
+  }
+  return { configured, invalid, missing: ids.length - configured - invalid };
+}
+
 export async function resolveStream(id: string, env: Env): Promise<ResolvedLink> {
   // An id the secret covers needs no KV read at all.
   const operator = operatorMap(env)?.[id];
