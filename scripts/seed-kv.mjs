@@ -7,6 +7,11 @@
 //   node scripts/seed-kv.mjs --dry-run           # print the wrangler commands only
 //   node scripts/seed-kv.mjs --prune             # also delete owned keys this file omits
 //   node scripts/seed-kv.mjs --local --file atv-config.json   # the `wrangler dev` store
+//   node scripts/seed-kv.mjs --config wrangler.cutover.toml --file atv-config.json
+//
+// --config seeds the KV namespaces of another wrangler config (a production
+// cutover, say) instead of wrangler.toml. The shared-namespace guard reads that
+// same file, so a config bound to production KV is still refused.
 //
 // --local writes the store `wrangler dev --local` reads instead of remote KV, so
 // a fresh clone can run the TV client with a real lineup and needs no Cloudflare
@@ -27,14 +32,22 @@ const flag = (name, fallback) => {
 };
 const dryRun = args.includes("--dry-run");
 const local = args.includes("--local");
+const configFile = flag("config", "wrangler.toml");
 
 // Seeding writes ATV_CONFIG, so a sandbox config still bound to the production
 // namespaces would overwrite the live lineup. Create the staging ones instead.
 if (!dryRun && !local && process.env.ATV_ALLOW_SHARED_KV !== "1") {
-  const shared = sharedProductionIds(fs.readFileSync("wrangler.toml", "utf8"));
+  let text;
+  try {
+    text = fs.readFileSync(configFile, "utf8");
+  } catch (err) {
+    console.error(`✗ Cannot read ${configFile}: ${err.message}`);
+    process.exit(1);
+  }
+  const shared = sharedProductionIds(text);
   if (shared.length) {
-    console.error("✗ wrangler.toml still binds production KV: " + shared.join(", "));
-    console.error("  Create separate staging namespaces first: pnpm kv:staging");
+    console.error(`✗ ${configFile} still binds production KV: ` + shared.join(", "));
+    console.error("  Create separate namespaces first: pnpm kv:staging");
     console.error("  Or seed production on purpose: ATV_ALLOW_SHARED_KV=1 pnpm seed");
     process.exit(1);
   }
@@ -110,7 +123,7 @@ for (const [binding, key, value] of entries) {
     `--binding=${binding}`,
     ...(local ? ["--local"] : ["--remote"]),
     "--config",
-    "wrangler.toml",
+    configFile,
     `--path=${tmp}`,
   ];
   console.log(`→ ${binding}/${key}`);
@@ -134,7 +147,7 @@ if (prune) {
       "--binding=ATV_CONFIG",
       ...(local ? ["--local"] : ["--remote"]),
       "--config",
-      "wrangler.toml",
+      configFile,
     ];
     console.log(`→ delete ATV_CONFIG/${key}`);
     if (dryRun) {
@@ -150,4 +163,4 @@ if (failed) {
   console.error(`✗ ${failed} key(s) failed to upload.`);
   process.exit(1);
 }
-console.log(dryRun ? "Dry run complete." : `Seeded ${entries.length} key(s).`);
+console.log(dryRun ? "Dry run complete." : `Seeded ${entries.length} key(s) via ${configFile}.`);
