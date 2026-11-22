@@ -268,8 +268,64 @@ describe("GET /api/resolve", () => {
 
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBe("60");
+    // Retry-After is not a CORS-safelisted header, so a cross-origin caller can
+    // only honour it when it is exposed.
+    expect(res.headers.get("access-control-expose-headers")).toContain("Retry-After");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
     expect(body).toMatchObject({ code: "rate_limited", error: "too many requests" });
     expect(keys).toEqual(["resolve:203.0.113.9"]);
+  });
+
+  it("resolves and spends one token when the limiter accepts", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const keys: string[] = [];
+    (env as any).ATV_RATE_LIMITER = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: true };
+      },
+    };
+
+    const { res } = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(keys).toEqual(["resolve:203.0.113.9"]);
+  });
+
+  it("leaves a request without a client IP uncounted instead of sharing a bucket", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const keys: string[] = [];
+    (env as any).ATV_RATE_LIMITER = {
+      limit: async ({ key }: { key: string }) => {
+        keys.push(key);
+        return { success: false };
+      },
+    };
+
+    const { res } = await call(worker, env, "/api/resolve?id=news-us");
+
+    // Not a shared "unknown" key: one anonymous caller must not be able to
+    // exhaust the allowance for every other one.
+    expect(keys).toEqual([]);
+    expect(res.status).toBe(200);
+  });
+
+  it("does not spend the resolve allowance on other endpoints", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+    const limit = vi.fn(async () => ({ success: false }));
+    (env as any).ATV_RATE_LIMITER = { limit };
+
+    const { res } = await call(worker, env, "/api/guide", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(limit).not.toHaveBeenCalled();
   });
 
   it("fails open when the rate limiter itself errors", async () => {

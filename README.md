@@ -183,7 +183,7 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
 - `ATV_TELEMETRY` holds no keys and no GitHub token is bound, so telemetry and the private backup
   mirror are both inactive.
 - The channel grid's focus and scroll behaviour is still exercised by hand; `apps/tv-client/test`
-  covers the guide loader, the player swap and the overlay banner.
+  covers the guide loader, the resolve retry, the player swap and the overlay banner.
 
 ## Notes
 
@@ -191,9 +191,13 @@ Observability samples 10% of requests (`head_sampling_rate = 0.1`); 100% burned 
 on `/api/guide` polls. The guide snapshot runs from a `*/10` cron trigger, declared in `wrangler.toml`
 only — production's Worker is not built from this repo.
 
-`/api/resolve` is rate limited per client IP by the `ATV_RATE_LIMITER` binding: 60 requests per
-minute, applied per Cloudflare location. The binding is optional, the Worker fails open if it errors,
-and the limit is approximate — it deters abuse rather than metering traffic.
+`/api/resolve` is rate limited per client IP by the `ATV_RATE_LIMITER` binding: 600 requests per
+minute, applied per Cloudflare location. That is deliberately generous — the TV client prefetches on
+every tile hover and a household shares one IP — so it catches a runaway loop or a scraper rather
+than metering traffic. A 429 carries `Retry-After`, which the client waits out and retries instead of
+reporting the channel as unavailable. Requests with no `CF-Connecting-IP` are not counted: a shared
+"unknown" bucket would let one anonymous caller spend every other one's allowance. The binding is
+optional and the Worker fails open if it errors.
 
 Resolve and ident counters write to the `ATV_METRICS` Analytics Engine dataset. The binding is
 declared in `wrangler.toml` and optional: Analytics Engine creates the dataset on first write, and a

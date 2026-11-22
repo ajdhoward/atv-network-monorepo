@@ -14,7 +14,9 @@ const CORS: Record<string, string> = {
   // CORS-safelisted, so a cross-origin client could not use the 304 path or
   // read the request id without these two lines.
   "Access-Control-Allow-Headers": "Content-Type, If-None-Match",
-  "Access-Control-Expose-Headers": "ETag, X-Request-Id",
+  // Retry-After is not safelisted either: a cross-origin client must be able to
+  // read it to schedule the retry a 429 asks for.
+  "Access-Control-Expose-Headers": "ETag, X-Request-Id, Retry-After",
   "X-Content-Type-Options": "nosniff",
 };
 
@@ -198,9 +200,17 @@ async function handleGuide(env: Env, url: URL, request: Request): Promise<Respon
   return json(page, 200, headers);
 }
 
+// The limiter's window, mirrored by [[ratelimits.simple]] period in wrangler.toml.
+const RATE_LIMIT_WINDOW_S = 60;
+
 // Fail open: a limiter error must not take the API down, and a missing binding
 // (local dev, or a deployment without [[ratelimits]]) simply means no limiting.
 // The key is the client IP, so one caller cannot exhaust another's allowance.
+// A request with no CF-Connecting-IP cannot be attributed to a caller; it is
+// left uncounted rather than sharing one "unknown" bucket, where a single
+// anonymous client could spend every other anonymous client's allowance
+// (workerd dev and smoke requests have no header either). Cloudflare sets it on
+// every request that reaches a Worker.
 async function allowRequest(
   env: Env,
   request: Request,
@@ -209,7 +219,8 @@ async function allowRequest(
 ): Promise<boolean> {
   const limiter = env.ATV_RATE_LIMITER;
   if (!limiter) return true;
-  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const ip = request.headers.get("CF-Connecting-IP");
+  if (!ip) return true;
   try {
     const { success } = await limiter.limit({ key: `${bucket}:${ip}` });
     return success;
@@ -227,7 +238,9 @@ async function handleResolve(
 ): Promise<Response> {
   if (!(await allowRequest(env, request, "resolve", requestId))) {
     count(env, "resolve_rate_limited");
-    return failure("rate_limited", "too many requests", requestId, 429, { "Retry-After": "60" });
+    return failure("rate_limited", "too many requests", requestId, 429, {
+      "Retry-After": String(RATE_LIMIT_WINDOW_S),
+    });
   }
   const id = url.searchParams.get("id");
   if (!id) return failure("missing_id", "missing id", requestId, 400);
