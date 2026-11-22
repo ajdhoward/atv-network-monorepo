@@ -115,7 +115,10 @@ node scripts/set-gdrive-map.mjs /tmp/gdrive-map.json             # wrangler secr
 
 The script refuses a non-HTTPS URL and an id that is not in `atv-config.json` (`--allow-unknown`
 skips that check), prints the ids but never the links, and needs an authenticated wrangler. Pass
-`--config wrangler.production.toml` to target the production worker. A secret survives deploys, and
+`--config wrangler.production.toml` to target the production worker. Instead of a local wrangler, a
+repository secret named `ATV_GDRIVE_MAP` holding the same JSON is pushed by the deploy workflow
+(`workflow_dispatch`) before it deploys, and the step is skipped when that secret is absent. A secret
+survives deploys, and
 replacing it replaces the whole map, so include every link that should keep resolving. An id in
 the secret overrides the KV entry for the same id; removing it from the secret hands the id back to
 KV. With neither holding the id the answer is `404 not_found`, which is what the sandbox returns

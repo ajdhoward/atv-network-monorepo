@@ -69,6 +69,23 @@ jobs:
         env:
           ATV_ALLOW_PROD_DEPLOY: ${{ inputs.target == 'production' && '1' || '0' }}
         run: node scripts/check-deploy-target.mjs ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # Optional: an operator who keeps the map in a repository secret instead of
+      # running wrangler locally. Without the secret this is a no-op, so a deploy
+      # never depends on it. It runs before the deploy so a map with a bad id or
+      # a non-HTTPS link fails loudly while the running worker is still intact.
+      - name: Push the operator stream links
+        env:
+          ATV_GDRIVE_MAP: ${{ secrets.ATV_GDRIVE_MAP }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: d9491f1ab703e0a99b69919230410f2a
+        run: |
+          if [ -z "$ATV_GDRIVE_MAP" ]; then
+            echo "No ATV_GDRIVE_MAP secret; skipping (resolves fall back to KV)."
+            exit 0
+          fi
+          printf '%s' "$ATV_GDRIVE_MAP" > "$RUNNER_TEMP/gdrive-map.json"
+          node scripts/set-gdrive-map.mjs "$RUNNER_TEMP/gdrive-map.json" \
+            --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
       - uses: cloudflare/wrangler-action@v4
         id: deploy
         with:
