@@ -54,6 +54,12 @@ beforeAll(async () => {
       link("/login.html");
     } else if (id === "atv-dead") {
       link("/dead.m3u8");
+    } else if (id === "atv-limited") {
+      res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
+      res.end(JSON.stringify({ error: "too many requests", code: "rate_limited" }));
+    } else if (id === "atv-nourl") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ profile: "1080p_hevc" }));
     } else if (id === "atv-insecure") {
       res.writeHead(502, { "content-type": "application/json" });
       res.end(
@@ -81,10 +87,14 @@ type Result = { status: number | null; stdout: string; stderr: string };
 // Async on purpose: a synchronous spawn would block this process's event loop,
 // so the stub server above could never answer the child's requests.
 function run(argv: string[]): Promise<Result> {
+  return runAgainst(base, argv);
+}
+
+function runAgainst(target: string, argv: string[]): Promise<Result> {
   return new Promise((done) => {
     execFile(
       process.execPath,
-      [audit, base, ...argv],
+      [audit, target, ...argv],
       {
         encoding: "utf8",
         env: {
@@ -173,6 +183,27 @@ describe("check-streams", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("PASS  atv-probe");
     expect(result.stdout).toContain("MISS  atv-missing");
+  });
+
+  it("stops the audit on a 429 instead of counting the rest as missing", async () => {
+    const result = await run(["--ids", "atv-limited,atv-1"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("0/2 channel(s) resolve");
+    expect(result.stdout).not.toContain("FAIL  atv-1");
+    expect(result.stderr).toContain("rate limited");
+    expect(result.stderr).toContain("Retry-After 60s");
+  });
+
+  it("fails a 200 that carries no url when probing", async () => {
+    const result = await run(["--probe", "--ids", "atv-nourl"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("resolved without a url");
+  });
+
+  it("reports an unreachable worker as a failure", async () => {
+    const result = await runAgainst("http://127.0.0.1:1", ["--ids", "atv-1"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("FAIL  atv-1");
   });
 
   it("never prints the probed link either", async () => {

@@ -133,7 +133,9 @@ node scripts/check-streams.mjs --probe            # also follow each link to the
 A channel with no link is a `MISS` (a failure unless `--allow-missing`), and a non-HTTPS link shows
 up as `502 insecure_url`. `--probe` follows the resolved link, so a link the CDN answers with 403,
 404 or an HTML sign-in page fails instead of passing as "resolved"; it reports the status and
-content type only. Pass a base URL or `--ids atv-1,atv-news-24` to narrow the audit.
+content type only. A probe failure means this network could not fetch the link (geo-blocking and
+CDN bot rules included), so treat it as a signal to check rather than a verdict. Pass a base URL or
+`--ids atv-1,atv-news-24` to narrow the audit.
 
 ### Sandbox vs production KV
 
