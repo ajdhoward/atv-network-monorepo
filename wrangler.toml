@@ -22,12 +22,15 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
-# Per-IP limiter for /api/resolve. Approximate and applied per Cloudflare
-# location. One TV at a time: the busiest legitimate pattern is one prefetch per
-# 350 ms hover debounce (~170/minute) while the grid is swept, plus a play
-# request, so 300/minute leaves headroom and still stops a scraper or a runaway
-# loop. 60/minute tripped during an ordinary sweep. The binding is optional in
-# code, so removing this block disables limiting.
+# Per-IP budget for /api/resolve: 300 requests per minute. One TV at a time:
+# the busiest legitimate pattern is one prefetch per 350 ms hover debounce
+# (~170/minute) while the grid is swept, plus a play request, so 300 leaves
+# headroom and still stops a scraper or a runaway loop. 60/minute tripped during
+# an ordinary sweep. The limit is enforced by the ATV_LIMITER Durable Object
+# below; this binding is the coarse fallback, applied per Cloudflare location
+# and cached per isolate, which alone let a 419-request burst through with zero
+# 429s. The binding is optional in code, so removing this block disables the
+# fallback.
 [[ratelimits]]
 name = "ATV_RATE_LIMITER"
 namespace_id = "4210"
@@ -35,6 +38,19 @@ namespace_id = "4210"
   [ratelimits.simple]
   limit = 300
   period = 60
+
+# Strict limiter for /api/resolve. One Durable Object instance per client key,
+# so every location counts against the same window; the window is persisted
+# before the decision is returned and an alarm clears it when it ends.
+[[durable_objects.bindings]]
+name = "ATV_LIMITER"
+class_name = "RateLimiter"
+
+# SQLite-backed class: Durable Objects are available on the free plan only in
+# this form. The object keeps a single counter, so no schema is involved.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
 
 # Resolve/ident counters. Analytics Engine creates the dataset on the first write,
 # so this binding needs no setup step and the Worker no-ops without it.

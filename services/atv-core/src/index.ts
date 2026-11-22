@@ -6,6 +6,8 @@ import { resolveStream } from "./resolver";
 import { runRulesIndex } from "./rules";
 
 export type { Env };
+// The Durable Object class has to be exported from the Worker's main module.
+export { RateLimiter } from "./limiter";
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -215,33 +217,66 @@ async function handleGuide(env: Env, url: URL, request: Request): Promise<Respon
   return json(page, 200, headers);
 }
 
-// The limiter's window, mirrored by [[ratelimits.simple]] period in wrangler.toml.
+// The limiter's window, mirrored by [[ratelimits.simple]] period in wrangler.toml
+// and passed to the Durable Object on every check.
 const RATE_LIMIT_WINDOW_S = 60;
+// The per-window budget, mirrored by [[ratelimits.simple]] limit in wrangler.toml.
+const RATE_LIMIT_MAX = 300;
 
-// Fail open: a limiter error must not take the API down, and a missing binding
-// (local dev, or a deployment without [[ratelimits]]) simply means no limiting.
-// The key is the client IP, so one caller cannot exhaust another's allowance.
-// A request with no CF-Connecting-IP cannot be attributed to a caller; it is
-// left uncounted rather than sharing one "unknown" bucket, where a single
-// anonymous client could spend every other anonymous client's allowance
-// (workerd dev and smoke requests have no header either). Cloudflare sets it on
-// every request that reaches a Worker.
+type LimitCheck = { ok: true } | { ok: false; retryAfterS: number };
+
+// Fail open: a limiter error must not take the API down, and no binding at all
+// (local dev, or a deployment without them) simply means no limiting. The key
+// is the client IP, so one caller cannot exhaust another's allowance. A request
+// with no CF-Connecting-IP cannot be attributed to a caller; it is left
+// uncounted rather than sharing one "unknown" bucket, where a single anonymous
+// client could spend every other anonymous client's allowance (workerd dev and
+// smoke requests have no header either). Cloudflare sets it on every request
+// that reaches a Worker.
 async function allowRequest(
   env: Env,
   request: Request,
   bucket: string,
   requestId: string,
-): Promise<boolean> {
-  const limiter = env.ATV_RATE_LIMITER;
-  if (!limiter) return true;
+): Promise<LimitCheck> {
   const ip = request.headers.get("CF-Connecting-IP");
-  if (!ip) return true;
+  if (!ip) return { ok: true };
+  const key = `${bucket}:${ip}`;
+
+  // The Durable Object is the authoritative counter: one instance per key, so
+  // every location's requests land on the same window. The [[ratelimits]]
+  // binding below it is per-location and cached per isolate, which is why a
+  // burst spread across locations never tripped it; it stays as a coarse
+  // fallback for a missing or failing object.
+  const namespace = env.ATV_LIMITER;
+  if (namespace) {
+    try {
+      const stub = namespace.get(namespace.idFromName(key));
+      const res = await stub.fetch(
+        `https://limiter.internal/check?limit=${RATE_LIMIT_MAX}&window=${RATE_LIMIT_WINDOW_S}`,
+      );
+      if (!res.ok) throw new Error(`limiter responded ${res.status}`);
+      const body = (await res.json()) as { success?: unknown; retryAfterS?: unknown };
+      if (body.success === true) return { ok: true };
+      const retryAfterS =
+        typeof body.retryAfterS === "number" && body.retryAfterS > 0
+          ? Math.ceil(body.retryAfterS)
+          : RATE_LIMIT_WINDOW_S;
+      return { ok: false, retryAfterS };
+    } catch (err) {
+      logFailure(requestId, `rate-limit:${bucket}`, err);
+      // Not a pass yet: try the coarse binding before failing open.
+    }
+  }
+
+  const limiter = env.ATV_RATE_LIMITER;
+  if (!limiter) return { ok: true };
   try {
-    const { success } = await limiter.limit({ key: `${bucket}:${ip}` });
-    return success;
+    const { success } = await limiter.limit({ key });
+    return success ? { ok: true } : { ok: false, retryAfterS: RATE_LIMIT_WINDOW_S };
   } catch (err) {
     logFailure(requestId, `rate-limit:${bucket}`, err);
-    return true;
+    return { ok: true };
   }
 }
 
@@ -251,10 +286,11 @@ async function handleResolve(
   requestId: string,
   request: Request,
 ): Promise<Response> {
-  if (!(await allowRequest(env, request, "resolve", requestId))) {
+  const limit = await allowRequest(env, request, "resolve", requestId);
+  if (!limit.ok) {
     count(env, "resolve_rate_limited");
     return failure("rate_limited", "too many requests", requestId, 429, {
-      "Retry-After": String(RATE_LIMIT_WINDOW_S),
+      "Retry-After": String(limit.retryAfterS),
     });
   }
   const id = url.searchParams.get("id");

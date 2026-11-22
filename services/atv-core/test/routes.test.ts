@@ -368,6 +368,99 @@ describe("GET /api/resolve", () => {
     expect(limit).not.toHaveBeenCalled();
   });
 
+  // A Durable Object namespace stand-in: idFromName records the key and get()
+  // returns a stub whose fetch answers with the supplied decision.
+  function fakeLimiter(decision: { success?: boolean; retryAfterS?: number } | Error) {
+    const names: string[] = [];
+    return {
+      names,
+      namespace: {
+        idFromName: (name: string) => {
+          names.push(name);
+          return name;
+        },
+        get: () => ({
+          fetch: async () => {
+            if (decision instanceof Error) throw decision;
+            return new Response(JSON.stringify({ retryAfterS: 60, ...decision }), {
+              headers: { "content-type": "application/json" },
+            });
+          },
+        }),
+      },
+    };
+  }
+
+  it("429s with the Durable Object's Retry-After and skips the coarse limiter", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const strict = fakeLimiter({ success: false, retryAfterS: 12 });
+    (env as any).ATV_LIMITER = strict.namespace;
+    const coarse = vi.fn(async () => ({ success: true }));
+    (env as any).ATV_RATE_LIMITER = { limit: coarse };
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("12");
+    expect(body).toMatchObject({ code: "rate_limited" });
+    expect(strict.names).toEqual(["resolve:203.0.113.9"]);
+    expect(coarse).not.toHaveBeenCalled();
+  });
+
+  it("resolves when the Durable Object limiter accepts", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_LIMITER = fakeLimiter({ success: true }).namespace;
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ id: "news-us", url: "https://cdn.example/news.m3u8" });
+  });
+
+  it("falls back to the coarse limiter when the Durable Object throws", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const worker = await freshWorker();
+      const { env } = makeEnv({ gdrive_map: map });
+      (env as any).ATV_LIMITER = fakeLimiter(new Error("object unavailable")).namespace;
+      const coarse = vi.fn(async () => ({ success: false }));
+      (env as any).ATV_RATE_LIMITER = { limit: coarse };
+
+      const { res } = await call(worker, env, "/api/resolve?id=news-us", {
+        headers: { "CF-Connecting-IP": "203.0.113.9" },
+      });
+
+      expect(res.status).toBe(429);
+      expect(res.headers.get("retry-after")).toBe("60");
+      expect(coarse).toHaveBeenCalledWith({ key: "resolve:203.0.113.9" });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("resolves when both limiters fail", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const worker = await freshWorker();
+      const { env } = makeEnv({ gdrive_map: map });
+      (env as any).ATV_LIMITER = fakeLimiter(new Error("object unavailable")).namespace;
+
+      const { res } = await call(worker, env, "/api/resolve?id=news-us", {
+        headers: { "CF-Connecting-IP": "203.0.113.9" },
+      });
+
+      expect(res.status).toBe(200);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("fails open when the rate limiter itself errors", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ gdrive_map: map });

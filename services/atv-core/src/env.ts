@@ -12,7 +12,12 @@ export interface Env {
   // Optional: declared in wrangler.toml. Analytics Engine creates the dataset on
   // the first write, so the counters are a no-op when the binding is absent.
   ATV_METRICS?: AnalyticsEngineDataset;
-  // Optional Workers Rate Limiting binding. Without it the API does not limit.
+  // Optional strict limiter: a Durable Object per client key, so the count is
+  // global instead of per Cloudflare location. Declared in wrangler.toml.
+  ATV_LIMITER?: DurableObjectNamespace;
+  // Optional Workers Rate Limiting binding, kept as a coarse fallback for when
+  // the Durable Object is missing or throws. Without either, the API does not
+  // limit.
   ATV_RATE_LIMITER?: RateLimit;
 }
 
