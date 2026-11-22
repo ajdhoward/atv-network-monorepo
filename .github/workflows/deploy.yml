@@ -84,6 +84,10 @@ jobs:
         if: inputs.target == 'v2'
         env:
           ATV_SEED_CONFIG: ${{ secrets.ATV_SEED_CONFIG }}
+          # seed-kv.mjs shells out to `wrangler kv key put --remote`; the token
+          # that wrangler-action used for the deploy step is not inherited here.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: d9491f1ab703e0a99b69919230410f2a
         run: |
           if [ -z "$ATV_SEED_CONFIG" ]; then
             echo "No ATV_SEED_CONFIG secret; skipping seed (smoke allows an empty guide)."
