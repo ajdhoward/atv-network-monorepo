@@ -1,4 +1,4 @@
-import type { ChannelDef } from "@atv/ui-shared";
+import type { ChannelDef, HealthPayload } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
 import { kvJson, readJson, type Env } from "./env";
@@ -408,7 +408,7 @@ async function handleHealth(env: Env): Promise<Response> {
     env,
     lineup.channels.map((channel) => channel.id),
   );
-  return json({
+  const payload: HealthPayload = {
     status: seeded && schemaMatches !== false ? "ok" : "degraded",
     schemaVersion: meta?.schemaVersion ?? null,
     config: {
@@ -422,7 +422,8 @@ async function handleHealth(env: Env): Promise<Response> {
     guideSnapshot: snapshot
       ? { generatedAt: snapshot.generatedAt ?? null, total: snapshot.total ?? null }
       : null,
-  });
+  };
+  return json(payload);
 }
 
 function guard(

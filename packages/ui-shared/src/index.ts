@@ -31,6 +31,30 @@ export type GuidePayload = {
   channels: ChannelDef[];
   warning?: string;
 };
+// Wire shape of GET /api/health. `resolve` counts stream-link coverage and
+// never carries a link itself; `schemaMatches`/`checksumMatches` are null when
+// no config has been seeded yet.
+export type ResolveCoverage = {
+  configured: number;
+  invalid: number;
+  missing: number;
+};
+export type HealthPayload = {
+  status: "ok" | "degraded";
+  schemaVersion: number | null;
+  config: {
+    seeded: boolean;
+    channels: number;
+    // ISO timestamp written by the seed script, not an epoch number.
+    updatedAt: string | null;
+    schemaMatches: boolean | null;
+    checksumMatches: boolean | null;
+  };
+  resolve: ResolveCoverage;
+  guideSnapshot: { generatedAt: number | null; total: number | null } | null;
+};
+// Single-channel wire shape of GET /api/resolve?id=.
+export type ResolvePayload = { id: string; url: string; profile: string };
 export type LogPacket = {
   deviceId: string;
   bufferRate: number;
