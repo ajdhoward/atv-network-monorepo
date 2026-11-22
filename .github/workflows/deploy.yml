@@ -97,11 +97,18 @@ jobs:
       - name: Smoke test (sandbox)
         if: ${{ inputs.target == 'v2' && steps.deploy.outputs.deployment-url != '' }}
         run: pnpm smoke ${{ steps.deploy.outputs.deployment-url }} --allow-empty
-      # Production only, and only with a service token: Cloudflare Access answers every
-      # unauthenticated path with a redirect, so an un-tokened smoke test always fails.
-      - name: Smoke test
-        if: ${{ inputs.target == 'production' && secrets.CF_ACCESS_CLIENT_ID != '' }}
+      # Production only: Cloudflare Access answers unauthenticated paths with a
+      # redirect, so the smoke test needs a service token. Secrets cannot appear in
+      # an `if:` (GitHub refuses to parse the workflow at all), so the step runs for
+      # production and exits early when the token is absent.
+      - name: Smoke test (production)
+        if: inputs.target == 'production'
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-        run: pnpm smoke https://atv.acidwurx.org
+        run: |
+          if [ -z "$CF_ACCESS_CLIENT_ID" ] || [ -z "$CF_ACCESS_CLIENT_SECRET" ]; then
+            echo "No CF_ACCESS_CLIENT_ID/CF_ACCESS_CLIENT_SECRET secret; skipping."
+            exit 0
+          fi
+          pnpm smoke https://atv.acidwurx.org
