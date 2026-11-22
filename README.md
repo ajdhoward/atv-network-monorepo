@@ -121,6 +121,17 @@ the secret overrides the KV entry for the same id; removing it from the secret h
 KV. With neither holding the id the answer is `404 not_found`, which is what the sandbox returns
 today because `atv-config.json` carries an empty `gdrive_map`.
 
+After setting the secret, audit every channel at once — it prints ids and statuses, never the
+links:
+
+```bash
+node scripts/check-streams.mjs                    # sandbox, ids from atv-config.json
+node scripts/check-streams.mjs --allow-missing    # tolerate channels with no link yet
+```
+
+A channel with no link is a `MISS` (a failure unless `--allow-missing`), and a non-HTTPS link shows
+up as `502 insecure_url`. Pass a base URL or `--ids atv-1,atv-news-24` to narrow the audit.
+
 ### Sandbox vs production KV
 
 The sandbox has its own namespaces (`atv-cache-staging`, `atv-config-staging`). It must never bind the
