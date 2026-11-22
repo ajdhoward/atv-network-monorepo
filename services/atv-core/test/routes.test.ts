@@ -178,6 +178,46 @@ describe("GET /api/guide", () => {
     expect(second.res.headers.get("x-request-id")).toBeTruthy();
   });
 
+  it("answers 304 for the weak ETag Cloudflare's edge returns", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+    const first = await call(worker, env, "/api/guide");
+    const etag = first.res.headers.get("etag") as string;
+
+    // The edge weakens a strong ETag when it compresses the body; the browser
+    // then sends W/"…" back and must still get a 304.
+    const second = await call(worker, env, "/api/guide", {
+      headers: { "If-None-Match": `W/${etag}` },
+    });
+    expect(second.res.status).toBe(304);
+  });
+
+  it("accepts a comma-separated If-None-Match list and a wildcard", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+    const first = await call(worker, env, "/api/guide");
+    const etag = first.res.headers.get("etag") as string;
+
+    const list = await call(worker, env, "/api/guide", {
+      headers: { "If-None-Match": `"other", W/${etag}` },
+    });
+    expect(list.res.status).toBe(304);
+
+    const wildcard = await call(worker, env, "/api/guide", {
+      headers: { "If-None-Match": "*" },
+    });
+    expect(wildcard.res.status).toBe(304);
+  });
+
+  it("serves the body when If-None-Match names a different representation", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+    const { res } = await call(worker, env, "/api/guide", {
+      headers: { "If-None-Match": 'W/"guide-9-deadbeef"' },
+    });
+    expect(res.status).toBe(200);
+  });
+
   it("falls back to system_config.channels", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ system_config: { version: 1, channels } });

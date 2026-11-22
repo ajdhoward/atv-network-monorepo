@@ -186,6 +186,21 @@ function paginate(payload: GuidePayload, url: URL) {
   return { ...payload, channels, returned: channels.length, limit, nextCursor };
 }
 
+// If-None-Match is a weak comparison (RFC 9110 §13.1.2): `W/"x"` matches `"x"`.
+// Cloudflare's edge weakens a strong ETag whenever it re-encodes the body, so a
+// strict equality check answered 200 to every real browser revalidation even
+// though workerd (no edge in front) returned 304.
+function etagMatches(header: string | null, etag: string): boolean {
+  if (!header) return false;
+  const normalise = (value: string) => value.trim().replace(/^W\//, "");
+  const target = normalise(etag);
+  // A comma-separated list and "*" (any current representation) are both legal.
+  return header.split(",").some((part) => {
+    const candidate = normalise(part);
+    return candidate === "*" || candidate === target;
+  });
+}
+
 async function handleGuide(env: Env, url: URL, request: Request): Promise<Response> {
   const payload = await currentGuide(env);
   const page = paginate(payload, url);
@@ -194,7 +209,7 @@ async function handleGuide(env: Env, url: URL, request: Request): Promise<Respon
     "Cache-Control": "public, max-age=30, s-maxage=60",
     ETag: payload.eTag,
   };
-  if (request.headers.get("If-None-Match") === payload.eTag) {
+  if (etagMatches(request.headers.get("If-None-Match"), payload.eTag)) {
     return new Response(null, { status: 304, headers });
   }
   return json(page, 200, headers);
