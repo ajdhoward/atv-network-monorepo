@@ -19,6 +19,10 @@ export interface Env {
   // the Durable Object is missing or throws. Without either, the API does not
   // limit.
   ATV_RATE_LIMITER?: RateLimit;
+  // Optional operator-supplied stream links: a JSON object of id -> https URL,
+  // set as a Worker secret so /api/resolve can be populated or rotated without
+  // re-seeding KV. Secrets need no wrangler.toml binding, hence no block there.
+  ATV_GDRIVE_MAP?: string;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

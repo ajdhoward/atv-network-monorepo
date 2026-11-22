@@ -31,6 +31,7 @@ apps/admin-cms/src/                 admin CMS
 scripts/staging-kv.mjs              creates the sandbox KV namespaces and points wrangler.toml at them
 scripts/copy-kv.mjs                 copies the production lineup into the staging namespaces
 scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) into the bound KV
+scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
 scripts/smoke.mjs                   post-deploy check of a deployed origin
 scripts/validate-config.mjs         validates a seed config before uploading
 scripts/pack-assets.mjs             copies the admin build under the TV client's assets
@@ -47,7 +48,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                          |
 | `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift                   |
 | `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                                                              |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                               |
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                        |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                |
 
@@ -97,6 +98,28 @@ than one per cold isolate.
 `config_meta` is written by `scripts/seed-kv.mjs`. A lineup whose `schemaVersion` differs from the
 Worker's (`1`) is refused with `503 config_schema_mismatch`; channels edited without re-seeding add
 `warning: "config_checksum_mismatch"` to the guide payload.
+
+### Stream links
+
+`/api/resolve` reads the Worker secret `ATV_GDRIVE_MAP` first and KV `gdrive_map` second, so an
+operator can supply or rotate a link without re-seeding the lineup. The secret is a JSON object of
+channel id to HTTPS URL:
+
+```bash
+cat > /tmp/gdrive-map.json <<'JSON'
+{ "atv-1": "https://…" }
+JSON
+node scripts/set-gdrive-map.mjs /tmp/gdrive-map.json --dry-run   # print the wrangler call
+node scripts/set-gdrive-map.mjs /tmp/gdrive-map.json             # wrangler secret put
+```
+
+The script refuses a non-HTTPS URL and an id that is not in `atv-config.json` (`--allow-unknown`
+skips that check), prints the ids but never the links, and needs an authenticated wrangler. Pass
+`--config wrangler.production.toml` to target the production worker. A secret survives deploys, and
+replacing it replaces the whole map, so include every link that should keep resolving. An id in
+the secret overrides the KV entry for the same id; removing it from the secret hands the id back to
+KV. With neither holding the id the answer is `404 not_found`, which is what the sandbox returns
+today because `atv-config.json` carries an empty `gdrive_map`.
 
 ### Sandbox vs production KV
 

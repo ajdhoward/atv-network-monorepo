@@ -291,6 +291,59 @@ describe("GET /api/resolve", () => {
     expect(points.map((p) => p.blobs[0])).toEqual(["resolve_hit"]);
   });
 
+  it("resolves a link supplied in the operator secret", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: {} });
+    (env as any).ATV_GDRIVE_MAP = JSON.stringify({
+      "news-us": "https://secret.example/news.m3u8",
+    });
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us");
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ id: "news-us", url: "https://secret.example/news.m3u8" });
+  });
+
+  it("lets the operator secret override a KV link", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_GDRIVE_MAP = JSON.stringify({
+      "news-us": "https://rotated.example/news.m3u8",
+    });
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us");
+
+    expect(res.status).toBe(200);
+    expect(body.url).toBe("https://rotated.example/news.m3u8");
+  });
+
+  it("refuses a non-HTTPS link from the operator secret", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: {} });
+    (env as any).ATV_GDRIVE_MAP = JSON.stringify({ "news-us": "http://plain.example/x" });
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us");
+
+    expect(res.status).toBe(502);
+    expect(body.code).toBe("insecure_url");
+  });
+
+  it("ignores a malformed operator secret and keeps serving KV links", async () => {
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const worker = await freshWorker();
+      const { env } = makeEnv({ gdrive_map: map });
+      (env as any).ATV_GDRIVE_MAP = "{not json";
+
+      const { res, body } = await call(worker, env, "/api/resolve?id=news-us");
+
+      expect(res.status).toBe(200);
+      expect(body.url).toBe("https://cdn.example/news.m3u8");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("429s with Retry-After when the rate limiter refuses", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ gdrive_map: map });
