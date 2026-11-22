@@ -127,10 +127,13 @@ links:
 ```bash
 node scripts/check-streams.mjs                    # sandbox, ids from atv-config.json
 node scripts/check-streams.mjs --allow-missing    # tolerate channels with no link yet
+node scripts/check-streams.mjs --probe            # also follow each link to the CDN
 ```
 
 A channel with no link is a `MISS` (a failure unless `--allow-missing`), and a non-HTTPS link shows
-up as `502 insecure_url`. Pass a base URL or `--ids atv-1,atv-news-24` to narrow the audit.
+up as `502 insecure_url`. `--probe` follows the resolved link, so a link the CDN answers with 403,
+404 or an HTML sign-in page fails instead of passing as "resolved"; it reports the status and
+content type only. Pass a base URL or `--ids atv-1,atv-news-24` to narrow the audit.
 
 ### Sandbox vs production KV
 

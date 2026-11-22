@@ -15,15 +15,45 @@ let base = "";
 beforeAll(async () => {
   server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://local");
+
+    // The upstream link the --probe tests follow.
+    if (url.pathname === "/stream.m3u8") {
+      res.writeHead(200, { "content-type": "application/vnd.apple.mpegurl" });
+      res.end("#EXTM3U\n#EXT-X-VERSION:3\n");
+      return;
+    }
+    if (url.pathname === "/login.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end("<html>sign in</html>");
+      return;
+    }
+    if (url.pathname === "/dead.m3u8") {
+      res.writeHead(404, { "content-type": "text/plain" });
+      res.end("gone");
+      return;
+    }
+
     if (url.pathname !== "/api/resolve") {
       res.writeHead(404, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: "not found", code: "not_found" }));
       return;
     }
+
     const id = url.searchParams.get("id");
+    const link = (path: string) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ url: `${base}${path}`, profile: "1080p_hevc" }));
+    };
+
     if (id === "atv-1") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ url: LINK, profile: "1080p_hevc" }));
+    } else if (id === "atv-probe") {
+      link("/stream.m3u8");
+    } else if (id === "atv-login") {
+      link("/login.html");
+    } else if (id === "atv-dead") {
+      link("/dead.m3u8");
     } else if (id === "atv-insecure") {
       res.writeHead(502, { "content-type": "application/json" });
       res.end(
@@ -118,5 +148,40 @@ describe("check-streams", () => {
     const result = await run(["--config", "does-not-exist.json"]);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Cannot read");
+  });
+
+  it("probes a healthy link and reports its kind", async () => {
+    const result = await run(["--probe", "--ids", "atv-probe"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASS  atv-probe — hls playlist, HTTP 200");
+  });
+
+  it("fails a link the CDN no longer serves", async () => {
+    const result = await run(["--probe", "--ids", "atv-dead"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("link answered HTTP 404");
+  });
+
+  it("fails a link that answers an HTML sign-in page", async () => {
+    const result = await run(["--probe", "--ids", "atv-login"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("answered HTML");
+  });
+
+  it("keeps probing with --allow-missing and still tolerates a missing link", async () => {
+    const result = await run(["--probe", "--allow-missing", "--ids", "atv-probe,atv-missing"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASS  atv-probe");
+    expect(result.stdout).toContain("MISS  atv-missing");
+  });
+
+  it("never prints the probed link either", async () => {
+    const result = await run(["--probe", "--ids", "atv-probe,atv-dead,atv-login"]);
+    // The audit target is printed on purpose; the paths that make up each link
+    // are not, so nothing here may contain one.
+    for (const path of ["/stream.m3u8", "/dead.m3u8", "/login.html"]) {
+      expect(result.stdout).not.toContain(path);
+      expect(result.stderr).not.toContain(path);
+    }
   });
 });

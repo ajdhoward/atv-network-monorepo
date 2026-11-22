@@ -13,20 +13,31 @@
 // sandbox with an empty gdrive_map can still be audited before links exist. An
 // insecure or unexpected response always fails.
 //
+// --probe follows each resolved link to the CDN, because a 200 from
+// /api/resolve only means the Worker has a URL stored. A dead link, a 403 and
+// an HTML sign-in page all look resolved otherwise. The link itself is still
+// never printed: only its status and content type are.
+//
 // Behind Cloudflare Access, supply a service token:
 //   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... node scripts/check-streams.mjs
 import fs from "fs";
 
 const VALUE_FLAGS = new Set(["--config", "--ids", "--base"]);
+// Long enough for a cold CDN, short enough that a black-holed host does not stall
+// the whole audit.
+const PROBE_TIMEOUT_MS = 8_000;
 const args = process.argv.slice(2);
 const values = {};
 const positional = [];
 let allowMissing = false;
+let probe = false;
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg === "--allow-missing") {
     allowMissing = true;
+  } else if (arg === "--probe") {
+    probe = true;
   } else if (VALUE_FLAGS.has(arg)) {
     values[arg] = args[++i];
   } else if (arg.startsWith("--")) {
@@ -72,6 +83,45 @@ if (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) {
   headers["CF-Access-Client-Secret"] = process.env.CF_ACCESS_CLIENT_SECRET;
 }
 
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+// Checks the resolved link upstream. Errors are deliberately flattened into a
+// generic message: a fetch failure can carry the URL in its message or its
+// cause, and these lines are what an operator pastes into a ticket.
+async function probeLink(url) {
+  let res;
+  try {
+    res = await fetch(url, {
+      // A byte range keeps a multi-gigabyte file from being downloaded; a
+      // playlist answers the whole thing anyway.
+      headers: { range: "bytes=0-4095" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+  } catch {
+    return { ok: false, detail: "link unreachable (network error or timeout)" };
+  }
+  const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  await res.arrayBuffer();
+
+  if (res.status !== 200 && res.status !== 206) {
+    return { ok: false, detail: `link answered HTTP ${res.status}` };
+  }
+  // A drive share that needs a session answers 200 with a sign-in page, which
+  // would otherwise look like a healthy stream.
+  if (type.includes("html")) {
+    return { ok: false, detail: `link answered HTML (${type}), not a stream` };
+  }
+  const kind = type.includes("mpegurl") ? "hls playlist" : type || "no content type";
+  return { ok: true, detail: `${kind}, HTTP ${res.status}` };
+}
+
 let resolved = 0;
 let failed = 0;
 const missing = [];
@@ -89,13 +139,34 @@ for (const id of ids) {
     console.log(`FAIL  ${id} — ${err instanceof Error ? err.message : String(err)}`);
     continue;
   }
-  // The body carries the link on a 200; it is drained but never printed.
-  await res.arrayBuffer();
-
   if (res.status === 200) {
-    resolved++;
-    console.log(`PASS  ${id} — ok`);
-  } else if (res.status === 404) {
+    if (!probe) {
+      // The body carries the link; it is drained but never printed.
+      await res.arrayBuffer();
+      resolved++;
+      console.log(`PASS  ${id} — ok`);
+      continue;
+    }
+    const body = parseJson(await res.text());
+    const url = body && typeof body.url === "string" ? body.url : null;
+    if (!url) {
+      failed++;
+      console.log(`FAIL  ${id} — resolved without a url`);
+      continue;
+    }
+    const verdict = await probeLink(url);
+    if (verdict.ok) {
+      resolved++;
+      console.log(`PASS  ${id} — ${verdict.detail}`);
+    } else {
+      failed++;
+      console.log(`FAIL  ${id} — ${verdict.detail}`);
+    }
+    continue;
+  }
+
+  await res.arrayBuffer();
+  if (res.status === 404) {
     missing.push(id);
     console.log(`${allowMissing ? "MISS" : "FAIL"}  ${id} — 404 not found (no link)`);
   } else if (res.status === 502) {
@@ -111,6 +182,7 @@ for (const id of ids) {
 }
 
 console.log(`\n${resolved}/${ids.length} channel(s) resolve against ${base}`);
+if (probe) console.log("Each resolved link was followed upstream; links are never printed.");
 
 if (stopped) {
   console.error(`✗ Audit stopped early: ${stopped}. Re-run once the window resets.`);
