@@ -23,16 +23,17 @@ binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
 # Per-IP limiter for /api/resolve. Approximate and applied per Cloudflare
-# location. 600/minute (10/s): the TV client prefetches on every tile hover and
-# a household shares one IP, so 60/minute tripped during ordinary browsing. It
-# still stops a runaway loop or a scraper. The binding is optional in code, so
-# removing this block disables limiting.
+# location. One TV at a time: the busiest legitimate pattern is one prefetch per
+# 350 ms hover debounce (~170/minute) while the grid is swept, plus a play
+# request, so 300/minute leaves headroom and still stops a scraper or a runaway
+# loop. 60/minute tripped during an ordinary sweep. The binding is optional in
+# code, so removing this block disables limiting.
 [[ratelimits]]
 name = "ATV_RATE_LIMITER"
 namespace_id = "4210"
 
   [ratelimits.simple]
-  limit = 600
+  limit = 300
   period = 60
 
 # Resolve/ident counters. Analytics Engine creates the dataset on the first write,

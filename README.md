@@ -191,13 +191,14 @@ Observability samples 10% of requests (`head_sampling_rate = 0.1`); 100% burned 
 on `/api/guide` polls. The guide snapshot runs from a `*/10` cron trigger, declared in `wrangler.toml`
 only — production's Worker is not built from this repo.
 
-`/api/resolve` is rate limited per client IP by the `ATV_RATE_LIMITER` binding: 600 requests per
-minute, applied per Cloudflare location. That is deliberately generous — the TV client prefetches on
-every tile hover and a household shares one IP — so it catches a runaway loop or a scraper rather
-than metering traffic. A 429 carries `Retry-After`, which the client waits out and retries instead of
-reporting the channel as unavailable. Requests with no `CF-Connecting-IP` are not counted: a shared
-"unknown" bucket would let one anonymous caller spend every other one's allowance. The binding is
-optional and the Worker fails open if it errors.
+`/api/resolve` is rate limited per client IP by the `ATV_RATE_LIMITER` binding: 300 requests per
+minute, applied per Cloudflare location. The only client is one TV, whose busiest legitimate pattern
+is one prefetch per 350 ms hover debounce (~170/minute) while the grid is swept, so 300 leaves room
+for the play request and still catches a scraper or a runaway loop rather than metering traffic. A
+429 carries `Retry-After`, which the client waits out and retries instead of reporting the channel as
+unavailable. Requests with no `CF-Connecting-IP` are not counted: a shared "unknown" bucket would let
+one anonymous caller spend every other one's allowance. The binding is optional and the Worker fails
+open if it errors.
 
 Resolve and ident counters write to the `ATV_METRICS` Analytics Engine dataset. The binding is
 declared in `wrangler.toml` and optional: Analytics Engine creates the dataset on first write, and a
