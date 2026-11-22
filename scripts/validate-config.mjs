@@ -24,11 +24,18 @@ for (const [i, c] of (raw.channels || []).entries()) {
   if (c && c.genres !== undefined && !Array.isArray(c.genres))
     problems.push(`channels[${i}].genres must be an array when present`);
 }
-if (
-  raw.gdrive_map !== undefined &&
-  (typeof raw.gdrive_map !== "object" || Array.isArray(raw.gdrive_map))
-) {
-  problems.push("gdrive_map must be an object of id -> https url");
+// The Worker answers 502 for a link that is not https, so a seed carrying one
+// would look valid here and fail per channel on the TV. Check each link where
+// the mistake is still cheap to fix, as scripts/set-gdrive-map.mjs does.
+if (raw.gdrive_map !== undefined) {
+  if (!raw.gdrive_map || typeof raw.gdrive_map !== "object" || Array.isArray(raw.gdrive_map)) {
+    problems.push("gdrive_map must be an object of id -> https url");
+  } else {
+    for (const [id, url] of Object.entries(raw.gdrive_map)) {
+      if (typeof url !== "string" || !url.startsWith("https://"))
+        problems.push(`gdrive_map.${id} must be an https url`);
+    }
+  }
 }
 for (const [i, ident] of (raw.idents || []).entries()) {
   if (typeof ident !== "string" || !ident.startsWith("https://"))
