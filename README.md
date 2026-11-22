@@ -58,8 +58,10 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
 `/admin/` is served without authentication in the sandbox: it reads the public `/api/health` to show
-worker status and stream-link coverage (counts only, never links) and makes no privileged calls. In
-production it must stay behind Cloudflare Access (see below).
+worker status and stream-link coverage, and a "Check stream links" button walks the guide and the
+batched resolve endpoint to report each channel as ready, unset or unusable (counts and ids only,
+never links). It makes no privileged calls. In production it must stay behind Cloudflare Access
+(see below).
 
 Anything else outside `/api/*` and `/admin/*` is served from the built client, with SPA fallback (so
 `/remote` loads the app).

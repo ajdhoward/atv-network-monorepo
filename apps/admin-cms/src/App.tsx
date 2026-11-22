@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { HealthPayload } from "@atv/ui-shared";
 import { fetchHealth, summariseHealth } from "./health";
+import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck } from "./links";
 
 const STATUS_COLOUR = {
   ok: "#0a7d32",
@@ -20,6 +21,9 @@ function Card({ label, value }: { label: string; value: number | string }) {
 export default function App() {
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [checked, setChecked] = useState(false);
+  const [checks, setChecks] = useState<LinkCheck[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
   const [path, setPath] = useState("/ATV Network");
   const [pin] = useState(() => Math.floor(100000 + Math.random() * 900000));
   const folders = ["Idents", "News", "Lineup", "Backups"];
@@ -36,11 +40,25 @@ export default function App() {
     };
   }, []);
 
+  async function runCheck() {
+    setChecking(true);
+    setCheckError(null);
+    try {
+      setChecks(await checkLinks());
+    } catch (err) {
+      setCheckError(err instanceof Error ? err.message : "Link check failed");
+      setChecks(null);
+    } finally {
+      setChecking(false);
+    }
+  }
+
   const summary = summariseHealth(health);
   const ready =
     summary.status === "ok" &&
     summary.channels > 0 &&
     summary.links.configured === summary.channels;
+  const linkReady = checks ? checks.filter((c) => c.state === "configured").length : 0;
 
   return (
     <div style={{ padding: 24, fontFamily: "Inter, system-ui" }}>
@@ -65,6 +83,28 @@ export default function App() {
           ))}
         </ul>
       )}
+
+      <h2 style={{ marginTop: 32 }}>Stream links</h2>
+      <button onClick={runCheck} disabled={checking}>
+        {checking ? "Checking..." : "Check stream links"}
+      </button>
+      {checkError && <p style={{ color: "#b91c1c" }}>{checkError}</p>}
+      {checks && (
+        <>
+          <p style={{ color: "#555" }}>
+            {linkReady}/{checks.length} channel(s) have a usable link. Nothing here shows a URL.
+          </p>
+          <ul style={{ paddingLeft: 18 }}>
+            {checks.map((check) => (
+              <li key={check.id}>
+                {LINK_ICON[check.state]} <strong>{check.name}</strong>{" "}
+                <code style={{ fontSize: 12 }}>{check.id}</code> - {LINK_LABEL[check.state]}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <h2 style={{ marginTop: 32 }}>Google Drive Folder Tree</h2>
       <div style={{ border: "1px solid #ccc", padding: 12, borderRadius: 8 }}>
         <div>
