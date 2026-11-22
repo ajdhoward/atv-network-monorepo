@@ -300,6 +300,63 @@ describe("GET /api/resolve", () => {
     expect(body.requestId).toBeTruthy();
   });
 
+  it("answers a batch in one request and groups what it could not resolve", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const { res, body } = await call(worker, env, "/api/resolve?ids=news-us,bad-id,nope");
+    expect(res.status).toBe(200);
+    expect(body.resolved).toEqual([
+      { id: "news-us", url: "https://cdn.example/news.m3u8", profile: "1080p_hevc" },
+    ]);
+    expect(body.invalid).toEqual(["bad-id"]);
+    expect(body.missing).toEqual(["nope"]);
+    // Links are still never cacheable, batch or not.
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("dedupes a repeated id in a batch", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const { body } = await call(worker, env, "/api/resolve?ids=news-us,news-us");
+    expect(body.resolved).toHaveLength(1);
+    expect(body.missing).toEqual([]);
+  });
+
+  it("caps a batch at 20 ids", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const ids = Array.from({ length: 21 }, (_, i) => `id-${i}`).join(",");
+    const { res, body } = await call(worker, env, `/api/resolve?ids=${ids}`);
+    expect(res.status).toBe(400);
+    expect(body.code).toBe("too_many_ids");
+  });
+
+  it("spends one limiter token for a whole batch", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const calls: string[] = [];
+    (env as any).ATV_RATE_LIMITER = {
+      limit: async ({ key }: { key: string }) => {
+        calls.push(key);
+        return { success: true };
+      },
+    };
+    const { res } = await call(worker, env, "/api/resolve?ids=news-us,bad-id,nope", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+    expect(res.status).toBe(200);
+    expect(calls).toEqual(["resolve:203.0.113.9"]);
+  });
+
+  it("counts a batch once in the metrics dataset", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    const points: any[] = [];
+    (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
+    await call(worker, env, "/api/resolve?ids=news-us,nope");
+    expect(points.map((p) => p.blobs[0])).toEqual(["resolve_batch"]);
+  });
+
   it("404s an unknown id", async () => {
     const worker = await freshWorker();
     const { env } = makeEnv({ gdrive_map: map });

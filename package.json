@@ -7,6 +7,7 @@
     "build:client": "pnpm --filter @atv/tv-client build",
     "build:admin": "pnpm --filter @atv/admin-cms build",
     "build:deploy": "pnpm run build:client && pnpm run build:admin && node scripts/pack-assets.mjs",
+    "dev": "node scripts/dev.mjs",
     "kv:staging": "node scripts/staging-kv.mjs",
     "seed": "node scripts/seed-kv.mjs",
     "seed:local": "node scripts/seed-kv.mjs --local",

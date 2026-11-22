@@ -283,6 +283,51 @@ async function allowRequest(
   }
 }
 
+// Matches the cap the audit and any client should assume for ?ids=.
+const MAX_BATCH_IDS = 20;
+
+type BatchResolve = {
+  resolved: { id: string; url: string; profile: string }[];
+  missing: string[];
+  invalid: string[];
+};
+
+// `?ids=a,b` answers a whole grid sweep in one request, and therefore spends one
+// limiter token instead of one per channel. Links are returned only for ids that
+// resolved, so an unknown or insecure id discloses nothing.
+async function resolveMany(raw: string, env: Env, requestId: string): Promise<Response> {
+  // A repeated id must not spend the batch allowance twice.
+  const ids = [
+    ...new Set(
+      raw
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!ids.length) return failure("missing_id", "missing id", requestId, 400);
+  if (ids.length > MAX_BATCH_IDS) {
+    return failure("too_many_ids", `at most ${MAX_BATCH_IDS} ids per request`, requestId, 400);
+  }
+
+  const out: BatchResolve = { resolved: [], missing: [], invalid: [] };
+  for (const id of ids) {
+    try {
+      const link = await resolveStream(id, env);
+      out.resolved.push({ id, url: link.url, profile: link.profile });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message === "not found") out.missing.push(id);
+      else if (message.startsWith("insecure url")) out.invalid.push(id);
+      // Anything else is a real fault: let the guard turn it into a 503 rather
+      // than reporting a partial batch as if it were complete.
+      else throw err;
+    }
+  }
+  count(env, "resolve_batch");
+  return json(out, 200, { "Cache-Control": "no-store" });
+}
+
 async function handleResolve(
   url: URL,
   env: Env,
@@ -296,6 +341,8 @@ async function handleResolve(
       "Retry-After": String(limit.retryAfterS),
     });
   }
+  const ids = url.searchParams.get("ids");
+  if (ids !== null) return resolveMany(ids, env, requestId);
   const id = url.searchParams.get("id");
   if (!id) return failure("missing_id", "missing id", requestId, 400);
   try {

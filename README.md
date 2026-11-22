@@ -33,6 +33,7 @@ scripts/copy-kv.mjs                 copies the production lineup into the stagin
 scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) into the bound KV
 scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
 scripts/check-streams.mjs           audits /api/resolve per channel, optionally probing each link
+scripts/dev.mjs                     one command: seed the local store, then run wrangler dev
 scripts/budget.mjs                  models monthly usage against the Workers Paid allowance
 scripts/smoke.mjs                   post-deploy check of a deployed origin
 scripts/validate-config.mjs         validates a seed config before uploading
@@ -50,7 +51,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                                                      |
 | `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, resolve:{configured,invalid,missing}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift         |
 | `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60, stale-while-revalidate=300` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                                                                                                                           |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; `?ids=a,b` answers up to 20 in one request as `{resolved,missing,invalid}` and spends one limiter token; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                  |
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                    |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                            |
 
@@ -72,6 +73,11 @@ pnpm test                            # worker routes, deploy guard and guide loa
 pnpm run build:deploy                # client + admin + pack admin under dist/admin
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
+
+`pnpm dev` does the last step for you: when `atv-config.json` exists it seeds the local KV store
+first, then starts `wrangler dev --local` on port 8788. Flags pass through after `--`, so
+`pnpm dev -- --port 9099`, `pnpm dev -- --no-seed` and `pnpm dev -- --dry-run` all work. No
+Cloudflare credentials are involved.
 
 The admin CMS is not served by `vite`; `pnpm run build:deploy` packs it into
 `apps/tv-client/dist/admin` and the Worker serves it at `/admin/`.

@@ -9,6 +9,10 @@
 // Defaults to the sandbox worker, the target this repo deploys by default.
 // Prints channel ids and statuses, never the resolved links.
 //
+// It asks /api/resolve?ids= in batches, so a 12-channel lineup costs one request
+// instead of twelve and spends one rate-limit token. A deployment without the
+// batch form answers 404 and the audit falls back to one request per id.
+//
 // --allow-missing downgrades a channel with no link yet to a warning, so a
 // sandbox with an empty gdrive_map can still be audited before links exist. An
 // insecure or unexpected response always fails.
@@ -26,6 +30,9 @@ const VALUE_FLAGS = new Set(["--config", "--ids", "--base"]);
 // Long enough for a cold CDN, short enough that a black-holed host does not stall
 // the whole audit.
 const PROBE_TIMEOUT_MS = 8_000;
+// Must match MAX_BATCH_IDS in services/atv-core/src/index.ts.
+const MAX_BATCH = 20;
+
 const args = process.argv.slice(2);
 const values = {};
 const positional = [];
@@ -122,39 +129,124 @@ async function probeLink(url) {
   return { ok: true, detail: `${kind}, HTTP ${res.status}` };
 }
 
-let resolved = 0;
-let failed = 0;
-const missing = [];
+// id -> { kind: "ok", url? } | { kind: "missing" } | { kind: "insecure" } | { kind: "error", detail }
+const outcomes = new Map();
 let stopped = null;
 
+async function fetchBatch(batch) {
+  const query = batch.map((id) => encodeURIComponent(id)).join(",");
+  let res;
+  try {
+    res = await fetch(`${base}/api/resolve?ids=${query}`, { headers, redirect: "manual" });
+  } catch {
+    return { kind: "unsupported" };
+  }
+  if (res.status === 429) {
+    await res.arrayBuffer();
+    const retryAfter = res.headers.get("retry-after") ?? "?";
+    return { kind: "limited", detail: `rate limited (Retry-After ${retryAfter}s)` };
+  }
+  if (res.status !== 200) {
+    // An older deployment answers 404 for an unknown query shape.
+    await res.arrayBuffer();
+    return { kind: "unsupported" };
+  }
+  const body = parseJson(await res.text());
+  if (
+    !body ||
+    !Array.isArray(body.resolved) ||
+    !Array.isArray(body.missing) ||
+    !Array.isArray(body.invalid)
+  ) {
+    return { kind: "unsupported" };
+  }
+  return { kind: "ok", body };
+}
+
+// 1) Batch pass: the whole lineup in as few requests as the Worker allows.
+for (let i = 0; i < ids.length && !stopped; i += MAX_BATCH) {
+  const result = await fetchBatch(ids.slice(i, i + MAX_BATCH));
+  if (result.kind === "limited") {
+    stopped = result.detail;
+    break;
+  }
+  if (result.kind !== "ok") {
+    // Fall back to one request per id for the entire audit, so a mixed run
+    // cannot report some channels from the batch and others individually.
+    outcomes.clear();
+    break;
+  }
+  for (const entry of result.body.resolved) {
+    if (entry && typeof entry.id === "string") {
+      outcomes.set(entry.id, {
+        kind: "ok",
+        url: typeof entry.url === "string" ? entry.url : undefined,
+      });
+    }
+  }
+  for (const id of result.body.missing) outcomes.set(id, { kind: "missing" });
+  for (const id of result.body.invalid) outcomes.set(id, { kind: "insecure" });
+}
+
+// 2) Per-id pass for anything the batch did not classify.
 for (const id of ids) {
+  if (stopped || outcomes.has(id)) continue;
   let res;
   try {
     res = await fetch(`${base}/api/resolve?id=${encodeURIComponent(id)}`, {
       headers,
       redirect: "manual",
     });
-  } catch (err) {
-    failed++;
-    console.log(`FAIL  ${id} — ${err instanceof Error ? err.message : String(err)}`);
+  } catch {
+    outcomes.set(id, { kind: "error", detail: "unreachable (network error)" });
     continue;
+  }
+  if (res.status === 429) {
+    await res.arrayBuffer();
+    const retryAfter = res.headers.get("retry-after") ?? "?";
+    stopped = `rate limited (Retry-After ${retryAfter}s)`;
+    break;
   }
   if (res.status === 200) {
     if (!probe) {
       // The body carries the link; it is drained but never printed.
       await res.arrayBuffer();
-      resolved++;
-      console.log(`PASS  ${id} — ok`);
+      outcomes.set(id, { kind: "ok" });
       continue;
     }
     const body = parseJson(await res.text());
     const url = body && typeof body.url === "string" ? body.url : null;
-    if (!url) {
+    outcomes.set(
+      id,
+      url ? { kind: "ok", url } : { kind: "error", detail: "resolved without a url" },
+    );
+    continue;
+  }
+  await res.arrayBuffer();
+  if (res.status === 404) outcomes.set(id, { kind: "missing" });
+  else if (res.status === 502) outcomes.set(id, { kind: "insecure" });
+  else outcomes.set(id, { kind: "error", detail: `HTTP ${res.status}` });
+}
+
+// 3) Report in the order the channels were asked for.
+let resolved = 0;
+let failed = 0;
+const missing = [];
+
+for (const id of ids) {
+  const outcome = outcomes.get(id);
+  if (!outcome) continue; // not audited: the run stopped early
+
+  if (outcome.kind === "ok" && !probe) {
+    resolved++;
+    console.log(`PASS  ${id} — ok`);
+  } else if (outcome.kind === "ok") {
+    if (!outcome.url) {
       failed++;
       console.log(`FAIL  ${id} — resolved without a url`);
       continue;
     }
-    const verdict = await probeLink(url);
+    const verdict = await probeLink(outcome.url);
     if (verdict.ok) {
       resolved++;
       console.log(`PASS  ${id} — ${verdict.detail}`);
@@ -162,22 +254,15 @@ for (const id of ids) {
       failed++;
       console.log(`FAIL  ${id} — ${verdict.detail}`);
     }
-    continue;
-  }
-
-  await res.arrayBuffer();
-  if (res.status === 404) {
+  } else if (outcome.kind === "missing") {
     missing.push(id);
     console.log(`${allowMissing ? "MISS" : "FAIL"}  ${id} — 404 not found (no link)`);
-  } else if (res.status === 502) {
+  } else if (outcome.kind === "insecure") {
     failed++;
     console.log(`FAIL  ${id} — 502 insecure_url (the link is not https://)`);
-  } else if (res.status === 429) {
-    stopped = `rate limited (Retry-After ${res.headers.get("retry-after") ?? "?"}s)`;
-    break;
   } else {
     failed++;
-    console.log(`FAIL  ${id} — HTTP ${res.status}`);
+    console.log(`FAIL  ${id} — ${outcome.detail}`);
   }
 }
 

@@ -9,6 +9,10 @@ const audit = resolve("scripts/check-streams.mjs");
 // the tests assert it stays out of stdout/stderr.
 const LINK = "https://cdn.example.invalid/private/a.m3u8";
 
+// Requests the audit made to /api/resolve, so batching can be asserted.
+const hits: string[] = [];
+let rejectBatch = false;
+
 let server: Server;
 let base = "";
 
@@ -38,22 +42,46 @@ beforeAll(async () => {
       res.end(JSON.stringify({ error: "not found", code: "not_found" }));
       return;
     }
+    hits.push(url.search);
+
+    const link = (path: string, id: string) => ({ id, url: `${base}${path}` });
+
+    const batch = url.searchParams.get("ids");
+    if (batch !== null) {
+      // Simulates a deployment that predates the batch form.
+      if (rejectBatch) {
+        res.writeHead(404, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "not found", code: "not_found" }));
+        return;
+      }
+      const ids = batch.split(",").filter(Boolean);
+      if (ids.includes("atv-limited")) {
+        res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
+        res.end(JSON.stringify({ error: "too many requests", code: "rate_limited" }));
+        return;
+      }
+      const resolved: unknown[] = [];
+      const missing: string[] = [];
+      const invalid: string[] = [];
+      for (const id of ids) {
+        if (id === "atv-1") resolved.push({ id, url: LINK, profile: "1080p_hevc" });
+        else if (id === "atv-probe") resolved.push(link("/stream.m3u8", id));
+        else if (id === "atv-login") resolved.push(link("/login.html", id));
+        else if (id === "atv-dead") resolved.push(link("/dead.m3u8", id));
+        // A 200 the Worker should never produce: resolved without a url.
+        else if (id === "atv-nourl") resolved.push({ id });
+        else if (id === "atv-insecure") invalid.push(id);
+        else missing.push(id);
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ resolved, missing, invalid }));
+      return;
+    }
 
     const id = url.searchParams.get("id");
-    const link = (path: string) => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ url: `${base}${path}`, profile: "1080p_hevc" }));
-    };
-
     if (id === "atv-1") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ url: LINK, profile: "1080p_hevc" }));
-    } else if (id === "atv-probe") {
-      link("/stream.m3u8");
-    } else if (id === "atv-login") {
-      link("/login.html");
-    } else if (id === "atv-dead") {
-      link("/dead.m3u8");
     } else if (id === "atv-limited") {
       res.writeHead(429, { "content-type": "application/json", "retry-after": "60" });
       res.end(JSON.stringify({ error: "too many requests", code: "rate_limited" }));
@@ -119,6 +147,31 @@ describe("check-streams", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("PASS  atv-1");
     expect(result.stdout).toContain("1/1 channel(s) resolve");
+  });
+
+  it("audits a lineup in a single batch request", async () => {
+    hits.length = 0;
+    const result = await run(["--ids", "atv-1,atv-missing,atv-insecure"]);
+    expect(result.status).toBe(1);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toContain("ids=");
+    expect(result.stdout).toContain("PASS  atv-1");
+    expect(result.stdout).toContain("502 insecure_url");
+  });
+
+  it("falls back to one request per id when the worker has no batch form", async () => {
+    rejectBatch = true;
+    hits.length = 0;
+    try {
+      const result = await run(["--ids", "atv-1,atv-missing"]);
+      expect(result.status).toBe(1);
+      // The rejected batch attempt, then one request per id.
+      expect(hits).toHaveLength(3);
+      expect(result.stdout).toContain("PASS  atv-1");
+      expect(result.stdout).toContain("FAIL  atv-missing");
+    } finally {
+      rejectBatch = false;
+    }
   });
 
   it("fails on a channel with no link and points at the setter", async () => {
