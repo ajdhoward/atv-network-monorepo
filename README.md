@@ -208,7 +208,9 @@ job seeds staging with it when present and skips the step when it is absent.
 `atv.acidwurx.org` unless `ATV_ALLOW_PROD_DEPLOY=1` is set.
 
 Replacing production without first importing the deployed source (`4fb54df2`, 2026-10-24) would
-remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins.
+remove D1 `DB`, `REMOTE_HUB`, `ATV_TELEMETRY`, `ATV_ADMIN_TOKEN` and the provider origins. The
+cutover plan — prerequisites, parity gate, staged candidate, verification, route swap and rollback —
+is in [`docs/production-cutover.md`](docs/production-cutover.md). `deploy:prod` is not that cutover.
 
 CI (`verify`) runs install, typecheck, lint, `format:check`, tests and the full `build:deploy` on
 every push. Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run first executes
