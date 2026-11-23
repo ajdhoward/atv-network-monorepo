@@ -2,7 +2,7 @@
 
 Working memory for the next session. Canonical state is in the logs; this is what they do not hold.
 
-- **Agent:** Buffy, Freebuff (Codebuff), cloud chat `0feea3c`
+- **Agent:** Buffy, Freebuff (Codebuff), cloud chat `9b6340e1`
 - **Roles:** Integrator, Cartographer, Scribe, Sentinel (sole active agent, so Author/Reviewer/Verifier are
   declared self-review in each change)
 - **Paths owned:** `services/atv-core/`, `scripts/`, `docs/`, `README.md`, `AGENTS.md`
@@ -16,16 +16,28 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 - `36e32b2` — `/onboard`, `pnpm handoff`, `docs/agents/handoffs/`.
 - `2adcc4d` — `docs/continuity.md`, `docs/README.md`, `pnpm continuity` in `verify`.
 - `e75a7b1` — per-agent context files, the roster `Context` column and the check that enforces it.
-- All pushed; `verify` green to run #49. Nothing deployed: the sandbox still serves the pre-`/install` build.
+- `4d58bab` — `/a` short APK redirect (P3) and the release-asset smoke guard (Q2).
+- The last two are on `freebuff/9b6340e13dd9c5125e906312`, not merged to `main`. Nothing deployed: the
+  sandbox still serves the pre-`/install` build.
 
 ## What I am doing
 
 Nothing claimed. The queue is the backlog; the first three moves are L1 (deploy the sandbox), L2 (protect
 `main`) and the R1 decision (`/api/resolve` is unauthenticated on a public host). L1 and L2 are the
-operator's to authorise; R1 needs a decision before L4 seeds real links.
+operator's to authorise; R1 needs a decision before L4 seeds real links. P1 (the Drive proxy) is the only
+thing left between "resolves" and "plays" for Drive-backed channels.
 
 ## What I learnt that cost time
 
+- **A fresh cloud VM has no pnpm and no git identity.** `npm install -g pnpm@9.1.0` is refused (EACCES);
+  `npm install --prefix "$HOME/.local" pnpm@9.1.0` works, then export `$HOME/.local/node_modules/.bin`.
+  Set the repository-local `user.name`/`user.email` from `git log -1 --format='%an|%ae'`, or every commit
+  fails with "Author identity unknown".
+- **A new Worker route is swallowed by the asset layer** unless it is in `run_worker_first` in
+  `wrangler.toml`: the SPA fallback answers 200 with the TV shell and the Worker never sees it. `/a` needed
+  both the exact and the `/*` form.
+- `wrangler.toml` has no Prettier parser, so `prettier --write` on it exits 2. `pnpm format:check` is the
+  real gate, and it passes.
 - The `gh` device flow issues an **account-wide** token (`repo`, `read:org`, `gist`, `workflow`). Fine-grained
   PAT first for any hosted agent; the page and decision record both say so.
 - A fixed client IP in `scripts/ci-worker.mjs`'s limiter burst makes a second run inside the minute fail on
@@ -39,7 +51,6 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
 
 ## What I tried that failed
 
-- `/tmp/pnpm-cli/bin` is how pnpm is available here; `corepack` is not on `PATH`. Export it before `pnpm`.
 - `read_files` and shell calls are sometimes refused once with the project brief injected; retrying the same
   call works.
 - There are no Cloudflare credentials in the shell and no browser for an OAuth callback, so `wrangler` cannot
@@ -60,7 +71,8 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
 
 ## Next session, in order
 
-1. With the operator: L1 deploy, then L2 branch protection; re-run `pnpm smoke` against the deployed host.
+1. Merge `4d58bab` (or take it as a review of P3/Q2), then with the operator: L1 deploy, L2 branch
+   protection; re-run `pnpm smoke` against the deployed host, which now also checks `/a` and the asset.
 2. R1: choose how `/api/resolve` stays private, in `decisions.md`, before L4.
-3. P1: the Drive proxy, which is the only thing between "resolves" and "plays" for Drive-backed channels.
+3. P1: the Drive proxy.
 4. Keep this file and the roster row honest, or the next session starts blind.

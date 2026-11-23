@@ -99,9 +99,11 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Why:** typing a release URL with a TV remote is the worst step of the install; `/a` is four characters
   in Downloader.
 - **Done when:** `GET /a` 302s to the release asset and smoke checks the redirect rather than a body.
-- **Paths:** `services/atv-core/src/index.ts`, `scripts/smoke.mjs`
+- **Paths:** `services/atv-core/src/index.ts`, `services/atv-core/src/install.ts`, `wrangler.toml`,
+  `scripts/smoke.mjs`
 - **Size:** S
-- **State:** proposed
+- **State:** done — `4d58bab`, claimed on the operator's session go-ahead. `/a` is Worker-routed
+  (`run_worker_first`), the install page names it, and the route suite, smoke and `ci:worker` cover it.
 
 ## Safety and quality
 
@@ -121,7 +123,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Done when:** the deploy smoke sends a HEAD to the asset URL and fails on a non-200.
 - **Paths:** `scripts/smoke.mjs`
 - **Size:** S
-- **State:** proposed
+- **State:** done — `4d58bab`. The smoke HEs the location `/a` gives it: a 4xx fails, while a 5xx or an
+  unreachable host warns, because neither is this Worker's fault.
 
 ### Q3 · Alert when the Worker is down
 
