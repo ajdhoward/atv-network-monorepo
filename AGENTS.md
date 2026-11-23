@@ -3,7 +3,7 @@
 The operating brief for anyone, human or agent, changing this repository. Agent tools load it
 automatically, so every line costs context in every session: point at `README.md` or `docs/` instead of
 restating them. Where this file and a default habit disagree, this file wins; a nested `AGENTS.md` in a
-subdirectory wins for that subtree. Keep this file near 200 lines (it is 203, and every session loads all of it).
+subdirectory wins for that subtree. Keep this file near 200 lines; every session loads all of it.
 
 ## Joining this repo
 
@@ -11,14 +11,14 @@ You need nothing but this file and two small logs. Read and act in this order:
 
 1. Read this file, then [`docs/agents/roster.md`](docs/agents/roster.md) (who is here, what they hold)
    and [`docs/agents/decisions.md`](docs/agents/decisions.md) (what is proposed, acked, settled).
-2. **Announce yourself.** Append one row to the roster — name, tool or model, date, the paths you will
-   own, your task — and commit it before any other edit. That commit is your announcement; there is no
-   other channel, because agents cannot see each other's sessions.
+2. **Announce yourself.** Append one row to the roster — name, tool or model, roles, date, paths you will
+   own, task — and commit it before any other edit. That commit is your announcement; there is no other
+   channel, because agents cannot see each other's sessions.
 3. **Claim only your paths.** If another agent owns what you need, say so in your row or take a
    different task. Editing a claimed file is the one collision git cannot merge away.
 4. **Propose before reshaping anything shared** — an `/api/*` field, a KV key, a workflow, the APK
    asset name — and wait for the acks described in
-   [Working with other agents](#working-with-other-agents).
+   [Roles and coverage](#roles-and-coverage).
 5. Work, verify, commit, push. When you finish, mark your roster row done and record the outcome in
    `decisions.md` if you changed a shared shape.
 
@@ -27,8 +27,8 @@ Message to paste when bringing a new coder agent in:
 ```text
 You are joining an existing project: github.com/ajdhoward/atv-network-monorepo.
 Read AGENTS.md, then docs/agents/roster.md and docs/agents/decisions.md.
-Announce yourself by adding one row to the roster (name, tool, date, paths you will own,
-task) and committing it before any other edit. Claim only those paths, propose before
+Announce yourself by adding one row to the roster (name, tool, roles, date, paths you will
+own, task) and committing it before any other edit. Claim only those paths, propose before
 changing a shared shape, and follow the ack rule for consensus. Pull before you push,
 never force-push, and never edit another agent's row, branch or commits. Report what you
 verified and what you could not.
@@ -62,10 +62,9 @@ Non-goals: multi-tenant SaaS, accounts for strangers, features nobody in the hou
 | `packages/ui-shared/`        | Shared types and the example seed config                     | `src/index.ts`        |
 | `android/`                   | Fire OS WebView shell; the APK is a release asset            | `android/README.md`   |
 | `scripts/`                   | Seed, dev, smoke, ci-worker, budget, deploy guards           | `README.md` layout    |
-| `docs/agents/`               | Roster (claims) and the decisions log — coordination state   | itself                |
+| `docs/agents/`               | Roster (claims, coverage), roles, decisions log              | itself                |
 | `docs/production-cutover.md` | The only authority for replacing production                  | itself                |
 | `wrangler.toml`              | Sandbox `atv-core-v2` — the default deploy target            | `README.md` Deploy    |
-| `wrangler.production.toml`   | Production reference; not deployable from here by default    | `README.md` Deploy    |
 
 ## Commands
 
@@ -130,26 +129,33 @@ Record a dependency with the same caret range the repository uses, let `pnpm-loc
 version, keep CI on `--frozen-lockfile`, and name its licence in the commit when it is outside the list
 above. Do not upgrade unrelated dependencies in the same change.
 
-## Working with other agents
+## Roles and coverage
+
+Seven responsibilities must always be covered: **Integrator** (what merges, in what order, who gets which
+slice), **Cartographer** (where a change belongs, reuse or build), **Author**, **Reviewer**, **Verifier**,
+**Scribe** (roster, decisions, docs) and **Sentinel** (secrets, licences, budget, deploy authority).
+`docs/agents/roles.md` defines each one; the roster's coverage table says who holds it now.
+
+Coverage is constant, assignments scale: one agent holds all seven, five agents split them, and no role
+ever goes unowned. Put the roles you take in your roster row.
+
+- **Author ≠ Reviewer when a second agent is active.** A team of one declares self-review and
+  self-verification in the change; the operator is the fallback gate. Self-approval is never silent.
+- **Parallelism is disjoint slices, not more agents per file.** The Cartographer cuts, the Integrator
+  assigns, and only shared-shape proposals and merges serialise.
+- **Never idle behind a gate.** Waiting on a review? Take Reviewer or Verifier work.
+- **Hand over explicitly.** A role that moves is recorded in the roster with its state: open changes, red
+  CI, unclaimed paths.
 
 Agents cannot talk to each other. The repository is the channel — commits, roster, decisions log, pull
 requests — and the operator is the only synchroniser, since they start each session.
 
-- **Claims are exclusive.** A path in an active roster row belongs to that agent until the row says
-  done. Announce it; do not negotiate it in your head.
-- **Propose, ack, decide.** A shared-shape change is an entry in `decisions.md` with `state: proposed`
-  and the paths it touches. Every other active agent adds one line the next time it works:
-  `ack — <name>` or `object — <name> — <concrete harm>`. The operator marks it accepted once nothing
-  stands objected and records the outcome; with an objection the operator decides and says so in the
-  entry.
-- **Silence is not consent.** If an agent has not acked, the operator records it as absent in the entry.
-  A missing reply never counts as agreement.
-- **Consensus does not authorise** a deploy, a spend, a secret or a new dependency. Those stay the
-  operator's per-change decision, and the hard rules below override any majority.
-- **Collisions keep both.** If a roster append or a decision entry conflicts, keep both lines and let
-  the operator order them. Never resolve a conflict by deleting someone else's row.
-- **Everyone pulls before pushing.** Pushes are non-force, so a stale push is rejected instead of
-  overwriting another agent's work.
+- **Propose, ack, decide.** A shared-shape change is an entry in `decisions.md` with `state: proposed`;
+  every other active agent adds `ack — <name>` or `object — <name> — <concrete harm>`; the operator marks
+  the outcome. Silence is recorded as absence, never as consent.
+- **Claims are exclusive.** A path in an active roster row is that agent's until the row says done.
+- **Consensus authorises nothing:** deploy, spend, secret and dependency stay the operator's call. Pull
+  before you push, and collisions keep both sides with the operator ordering them.
 
 ## Verify before you believe
 

@@ -1,17 +1,34 @@
 # Agent roster
 
-Who is working in this repository, on what, and which paths they hold. Read it before you claim work;
-add one row before you start editing.
+Who is working in this repository, what they hold, and which roles are covered. Read it before you claim
+work; add one row before you start editing.
 
-Agents cannot see each other's sessions and cannot message each other. This file, `decisions.md`,
-commits and pull requests are the only channels between them, and the operator is the only
-synchroniser because they start each session. Rules live in `AGENTS.md`; this file is the state.
+Agents cannot see each other's sessions and cannot message each other. This file, `roles.md`,
+`decisions.md`, commits and pull requests are the only channels between them, and the operator is the only
+synchroniser because they start each session. Rules live in `AGENTS.md`; role definitions live in
+`roles.md`; this file is the state.
+
+## Coverage
+
+One accountable agent per role, always. A role is never left empty: if the agent holding it leaves, the
+handover is recorded here before its row moves.
+
+| Role                         | Accountable now | Since      | Notes                                                                           |
+| ---------------------------- | --------------- | ---------- | ------------------------------------------------------------------------------- |
+| Integrator                   | Buffy           | 2026-11-23 | Singleton: merges and claim conflicts                                           |
+| Cartographer                 | Buffy           | 2026-11-23 | Where a change belongs; reuse before build                                      |
+| Scribe                       | Buffy           | 2026-11-23 | Roster, decisions log, docs                                                     |
+| Sentinel                     | Buffy           | 2026-11-23 | Secrets, licences, budget, deploy authority                                     |
+| Author / Reviewer / Verifier | per change      | —          | Recorded in the change; Reviewer is never the Author when two agents are active |
+
+A team of one holds every role. That is expected, not a gap — but a change made that way says so, because
+self-review is weaker than review by someone who did not write it.
 
 ## Active
 
-| Agent | Tool / model                            | Joined     | Paths owned                                   | Current work                                   | Branch / PR |
-| ----- | --------------------------------------- | ---------- | --------------------------------------------- | ---------------------------------------------- | ----------- |
-| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | 2026-11-23 | `services/atv-core/`, `packages/`, `scripts/` | Fire TV install path; agent coordination files | `main`      |
+| Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                   | Current work                                   | Branch / PR |
+| ----- | --------------------------------------- | ------------------------------------------ | ---------- | --------------------------------------------- | ---------------------------------------------- | ----------- |
+| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `packages/`, `scripts/` | Fire TV install path; agent coordination files | `main`      |
 
 ## Done
 
@@ -27,6 +44,8 @@ here and are deleted.
 - One row per agent. Append at the end of the table; never reorder or edit another agent's row.
 - `Paths owned` is a claim. While the row is in **Active**, no other agent edits those paths.
 - Keep the claim as small as truth allows. A whole-package claim two agents could share is a mistake.
+- A standing role moves by editing **both** the coverage table and the two agent rows, in one commit, with
+  what the role carries: open changes, red CI, unclaimed paths.
 - Release a claim by moving your row to **Done** with what you left behind (a route, a doc, a decision).
 - If two rows claim the same path, the merged pull request that touched it first wins; the second agent
   asks the operator to reassign rather than assuming.
@@ -41,7 +60,11 @@ about to do:
 | ------------ | ------------------------------------------------------------------- |
 | Agent        | The name it answers to; the operator usually picks it.              |
 | Tool / model | Enough for a human to know what is behind it (e.g. "Codex, GPT-5"). |
+| Roles        | The roles it takes, from `roles.md`; "Author, Reviewer" is enough.  |
 | Joined       | `YYYY-MM-DD`.                                                       |
 | Paths owned  | Repo-relative paths or globs, comma separated.                      |
 | Current work | One line: the task, not the plan.                                   |
 | Branch / PR  | Whatever it identifies its work by.                                 |
+
+Adding an agent accelerates the project only if it takes a path-disjoint slice and a role that is not
+already the Integrator's. Two agents claiming the same paths is slower than one.

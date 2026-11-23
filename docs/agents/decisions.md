@@ -47,3 +47,18 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — two Markdown files, no runtime code.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — Fixed roles, scaling assignments
+
+- state: accepted
+- proposed by: Buffy (Freebuff)
+- touches: `AGENTS.md`, `docs/agents/`
+- why: adding agents had no division of responsibility, so two of them could both integrate while nobody
+  reviewed, and nothing guaranteed the licence, secret or documentation checks happened at all.
+- change: seven fixed responsibilities in `docs/agents/roles.md`, a coverage table in the roster, and the
+  rule that coverage is constant while assignments scale — a team of one holds all seven.
+- risk: ceremony. Mitigation: a role only exists where it produces a distinct decision or verification
+  step, and one agent may hold several.
+- cost: none — Markdown only, no runtime code.
+- acks: operator (2026-11-23)
+- outcome: accepted
