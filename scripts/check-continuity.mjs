@@ -16,6 +16,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  activeRowsWithoutContext,
   brokenLinks,
   forbiddenTracked,
   inventoryNames,
@@ -68,6 +69,16 @@ if (fs.existsSync(path.join(root, CONTINUITY))) {
   );
 } else {
   record("docs/continuity.md exists", false);
+}
+
+const rosterPath = path.join(root, "docs/agents/roster.md");
+if (fs.existsSync(rosterPath)) {
+  const missing = activeRowsWithoutContext(fs.readFileSync(rosterPath, "utf8"));
+  record(
+    "every active agent links a context file",
+    missing.length === 0,
+    missing.length ? `no context/ link: ${missing.join(", ")}` : undefined,
+  );
 }
 
 if (tracked.status === 0) {

@@ -67,6 +67,18 @@ describe("continuity check", () => {
     expect(result.stdout).toContain("ATV_OLD_TOKEN");
   });
 
+  it("catches an active agent whose row links no context file", () => {
+    const dir = fixture();
+    fs.mkdirSync(path.join(dir, "docs", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "docs", "agents", "roster.md"),
+      "# roster\n\n## Active\n\n| Agent | Paths owned |\n| --- | --- |\n| Zed | `android/` |\n",
+    );
+    const result = run(dir);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("no context/ link: Zed");
+  });
+
   it("catches a line-up or keystore that got tracked", () => {
     const dir = fixture();
     const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });

@@ -45,6 +45,7 @@ Copy numbers, do not describe them.
 4. Did a check pass while the thing it guards was broken? That check is lying; fix the check.
 5. Is the backlog honest — are `blocked` items still blocked, are done items actually done?
 6. What did we learn that the next session would otherwise rediscover?
+7. Is every active agent's context file current — could that agent's next session resume from it alone?
 
 ## Outputs
 

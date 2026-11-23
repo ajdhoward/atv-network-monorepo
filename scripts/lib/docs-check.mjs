@@ -73,6 +73,19 @@ export function repositoryNames(files, root = ".") {
   return (name) => corpus.includes(name);
 }
 
+// An active agent without a context file starts its next session blind, so the
+// roster row and the file have to be created together.
+export function activeRowsWithoutContext(rosterText) {
+  // Only the Active table: the roster has other tables after it (Done, the
+  // field reference), and scanning past them reports their headers as agents.
+  const section = (rosterText.split(/\n## Active\b/)[1] ?? "").split(/\n## /)[0];
+  const rows = section.split("\n").filter((line) => line.trim().startsWith("|"));
+  return rows
+    .slice(2) // header and separator
+    .filter((row) => !row.includes("context/"))
+    .map((row) => (row.split("|")[1] ?? "?").trim());
+}
+
 const FORBIDDEN = [/^atv-config\.json$/, /(^|\/)\.env(\.|$)/, /\.(p12|jks|keystore|apk)$/];
 
 export function forbiddenTracked(files) {

@@ -10,6 +10,8 @@ continuity` fails when a document here is not listed below.
 | [agents/onboarding.md](agents/onboarding.md)                         | Where a new agent starts                                              |
 | [agents/roles.md](agents/roles.md)                                   | The seven roles and their coverage                                    |
 | [agents/roster.md](agents/roster.md)                                 | Who is here, their roles, and the paths they own                      |
+| [agents/context/README.md](agents/context/README.md)                 | One context file per agent: the memory a session resumes from         |
+| [agents/context/buffy.md](agents/context/buffy.md)                   | The active agent's working memory                                     |
 | [agents/backlog.md](agents/backlog.md)                               | The work list, and the debate around it                               |
 | [agents/decisions.md](agents/decisions.md)                           | What is proposed, acked and settled, and why                          |
 | [agents/reviews.md](agents/reviews.md)                               | The review cadence and scorecard                                      |

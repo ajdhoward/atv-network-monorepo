@@ -153,3 +153,25 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — no dependency, one CI step that reads files.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — One context file per agent, and one loop
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `docs/agents/context/` (new), `docs/agents/roster.md`, `docs/agents/reviews.md`, `AGENTS.md`,
+  `scripts/lib/docs-check.mjs`
+- why: agents coordinate through the repository but had no working memory of their own, so each session
+  rebuilt its context from the whole brief and lost what it had learnt when it ended. The logs hold
+  canonical facts but not "what I tried that failed", which is the most expensive thing to rediscover.
+- change: each active agent gets `docs/agents/context/<slug>.md`, linked from its roster row, holding only
+  what that agent needs to resume: owned paths, current task, lessons, failures, next steps. The rule that
+  keeps it from becoming a second source of truth is that canonical facts stay in the logs and the context
+  file links to them. Compartmentalisation follows: an agent reads `AGENTS.md`, the three logs and its own
+  file, never another agent's. `docs/agents/context/README.md` sets the loop and which fact belongs where;
+  `pnpm continuity` fails when an active row links no context file, and the review asks whether each file is
+  current.
+- risk: context files accumulate stale scratchpads and quietly contradict the logs. Mitigation: an 80-line
+  bound, "link, never copy", and a review question that checks exactly that.
+- cost: none — Markdown plus one rule in the check that already existed.
+- acks: operator (2026-11-23)
+- outcome: accepted

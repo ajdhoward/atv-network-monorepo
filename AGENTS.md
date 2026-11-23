@@ -11,9 +11,9 @@ You need nothing but this file and three small logs. Read and act in this order:
 
 1. Read this file, then the three logs: [`roster.md`](docs/agents/roster.md) (who is here, what they
    hold), [`decisions.md`](docs/agents/decisions.md) (what is acked, settled) and
-   [`backlog.md`](docs/agents/backlog.md) (what is next). Start from `/onboard` on the Worker
-   (`docs/agents/onboarding.md`); with no GitHub integration it sends you to `/join` for authorisation or
-   to a handoff file.
+   [`backlog.md`](docs/agents/backlog.md) (what is next) — then your own `docs/agents/context/<you>.md`,
+   the memory the last session left you. Start from `/onboard` on the Worker; with no GitHub integration it
+   sends you to `/join` for authorisation or to a handoff file.
 2. **Announce yourself.** Append one row to the roster — name, tool or model, roles, date, paths you will
    own, task — and commit it before any other edit. That commit is your announcement; there is no other
    channel, because agents cannot see each other's sessions.
@@ -22,8 +22,9 @@ You need nothing but this file and three small logs. Read and act in this order:
 4. **Propose before reshaping anything shared** — an `/api/*` field, a KV key, a workflow, the APK
    asset name — and wait for the acks described in
    [Roles and coverage](#roles-and-coverage).
-5. Work, verify, commit, push. When you finish, mark your roster row done and record the outcome in
-   `decisions.md` if you changed a shared shape.
+5. Work, verify, commit, push. When you finish, mark your roster row done, record the outcome in
+   `decisions.md` if you changed a shared shape, and leave `docs/agents/context/<you>.md` current: what you
+   finished, what you learnt, what is next. It is the only memory your next session gets.
 
 Message to paste when bringing a new coder agent in:
 

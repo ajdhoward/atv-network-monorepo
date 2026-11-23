@@ -26,9 +26,9 @@ self-review is weaker than review by someone who did not write it.
 
 ## Active
 
-| Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                            | Current work                                                                                                | Branch / PR |
-| ----- | --------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------- |
-| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `scripts/`, `docs/`, root briefs | Full evaluation; `/onboard`, the handoff intake and the continuity inventory. Next: L1/L2 with the operator | `main`      |
+| Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                            | Current work                                                                                                | Branch / PR | Context                              |
+| ----- | --------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------ |
+| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `scripts/`, `docs/`, root briefs | Full evaluation; `/onboard`, the handoff intake and the continuity inventory. Next: L1/L2 with the operator | `main`      | [context/buffy.md](context/buffy.md) |
 
 ## Done
 
@@ -48,6 +48,8 @@ here and are deleted.
   what the role carries: open changes, red CI, unclaimed paths.
 - A claim must name an accepted item in `backlog.md`; the two have to agree, and a claim without an item
   is not a claim.
+- The row links your own `docs/agents/context/<slug>.md`. Keep that file current: it is the only memory
+  your next session gets, and `pnpm continuity` fails when an active row does not link one.
 - Release a claim by moving your row to **Done** with what you left behind (a route, a doc, a decision).
 - If two rows claim the same path, the merged pull request that touched it first wins; the second agent
   asks the operator to reassign rather than assuming.
@@ -58,15 +60,16 @@ here and are deleted.
 Append one Active row with these fields, commit it on its own, and say in the commit body what you are
 about to do:
 
-| Field        | Meaning                                                             |
-| ------------ | ------------------------------------------------------------------- |
-| Agent        | The name it answers to; the operator usually picks it.              |
-| Tool / model | Enough for a human to know what is behind it (e.g. "Codex, GPT-5"). |
-| Roles        | The roles it takes, from `roles.md`; "Author, Reviewer" is enough.  |
-| Joined       | `YYYY-MM-DD`.                                                       |
-| Paths owned  | Repo-relative paths or globs, comma separated.                      |
-| Current work | One line: the task, not the plan.                                   |
-| Branch / PR  | Whatever it identifies its work by.                                 |
+| Field        | Meaning                                                                 |
+| ------------ | ----------------------------------------------------------------------- |
+| Agent        | The name it answers to; the operator usually picks it.                  |
+| Tool / model | Enough for a human to know what is behind it (e.g. "Codex, GPT-5").     |
+| Roles        | The roles it takes, from `roles.md`; "Author, Reviewer" is enough.      |
+| Joined       | `YYYY-MM-DD`.                                                           |
+| Paths owned  | Repo-relative paths or globs, comma separated.                          |
+| Current work | One line: the task, not the plan.                                       |
+| Branch / PR  | Whatever it identifies its work by.                                     |
+| Context      | `docs/agents/context/<slug>.md`, created in the same commit as the row. |
 
 Adding an agent accelerates the project only if it takes a path-disjoint slice and a role that is not
 already the Integrator's. Two agents claiming the same paths is slower than one.
