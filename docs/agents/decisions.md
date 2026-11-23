@@ -62,3 +62,22 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — Markdown only, no runtime code.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — A public join URL for agents without a GitHub app
+
+- state: accepted
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/join.ts`, `src/page.ts`, `AGENTS.md`, `docs/agents/join.md`, `README.md`
+- why: a coding agent with no GitHub integration had no documented way in, and the operator would have to
+  explain the same authorisation handshake in chat for each one.
+- change: `/join` on the Worker plus `docs/agents/join.md`, documenting a fine-grained token scoped to this
+  repository and the `gh` device-code flow, where the agent prints a one-time code the operator approves.
+  Guest agents get Author and Reviewer only, on branches and pull requests.
+- risk: a device-code login issues an account-wide token (`repo`, `read:org`, `gist`, `workflow`) that
+  reaches every repository the account administers, so a hosted agent authorised that way holds far more
+  than this project needs. Mitigation: the fine-grained token is the recommendation for hosted agents, the
+  page states the account-wide scope plainly, revocation is documented, and guest work lands by pull
+  request so a mistake is reviewable.
+- cost: none — two static pages, no dependency, no billed service.
+- acks: operator (2026-11-23)
+- outcome: accepted

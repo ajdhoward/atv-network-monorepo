@@ -10,7 +10,8 @@ subdirectory wins for that subtree. Keep this file near 200 lines; every session
 You need nothing but this file and two small logs. Read and act in this order:
 
 1. Read this file, then [`docs/agents/roster.md`](docs/agents/roster.md) (who is here, what they hold)
-   and [`docs/agents/decisions.md`](docs/agents/decisions.md) (what is proposed, acked, settled).
+   and [`docs/agents/decisions.md`](docs/agents/decisions.md) (what is proposed, acked, settled). With no
+   GitHub integration, start from `docs/agents/join.md` or `/join` on the Worker.
 2. **Announce yourself.** Append one row to the roster — name, tool or model, roles, date, paths you will
    own, task — and commit it before any other edit. That commit is your announcement; there is no other
    channel, because agents cannot see each other's sessions.

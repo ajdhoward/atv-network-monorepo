@@ -1,5 +1,6 @@
 import qrcode from "qrcode-generator";
 import type { Env } from "./env";
+import { escapeHtml, htmlResponse, renderPage } from "./page";
 
 // The Android workflow republishes one release and replaces its asset, so this
 // path stays valid without the page being rebuilt: GitHub resolves "latest" to
@@ -7,10 +8,10 @@ import type { Env } from "./env";
 const REPO_NAME = "atv-network-monorepo";
 export const APK_ASSET = "atv-launcher.apk";
 
-// QR geometry, in SVG units. Four modules of quiet zone is the smallest a
-// phone camera should be asked to work with, which is also the encoder's own
-// default (4 * cellSize). Kept here so the page, the test and anyone reading
-// the SVG agree on what the numbers mean.
+// QR geometry, in SVG units. Four modules of quiet zone is the smallest a phone
+// camera should be asked to work with, which is also the encoder's own default
+// (4 * cellSize). Kept here so the page, the test and anyone reading the SVG
+// agree on what the numbers mean.
 export const QR_CELL = 4;
 export const QR_MARGIN = QR_CELL * 4;
 
@@ -27,57 +28,14 @@ export function qrSvg(text: string): string {
   return qr.createSvgTag({ cellSize: QR_CELL, margin: QR_MARGIN, scalable: true });
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // Fire OS has no Chrome, so there is no Trusted Web Activity here: the APK is a
 // WebView shell that is sideloaded once. The page exists because a TV remote is
 // a poor way to type a release URL.
 export function installPage(env: Env): string {
   const apk = escapeHtml(apkUrl(env.GITHUB_USERNAME));
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
-<title>Install ATV Network on Fire TV</title>
-<style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: #0b0b0f; color: #f5f5f7;
-    font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 640px; margin: 0 auto; padding: 40px 22px 64px; }
-  h1 { font-size: 32px; line-height: 1.15; margin: 0 0 10px; }
-  h2 { font-size: 21px; margin: 40px 0 12px; }
-  p { margin: 0 0 16px; color: #c9c9d4; }
-  .lede { color: #9d9dac; }
-  a.button { display: inline-block; margin: 10px 0 8px; padding: 16px 30px; border-radius: 12px;
-    background: #f6821f; color: #0b0b0f; font-weight: 700; font-size: 19px; text-decoration: none; }
-  .url { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all;
-    color: #8b8b9a; }
-  figure.qr { margin: 26px 0; }
-  figure.qr img { width: 220px; height: 220px; display: block; border-radius: 10px; background: #fff; }
-  figure.qr figcaption { margin-top: 10px; color: #9d9dac; font-size: 15px; }
-  ol { padding-left: 22px; }
-  ol > li { margin-bottom: 18px; color: #c9c9d4; }
-  ol > li strong { display: block; margin-bottom: 4px; color: #f5f5f7; }
-  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
-  pre { background: #15151d; border: 1px solid #26262f; border-radius: 10px; padding: 14px 16px;
-    overflow-x: auto; }
-  ul { padding-left: 20px; color: #c9c9d4; }
-  ul li { margin-bottom: 8px; }
-  .note { border-left: 3px solid #f6821f; padding: 2px 0 2px 14px; color: #9d9dac; font-size: 15px; }
-</style>
-</head>
-<body>
-<main>
-  <h1>ATV Network for Fire TV</h1>
+  return renderPage(
+    "Install ATV Network on Fire TV",
+    `<h1>ATV Network for Fire TV</h1>
   <p class="lede">A small WebView shell that loads the live guide from this Worker. Line-up and stream
     changes reach the TV without a new install.</p>
 
@@ -90,7 +48,7 @@ export function installPage(env: Env): string {
   </figure>
 
   <h2>Sideload it</h2>
-  <ol>
+  <ol class="steps">
     <li>
       <strong>Get the APK onto your phone</strong>
       Tap the button above. Android may ask to allow installs from the browser; the file is the signed
@@ -140,29 +98,12 @@ adb install -r ${APK_ASSET}</pre>
       install again.</li>
     <li><strong>Retry screen</strong> &mdash; the TV cannot reach the Worker. Check its Wi-Fi, then press
       Retry.</li>
-  </ul>
-</main>
-</body>
-</html>`;
+  </ul>`,
+  );
 }
 
-// The page loads no script and nothing off-origin, so it gets a policy that says
-// exactly that rather than living without one.
-const PAGE_CSP =
-  "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
-
 export function handleInstall(env: Env): Response {
-  return new Response(installPage(env), {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      // The asset URL is resolved by GitHub on every visit, so a stale page only
-      // risks a stale APK name, never a stale link.
-      "Cache-Control": "public, max-age=300, s-maxage=600",
-      "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": PAGE_CSP,
-    },
-  });
+  return htmlResponse(installPage(env));
 }
 
 export function handleInstallQr(env: Env): Response {

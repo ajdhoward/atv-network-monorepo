@@ -58,7 +58,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                         |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                                 |
 | `GET /install`             | Install page for the Fire TV APK: release-asset link, QR (`/install/qr.svg`) and the sideload steps                                                                                                                                                                                          |
-| `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |
+| `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |     | `GET /join` | Public onboarding for a coding agent with no GitHub integration: `gh` device code or a fine-grained token, its roles, and what stays private |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
@@ -305,6 +305,21 @@ CI uses the runner's debug key and each build needs an uninstall before the next
 Sideloading needs _Install unknown apps_ enabled for whatever pushes the APK — Apps2Fire or Bugjaeger
 from a phone, Downloader on the TV, or `adb install`. The page spells the steps out; the phone route
 is the one that works without typing a URL with a remote.
+
+## Public surface
+
+The repository is public and the sandbox host is public, deliberately. **Public:** the source, `docs/`,
+`GET /install`, `GET /join`, the release APK, and the read-only API (`/api/status`, `/api/health`,
+`/api/guide`). **Private**, gitignored or held as a Worker secret: `atv-config.json`, resolved stream URLs
+(`ATV_GDRIVE_MAP`, `gdrive_map`, `torbox_map`), the TorBox token, the Android signing keystore, and every
+KV write or deploy.
+
+`/join` is the public URL for a coding agent with no GitHub integration. It installs `gh`, either takes a
+fine-grained token scoped to this repository or runs the device-code login (`gh auth login --web`, which
+prints a one-time code the operator approves at `github.com/login/device`), then clones and works by pull
+request with the Author and Reviewer roles only. The instructions are public; access is not — the
+operator authorises each agent and can revoke it, and a device-code token is account-wide while a
+fine-grained token is not. `docs/agents/join.md` spells both out.
 
 ## Budget
 

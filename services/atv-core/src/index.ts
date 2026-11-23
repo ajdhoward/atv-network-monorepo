@@ -3,6 +3,7 @@ import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
 import { kvJson, readJson, type Env } from "./env";
 import { handleInstall, handleInstallQr } from "./install";
+import { handleJoin } from "./join";
 import { resolveStream, streamCoverage } from "./resolver";
 import { runRulesIndex } from "./rules";
 
@@ -502,6 +503,9 @@ export default {
           break;
         case "/install/qr.svg":
           response = handleInstallQr(env);
+          break;
+        case "/join":
+          response = handleJoin(env);
           break;
         default:
           response = failure("not_found", "not found", requestId, 404);

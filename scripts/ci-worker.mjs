@@ -159,6 +159,24 @@ async function checkInstall() {
   );
 }
 
+// /join is the public onboarding URL a guest agent is pointed at, and it is
+// Worker-routed too. If it stops rendering, an agent with no GitHub app has no
+// way in, so a deploy must catch that here.
+async function checkJoin() {
+  const res = await fetch(`${base}/join`);
+  const html = await res.text();
+  const isHtml = (res.headers.get("content-type") || "").includes("text/html");
+  record(
+    "GET /join",
+    res.status === 200 &&
+      isHtml &&
+      html.includes("gh auth login") &&
+      html.includes("github.com/login/device") &&
+      html.includes("releases/latest/download") === false,
+    `HTTP ${res.status}`,
+  );
+}
+
 // The cron trigger is the only KV write in production, so a broken scheduled
 // handler or a missing ATV_CACHE binding should fail here rather than on the
 // first interval after a deploy. Wrangler's documented /__scheduled route never
@@ -244,6 +262,7 @@ async function main() {
   await checkAdmin();
   await checkResolve();
   await checkInstall();
+  await checkJoin();
   await checkCron();
   await checkLimiter();
 }

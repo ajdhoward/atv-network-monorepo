@@ -187,6 +187,15 @@ try {
     `HTTP ${install.res.status}, QR HTTP ${installQr.res.status}`,
   );
 
+  // A guest agent with no GitHub app is pointed at /join, so a broken route is
+  // the difference between onboarding and a dead end.
+  const join = await get("/join");
+  record(
+    "GET /join",
+    join.res.status === 200 && join.text.includes("github.com/login/device"),
+    `HTTP ${join.res.status}`,
+  );
+
   const unknown = await get("/api/does-not-exist");
   record(
     "GET /api/does-not-exist (JSON 404)",
