@@ -23,6 +23,9 @@ export interface Env {
   // set as a Worker secret so /api/resolve can be populated or rotated without
   // re-seeding KV. Secrets need no wrangler.toml binding, hence no block there.
   ATV_GDRIVE_MAP?: string;
+  // Optional TorBox API token, set as a Worker secret. Only the Worker ever sees
+  // it: a resolve returns the temporary CDN link, never this value.
+  ATV_TORBOX_API_KEY?: string;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

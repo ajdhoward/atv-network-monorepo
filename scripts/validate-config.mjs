@@ -37,6 +37,25 @@ if (raw.gdrive_map !== undefined) {
     }
   }
 }
+// TorBox items are ids, not links: a typo here fails at resolve time on the TV,
+// so catch it while the config is still local.
+if (raw.torbox_map !== undefined) {
+  if (!raw.torbox_map || typeof raw.torbox_map !== "object" || Array.isArray(raw.torbox_map)) {
+    problems.push("torbox_map must be an object of id -> { kind?, <kind>Id, fileId }");
+  } else {
+    for (const [id, entry] of Object.entries(raw.torbox_map)) {
+      const kind = entry?.kind ?? "torrent";
+      if (!["torrent", "usenet", "webdl"].includes(kind)) {
+        problems.push(`torbox_map.${id}.kind must be torrent, usenet or webdl`);
+        continue;
+      }
+      if (!Number.isInteger(entry?.[`${kind}Id`]) || entry[`${kind}Id`] < 0)
+        problems.push(`torbox_map.${id} needs an integer ${kind}Id`);
+      if (!Number.isInteger(entry?.fileId) || entry.fileId < 0)
+        problems.push(`torbox_map.${id} needs an integer fileId`);
+    }
+  }
+}
 for (const [i, ident] of (raw.idents || []).entries()) {
   if (typeof ident !== "string" || !ident.startsWith("https://"))
     problems.push(`idents[${i}] must be an https url`);

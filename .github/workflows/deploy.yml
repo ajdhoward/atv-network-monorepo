@@ -92,6 +92,20 @@ jobs:
           printf '%s' "$ATV_GDRIVE_MAP" > "$RUNNER_TEMP/gdrive-map.json"
           node scripts/set-gdrive-map.mjs "$RUNNER_TEMP/gdrive-map.json" \
             --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # Optional: the TorBox API token. Piped straight into the Worker secret so it
+      # never lands in a file, and skipped when the repository secret is absent.
+      - name: Push the TorBox token
+        env:
+          ATV_TORBOX_API_KEY: ${{ secrets.ATV_TORBOX_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: d9491f1ab703e0a99b69919230410f2a
+        run: |
+          if [ -z "$ATV_TORBOX_API_KEY" ]; then
+            echo "No ATV_TORBOX_API_KEY secret; skipping (mapped TorBox channels answer 502)."
+            exit 0
+          fi
+          printf '%s' "$ATV_TORBOX_API_KEY" | pnpm exec wrangler secret put ATV_TORBOX_API_KEY \
+            --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
       - uses: cloudflare/wrangler-action@v4
         id: deploy
         with:

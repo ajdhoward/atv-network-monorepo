@@ -1,4 +1,5 @@
 import { kvJson, type Env } from "./env";
+import { parseTorboxRef, resolveTorbox, torboxToken } from "./torbox";
 
 export type ResolvedLink = { url: string; headers?: Record<string, string>; profile: string };
 
@@ -52,23 +53,42 @@ export type StreamCoverage = { configured: number; invalid: number; missing: num
 export async function streamCoverage(env: Env, ids: string[]): Promise<StreamCoverage> {
   const operator = operatorMap(env);
   const stored = await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map");
+  const torbox = await kvJson<Record<string, unknown>>(env.ATV_CONFIG, "torbox_map");
+  const torboxReady = !!torboxToken(env);
   let configured = 0;
   let invalid = 0;
   for (const id of ids) {
+    // Same precedence as resolveStream: a direct operator link wins over the
+    // TorBox map, which wins over the KV link map.
     const url = operator?.[id] ?? stored?.[id];
-    if (typeof url !== "string" || !url) continue;
-    // A non-HTTPS link resolves to a 502, so it is neither usable nor missing.
-    if (url.startsWith("https://")) configured++;
-    else invalid++;
+    if (typeof url === "string" && url) {
+      // A non-HTTPS link resolves to a 502, so it is neither usable nor missing.
+      if (url.startsWith("https://")) configured++;
+      else invalid++;
+      continue;
+    }
+    if (torbox && id in torbox) {
+      // A mapped id with no token is missing coverage, not a broken link: the
+      // operator still has to add the secret. A malformed entry is a typo.
+      if (torboxReady && parseTorboxRef(torbox[id])) configured++;
+      else if (torboxReady) invalid++;
+    }
   }
   return { configured, invalid, missing: ids.length - configured - invalid };
 }
 
 export async function resolveStream(id: string, env: Env): Promise<ResolvedLink> {
-  // An id the secret covers needs no KV read at all.
+  // Precedence: the operator secret is the newest instruction, then the TorBox
+  // map (which asks TorBox at resolve time), then a link seeded into KV.
   const operator = operatorMap(env)?.[id];
-  const direct =
-    operator ?? (await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map"))?.[id];
+  if (typeof operator === "string" && operator) {
+    if (!operator.startsWith("https://"))
+      throw new Error("insecure url blocked - TLS 1.3 required");
+    return { url: operator, profile: "1080p_hevc" };
+  }
+  const torbox = await resolveTorbox(id, env);
+  if (torbox) return { url: torbox, profile: "1080p_hevc" };
+  const direct = (await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map"))?.[id];
   if (!direct) throw new Error("not found");
   if (!direct.startsWith("https://")) throw new Error("insecure url blocked - TLS 1.3 required");
   return { url: direct, profile: "1080p_hevc" };

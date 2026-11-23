@@ -47,14 +47,14 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 
 ## API
 
-| Route                      | Behaviour                                                                                                                                                                                                                                                                               |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                                                      |
-| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, resolve:{configured,invalid,missing}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift         |
-| `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60, stale-while-revalidate=300` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor` |
-| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret or `ATV_CONFIG/gdrive_map`; `?ids=a,b` answers up to 20 in one request as `{resolved,missing,invalid}` and spends one limiter token; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips                  |
-| `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                    |
-| `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                            |
+| Route                      | Behaviour                                                                                                                                                                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/status`          | name/env/time JSON                                                                                                                                                                                                                                                                           |
+| `GET /api/health`          | `{status, schemaVersion, config:{seeded,channels,updatedAt}, resolve:{configured,invalid,missing}, guideSnapshot}`; `degraded` when the lineup is empty or `config_meta` names a schema this build refuses; `config.schemaMatches` / `config.checksumMatches` expose that drift              |
+| `GET /api/guide`           | channels indexed from KV `ATV_CONFIG/channels`, sorted by id, memoised 30 s, `Cache-Control: public, max-age=30, s-maxage=60, stale-while-revalidate=300` + `ETag` (304 on `If-None-Match`). Paged with `?limit=` (default 500, max 1000) and `?cursor=`; the body carries `nextCursor`      |
+| `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret, a `torbox_map` entry or `ATV_CONFIG/gdrive_map`; `?ids=a,b` answers up to 20 in one request as `{resolved,missing,invalid}` and spends one limiter token; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips |
+| `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                         |
+| `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                                 |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
@@ -105,6 +105,7 @@ The local store lives under `.wrangler/state`, so deleting that directory reseed
 | `channels`    | `[{id,name,country,category,genre[]}]` (or `system_config.channels`) | `/api/guide`                 |
 | `idents`      | `["https://…"]` media URLs                                           | `/api/idents/random`         |
 | `gdrive_map`  | `{ "<id>": "https://…" }`                                            | `/api/resolve`               |
+| `torbox_map`  | `{ "<id>": {kind?,<kind>Id,fileId} }`                                | `/api/resolve` (TorBox)      |
 | `config_meta` | `{schemaVersion, checksum, channels, updatedAt}`                     | schema guard in `/api/guide` |
 
 `ATV_CACHE` is written by the Worker's cron trigger (`guide:latest`, every 10 minutes); no manual
@@ -158,6 +159,34 @@ up as `502 insecure_url`. `--probe` follows the resolved link, so a link the CDN
 content type only. A probe failure means this network could not fetch the link (geo-blocking and
 CDN bot rules included), so treat it as a signal to check rather than a verdict. Pass a base URL or
 `--ids atv-1,atv-news-24` to narrow the audit.
+
+### TorBox links
+
+A channel can come from TorBox instead of a fixed URL: map it in `torbox_map` and the Worker asks
+TorBox for a temporary CDN link when a TV tunes in. The API token is the Worker secret
+`ATV_TORBOX_API_KEY` — never written to KV, never sent to the device, never logged — and the TV plays
+the returned `https://` link directly over TLS.
+
+```json
+"torbox_map": {
+  "atv-1": { "kind": "torrent", "torrentId": 1234, "fileId": 5678 },
+  "atv-2": { "kind": "usenet", "usenetId": 90, "fileId": 12 },
+  "atv-3": { "kind": "webdl", "webdlId": 34, "fileId": 56 }
+}
+```
+
+`kind` defaults to `torrent`. A link is cached per isolate for 30 minutes, well inside the
+three-hour window TorBox opens, so sweeping the grid costs one API call per channel rather than one
+per hover. Precedence is `ATV_GDRIVE_MAP`, then `torbox_map`, then KV `gdrive_map`. A mapped channel
+without the secret answers `502 resolve_failed` and counts as missing coverage in `/api/health`, so
+a forgotten token does not look like an unknown id.
+
+```bash
+printf '%s' "$TORBOX_TOKEN" | npx wrangler secret put ATV_TORBOX_API_KEY
+```
+
+That targets `wrangler.toml`; add `--config wrangler.production.toml` for a cutover candidate. CI
+does the same from the repository secret `ATV_TORBOX_API_KEY` and skips the step when it is absent.
 
 ### Sandbox vs production KV
 

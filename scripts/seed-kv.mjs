@@ -100,13 +100,25 @@ if (config.gdrive_map && typeof config.gdrive_map === "object") {
 } else {
   console.warn("⚠ No gdrive_map in this file: /api/resolve will answer 404 for every id.");
 }
+// Channel -> TorBox item. No token lives here: the Worker reads that secret at
+// resolve time and returns the temporary CDN link, never the token.
+if (config.torbox_map && typeof config.torbox_map === "object") {
+  entries.push(["ATV_CONFIG", "torbox_map", config.torbox_map]);
+}
 if (!config.channels.length) {
   console.warn("⚠ No channels in this file: /api/guide will serve an empty lineup.");
 }
 
 // The keys this script owns. Without --prune, a key dropped from the config (an
 // emptied `idents`, say) keeps being served from KV forever.
-const OWNED_KEYS = ["channels", "system_config", "config_meta", "idents", "gdrive_map"];
+const OWNED_KEYS = [
+  "channels",
+  "system_config",
+  "config_meta",
+  "idents",
+  "gdrive_map",
+  "torbox_map",
+];
 const prune = args.includes("--prune");
 const writtenKeys = new Set(entries.map(([, key]) => key));
 
