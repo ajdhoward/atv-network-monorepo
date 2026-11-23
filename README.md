@@ -46,6 +46,7 @@ scripts/validate-config.mjs         validates a seed config before uploading
 scripts/pack-assets.mjs             copies the admin build under the TV client's assets
 scripts/check-deploy-target.mjs     blocks deploys that would replace production or write prod KV
 scripts/test/                       deploy-guard suite
+docs/                               index of every document; continuity.md holds the secret inventory
 android/                            WebView shell for Fire OS, built by .github/workflows/android.yml
 wrangler.toml                       sandbox worker atv-core-v2: KV bindings, cron, assets, /admin
 wrangler.production.toml            production worker atv-core-orchestrator (reference only)

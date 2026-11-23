@@ -26,9 +26,9 @@ self-review is weaker than review by someone who did not write it.
 
 ## Active
 
-| Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                   | Current work                                   | Branch / PR |
-| ----- | --------------------------------------- | ------------------------------------------ | ---------- | --------------------------------------------- | ---------------------------------------------- | ----------- |
-| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `packages/`, `scripts/` | Fire TV install path; agent coordination files | `main`      |
+| Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                            | Current work                                                                                                | Branch / PR |
+| ----- | --------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------- |
+| Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `scripts/`, `docs/`, root briefs | Full evaluation; `/onboard`, the handoff intake and the continuity inventory. Next: L1/L2 with the operator | `main`      |
 
 ## Done
 

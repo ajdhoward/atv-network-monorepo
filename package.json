@@ -14,6 +14,7 @@
     "seed:local": "node scripts/seed-kv.mjs --local",
     "budget": "node scripts/budget.mjs",
     "handoff": "node scripts/handoff.mjs",
+    "continuity": "node scripts/check-continuity.mjs",
     "smoke": "node scripts/smoke.mjs",
     "streams": "node scripts/check-streams.mjs",
     "deploy": "node scripts/staging-kv.mjs && node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:deploy && wrangler deploy --config wrangler.toml",

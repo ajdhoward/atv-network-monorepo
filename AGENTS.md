@@ -78,8 +78,7 @@ pnpm dev                           # seed local KV, then wrangler dev on :8788
 pnpm typecheck                     # worker + tv-client + admin-cms
 pnpm lint                          # ESLint
 pnpm test                          # full Vitest suite
-pnpm exec vitest run services/atv-core/test/install.test.ts   # one file
-pnpm exec vitest run -t "name of the test"                    # one test
+pnpm exec vitest run <file>        # one file; add -t "name" for one test
 pnpm run build:deploy              # client + admin + pack; required before ci:worker
 pnpm run ci:worker                 # boot the built Worker in workerd and exercise it
 pnpm budget                        # model usage against the Workers Paid allowance
@@ -164,7 +163,7 @@ Agents cannot talk to each other; the repository is the channel, and the operato
 ## Verify before you believe
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm format:check && pnpm test
+pnpm typecheck && pnpm lint && pnpm format:check && pnpm continuity && pnpm test
 pnpm run build:deploy && pnpm run ci:worker   # for anything the Worker serves
 ```
 
@@ -190,7 +189,9 @@ the APK on an `android/` change is expected automation, not an exception to the 
 - Run the checks for the area you touched, then commit and push the finished change.
 - Keep `main` green; fix a red `verify` before starting anything new.
 - Log and print counts and ids, never links or tokens.
-- Update `README.md` or `docs/` when a command, route or behaviour changes.
+- Update `README.md` or `docs/` when a command, route or behaviour changes. Anything only your session
+  knows — a decision, a secret's name and how to rebuild it, a command — goes in the repo or it does not
+  survive: [`docs/continuity.md`](docs/continuity.md) says where, and `pnpm continuity` checks it.
 
 **Ask first**
 

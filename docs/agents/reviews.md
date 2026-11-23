@@ -48,7 +48,8 @@ Copy numbers, do not describe them.
 
 ## Outputs
 
-- A record at `docs/reviews/YYYY-MM-DD.md`: the scorecard, the answers, and what changes.
+- A record at `docs/reviews/YYYY-MM-DD.md`: the scorecard, the answers, and what changes. Records are
+  indexed in `docs/README.md`, which `pnpm continuity` enforces, so a review cannot become private.
 - Each accepted change becomes a backlog item, or a direct edit when it is small enough to do in the
   review itself.
 - Process edits go to `AGENTS.md`, `roles.md`, this file, or `decisions.md` when the change is a settled

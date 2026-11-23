@@ -189,6 +189,18 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** proposed
 
+### R4 · Decide where the line-up and secrets are backed up
+
+- **Why:** `docs/continuity.md` can record names and rebuild steps, but the line-up itself is only in the
+  operator's store, KV and one repository secret. Losing all three loses the network, and a public repo
+  cannot hold it.
+- **Done when:** one option is chosen in `decisions.md` and the recovery steps work from it — a private
+  companion repo, an encrypted blob committed here with the passphrase held elsewhere, or a password
+  manager entry plus KV as the live copy.
+- **Paths:** `docs/continuity.md`
+- **Size:** S
+- **State:** proposed — the operator decides, because every option touches where a secret lives
+
 ### R3 · Report test coverage in the review
 
 - **Why:** 160 tests say nothing about the files with none, so a new module can land unexercised without a

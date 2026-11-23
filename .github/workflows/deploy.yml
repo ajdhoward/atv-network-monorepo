@@ -31,6 +31,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check
+      # Knowledge that lives only in someone's session is lost knowledge: this
+      # fails on a dead doc link, an unindexed document, a secret renamed out of
+      # the inventory, or a gitignored file that got committed.
+      - run: pnpm continuity
       - run: pnpm test
       # build:deploy is client + admin + the pack step the Worker's asset
       # directory depends on, so CI exercises the same build the deploy does.

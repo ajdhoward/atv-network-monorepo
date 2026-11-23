@@ -133,3 +133,23 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — two static pages and a script with no dependency.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — Nothing vital lives outside the repository
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `docs/continuity.md` (new), `docs/README.md` (new), `scripts/check-continuity.mjs` (new),
+  `.github/workflows/deploy.yml`, `AGENTS.md`
+- why: knowledge was accumulating in sessions and chats, and one document (the first review record) was
+  already unreachable from anywhere. A new agent given only the repository would not have found it, and a
+  secret whose name is remembered by one agent is a secret the next agent cannot rotate.
+- change: a continuity inventory records what is in the repo, what cannot be (with its name, location and
+  rebuild step), the order to rebuild from a clone, and a session-close checklist. `pnpm continuity`
+  enforces the mechanical half in `verify`: no broken relative links, every doc listed in `docs/README.md`,
+  every inventoried secret name still present in the repository, and no gitignored-but-vital file tracked.
+- risk: a check on prose can be gamed by writing docs to satisfy it. Mitigation: it only asserts
+  reachability and names, which is exactly what a new agent needs; it makes no claim about whether a doc
+  is accurate, and the reviews still sample that.
+- cost: none — no dependency, one CI step that reads files.
+- acks: operator (2026-11-23)
+- outcome: accepted
