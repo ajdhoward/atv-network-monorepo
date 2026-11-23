@@ -25,7 +25,9 @@ services/atv-core/src/rules.ts      guide indexing (country/category groups, det
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
 services/atv-core/src/page.ts       shared page shell, CSS and CSP for /install and /join
 services/atv-core/src/install.ts    /install page + QR for the Fire TV APK
-services/atv-core/src/join.ts       /join page: onboarding for an agent with no GitHub integration
+services/atv-core/src/join.ts       /join page: authorisation for an agent with no GitHub integration
+services/atv-core/src/onboard.ts    /onboard page: the whole introduction, both paths in
+scripts/handoff.mjs                 lands an agent's handoff file in docs/agents/handoffs/
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
@@ -62,6 +64,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /install`             | Install page for the Fire TV APK: release-asset link, QR (`/install/qr.svg`) and the sideload steps                                                                                                                                                                                          |
 | `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |
 | `GET /join`                | Public onboarding for a coding agent with no GitHub integration: `gh` device code or a fine-grained token, its roles, and what stays private                                                                                                                                                 |
+| `GET /onboard`             | The single onboarding URL for a new agent: the project in brief, the four logs, Path A (GitHub) and Path B (a handoff file the operator lands)                                                                                                                                               |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
@@ -319,6 +322,11 @@ The repository is public and the sandbox host is public, deliberately. **Public:
 `/api/guide`). **Private**, gitignored or held as a Worker secret: `atv-config.json`, resolved stream URLs
 (`ATV_GDRIVE_MAP`, `gdrive_map`, `torbox_map`), the TorBox token, the Android signing keystore, and every
 KV write or deploy.
+
+`/onboard` is the single URL to hand a new agent, integrated or not: it covers the project in brief, the
+four logs, and the two ways in — clone and work by pull request, or return one handoff file the operator
+lands with `pnpm handoff`. It is separate from the project's own objectives on purpose, so the same page
+works for every agent that arrives.
 
 `/join` is the public URL for a coding agent with no GitHub integration. It installs `gh`, either takes a
 fine-grained token scoped to this repository or runs the device-code login (`gh auth login --web`, which

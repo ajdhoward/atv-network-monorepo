@@ -161,6 +161,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Done when:** the row exists and, only if `android/` is theirs, the nested file explains just that
   subtree.
 - **Paths:** `docs/agents/roster.md`, `android/AGENTS.md`
+- **Also:** an agent with no repository access sends a handoff file instead (`pnpm handoff`,
+  `docs/agents/handoffs/README.md`), so its paths and proposal reach the channel before access does.
 - **Size:** S
 - **State:** proposed — waits for the operator to say which paths the next agent owns
 

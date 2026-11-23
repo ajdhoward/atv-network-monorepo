@@ -11,8 +11,9 @@ You need nothing but this file and three small logs. Read and act in this order:
 
 1. Read this file, then the three logs: [`roster.md`](docs/agents/roster.md) (who is here, what they
    hold), [`decisions.md`](docs/agents/decisions.md) (what is acked, settled) and
-   [`backlog.md`](docs/agents/backlog.md) (what is next). With no GitHub integration, start from
-   `docs/agents/join.md` or `/join` on the Worker.
+   [`backlog.md`](docs/agents/backlog.md) (what is next). Start from `/onboard` on the Worker
+   (`docs/agents/onboarding.md`); with no GitHub integration it sends you to `/join` for authorisation or
+   to a handoff file.
 2. **Announce yourself.** Append one row to the roster — name, tool or model, roles, date, paths you will
    own, task — and commit it before any other edit. That commit is your announcement; there is no other
    channel, because agents cannot see each other's sessions.

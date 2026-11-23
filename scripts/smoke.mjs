@@ -196,6 +196,17 @@ try {
     `HTTP ${join.res.status}`,
   );
 
+  // The onboarding URL is what the operator pastes to a new agent, and it has to
+  // carry both paths and the handoff command or the second path is a dead end.
+  const onboard = await get("/onboard");
+  record(
+    "GET /onboard",
+    onboard.res.status === 200 &&
+      onboard.text.includes("pnpm handoff") &&
+      onboard.text.includes("Path B"),
+    `HTTP ${onboard.res.status}`,
+  );
+
   const unknown = await get("/api/does-not-exist");
   record(
     "GET /api/does-not-exist (JSON 404)",

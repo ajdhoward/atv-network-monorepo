@@ -4,6 +4,7 @@ import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta"
 import { kvJson, readJson, type Env } from "./env";
 import { handleInstall, handleInstallQr } from "./install";
 import { handleJoin } from "./join";
+import { handleOnboard } from "./onboard";
 import { resolveStream, streamCoverage } from "./resolver";
 import { runRulesIndex } from "./rules";
 
@@ -506,6 +507,9 @@ export default {
           break;
         case "/join":
           response = handleJoin(env);
+          break;
+        case "/onboard":
+          response = handleOnboard(env);
           break;
         default:
           response = failure("not_found", "not found", requestId, 404);

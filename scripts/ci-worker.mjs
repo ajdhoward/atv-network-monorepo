@@ -177,6 +177,24 @@ async function checkJoin() {
   );
 }
 
+// /onboard is the one URL the operator hands to a new agent, so it is the same
+// kind of dead end as /join when it breaks. It must also carry the handoff
+// template, because Path B produces that file.
+async function checkOnboard() {
+  const res = await fetch(`${base}/onboard`);
+  const html = await res.text();
+  const isHtml = (res.headers.get("content-type") || "").includes("text/html");
+  record(
+    "GET /onboard",
+    res.status === 200 &&
+      isHtml &&
+      html.includes("Path A: you can reach GitHub") &&
+      html.includes("Path B: you cannot reach GitHub") &&
+      html.includes("pnpm handoff"),
+    `HTTP ${res.status}`,
+  );
+}
+
 // The cron trigger is the only KV write in production, so a broken scheduled
 // handler or a missing ATV_CACHE binding should fail here rather than on the
 // first interval after a deploy. Wrangler's documented /__scheduled route never
@@ -212,10 +230,15 @@ async function checkCron() {
 }
 
 // Requests without CF-Connecting-IP are deliberately uncounted, so the burst
-// sends one. workerd may set the header itself, which still lands every request
-// on the same counter.
+// sends one. It has to be unique per run: the Durable Object keeps its window
+// and its count in the local store, so a fixed key made a second run inside the
+// same minute answer 429 on request zero, failing a Worker that was fine.
 async function checkLimiter() {
-  const headers = { "CF-Connecting-IP": "203.0.113.7", accept: "application/json" };
+  const octet = () => Math.floor(Math.random() * 254) + 1;
+  const headers = {
+    "CF-Connecting-IP": `198.18.${octet()}.${octet()}`,
+    accept: "application/json",
+  };
   let allowed = 0;
   for (let i = 0; i < RATE_LIMIT_MAX; i++) {
     const res = await fetch(`${base}/api/resolve?id=ci-atv-one`, { headers });
@@ -263,6 +286,7 @@ async function main() {
   await checkResolve();
   await checkInstall();
   await checkJoin();
+  await checkOnboard();
   await checkCron();
   await checkLimiter();
 }

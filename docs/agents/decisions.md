@@ -113,3 +113,23 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — Markdown only.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — One onboarding URL, and a handoff file for agents with no repository access
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `services/atv-core/src/onboard.ts` (new), `scripts/handoff.mjs` (new), `docs/agents/handoffs/`,
+  `AGENTS.md`, `README.md`
+- why: the operator was explaining the same process in chat for every agent brought in, and an agent with
+  no GitHub integration had no way to contribute anything at all — not even a proposal.
+- change: `/onboard` is the single public URL to hand to a new agent, separate from `/join` (which stays
+  authorisation) and from the project's objectives. Path A is clone, review the backlog, announce, claim,
+  pull request. Path B is one file with fixed fields, landed by the operator with `pnpm handoff <file>
+--commit --push` into `docs/agents/handoffs/`, which the validator checks for required fields, size and
+  credential-shaped strings before anything is written.
+- risk: a handoff could be mistaken for an ownership claim, or carry a secret. Mitigation: the template
+  says paths are proposals, only a roster row claims a path, the validator rejects credential-shaped
+  content outright rather than warning, and the page states both.
+- cost: none — two static pages and a script with no dependency.
+- acks: operator (2026-11-23)
+- outcome: accepted
