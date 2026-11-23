@@ -2,7 +2,7 @@ import type { ChannelDef, HealthPayload } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
 import { kvJson, readJson, type Env } from "./env";
-import { handleInstall, handleInstallQr } from "./install";
+import { apkUrl, handleInstall, handleInstallQr } from "./install";
 import { handleJoin } from "./join";
 import { handleOnboard } from "./onboard";
 import { resolveStream, streamCoverage } from "./resolver";
@@ -499,8 +499,17 @@ export default {
         case "/api/idents/random":
           response = await guard(requestId, path, () => handleIdent(env, requestId));
           break;
+        case "/a":
+          // The short install address: a TV remote types /a instead of the whole
+          // release URL. A redirect, not a proxy, so the APK stays GitHub's
+          // bandwidth and the Worker never holds a large asset in a request.
+          response = new Response(null, {
+            status: 302,
+            headers: { Location: apkUrl(env.GITHUB_USERNAME), "Cache-Control": "no-store" },
+          });
+          break;
         case "/install":
-          response = handleInstall(env);
+          response = handleInstall(env, url);
           break;
         case "/install/qr.svg":
           response = handleInstallQr(env);

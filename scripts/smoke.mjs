@@ -187,6 +187,47 @@ try {
     `HTTP ${install.res.status}, QR HTTP ${installQr.res.status}`,
   );
 
+  // The short path is the address worth typing on a TV remote, so a redirect
+  // here is the whole feature; a 200 would mean the asset layer answered with
+  // the TV shell instead of the Worker.
+  const short = await get("/a");
+  const assetUrl = short.res.headers.get("location") || "";
+  record(
+    "GET /a (→ release asset)",
+    short.res.status === 302 && assetUrl.endsWith("/releases/latest/download/atv-launcher.apk"),
+    `HTTP ${short.res.status}${assetUrl ? ", location set" : ", no location"}`,
+  );
+
+  // One URL is what every installed TV updates from. If the release or its asset
+  // name changes, nothing notices until someone tries to install, so a deploy
+  // must fail here instead.
+  if (assetUrl) {
+    try {
+      // No Access service-token headers: those are this deployment's credentials
+      // and the asset is a third-party host.
+      const asset = await fetch(assetUrl, { method: "HEAD", redirect: "follow" });
+      if (asset.status === 200) {
+        record("HEAD release asset", true, "HTTP 200");
+      } else if (asset.status >= 500) {
+        // GitHub's outage, not this Worker's: a 5xx must not turn a good deploy
+        // red, while a missing release (404) must.
+        console.log(
+          `WARN  release asset HEAD answered HTTP ${asset.status} — GitHub, not this Worker`,
+        );
+      } else {
+        record(
+          "HEAD release asset",
+          false,
+          `HTTP ${asset.status} — is ${assetUrl.split("/").at(-1)} still published?`,
+        );
+      }
+    } catch (err) {
+      console.log(
+        `WARN  release asset HEAD failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   // A guest agent with no GitHub app is pointed at /join, so a broken route is
   // the difference between onboarding and a dead end.
   const join = await get("/join");

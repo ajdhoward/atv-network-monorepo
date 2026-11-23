@@ -30,9 +30,11 @@ export function qrSvg(text: string): string {
 
 // Fire OS has no Chrome, so there is no Trusted Web Activity here: the APK is a
 // WebView shell that is sideloaded once. The page exists because a TV remote is
-// a poor way to type a release URL.
-export function installPage(env: Env): string {
+// a poor way to type a release URL, which is also why it names the Worker's
+// /a short path: two characters on the remote instead of the whole release URL.
+export function installPage(env: Env, host?: string): string {
   const apk = escapeHtml(apkUrl(env.GITHUB_USERNAME));
+  const short = host ? `${escapeHtml(host)}/a` : "this address, then /a";
   return renderPage(
     "Install ATV Network on Fire TV",
     `<h1>ATV Network for Fire TV</h1>
@@ -68,7 +70,8 @@ export function installPage(env: Env): string {
     </li>
     <li>
       <strong>Or fetch it on the TV</strong>
-      Install <em>Downloader</em> on the Fire TV, open it, type the APK link above, and choose Install.
+      Install <em>Downloader</em> on the Fire TV, open it, type <code>${short}</code>, and choose
+      Install. That short address redirects to the APK above, so the long URL never has to be typed.
     </li>
     <li>
       <strong>Open ATV Network</strong>
@@ -102,8 +105,10 @@ adb install -r ${APK_ASSET}</pre>
   );
 }
 
-export function handleInstall(env: Env): Response {
-  return htmlResponse(installPage(env));
+export function handleInstall(env: Env, url?: URL): Response {
+  // The host is only used to show the absolute /a address; the Worker cannot
+  // know its own hostname otherwise.
+  return htmlResponse(installPage(env, url?.host));
 }
 
 export function handleInstallQr(env: Env): Response {

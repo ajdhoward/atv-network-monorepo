@@ -93,6 +93,11 @@ describe("install page", () => {
     expect(decode(grid)).toBe(apkUrl("ajdhoward"));
   });
 
+  it("names the short /a address, which only the request's host can give", async () => {
+    const { text } = await get("/install");
+    expect(text).toContain("atv.test/a");
+  });
+
   it("follows the GitHub owner the deployment is configured with", async () => {
     const env = makeEnv("another-owner");
     const page = await get("/install", env);

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { checksum } from "../src/config-meta";
 import type { Env } from "../src/env";
+import { apkUrl } from "../src/install";
 
 type Seed = Record<string, unknown>;
 
@@ -710,6 +711,28 @@ describe("routing", () => {
     await worker.fetch(new Request("https://atv.test/admin/settings"), env);
     expect(seen.at(-1)).toContain("/admin/");
     expect(seen.at(-2)).toContain("/admin/assets/app.js");
+  });
+
+  it("302s /a to the release asset without reading either KV namespace", async () => {
+    const worker = await freshWorker();
+    const { env, config, cache } = makeEnv();
+    const { res } = await call(worker, env, "/a");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(apkUrl("test"));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-request-id")).toBeTruthy();
+    // An install has to work before a lineup is seeded, so this route must not
+    // touch the config or the cache on its way out.
+    expect(config.store.size).toBe(0);
+    expect(cache.store.size).toBe(0);
+  });
+
+  it("answers the trailing-slash form of /a", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv();
+    const { res } = await call(worker, env, "/a/");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(apkUrl("test"));
   });
 });
 

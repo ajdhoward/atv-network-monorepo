@@ -64,6 +64,7 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                                 |
 | `GET /install`             | Install page for the Fire TV APK: release-asset link, QR (`/install/qr.svg`) and the sideload steps                                                                                                                                                                                          |
 | `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |
+| `GET /a`                   | 302 to the release APK: the address to type in Downloader on the TV, where the full release URL is painful with a remote                                                                                                                                                                     |
 | `GET /join`                | Public onboarding for a coding agent with no GitHub integration: `gh` device code or a fine-grained token, its roles, and what stays private                                                                                                                                                 |
 | `GET /onboard`             | The single onboarding URL for a new agent: the project in brief, the four logs, Path A (GitHub) and Path B (a handoff file the operator lands)                                                                                                                                               |
 
@@ -299,7 +300,8 @@ known about production specifically.
 `/install` on a deployed Worker is the install page: a download button, a QR code and the sideload
 steps. The APK is the `atv-launcher.apk` asset on the `atv-launcher-latest` GitHub release, which
 `.github/workflows/android.yml` rebuilds and republishes whenever `android/` changes. The page links to
-`/releases/latest/download/`, so it never needs rebuilding when the APK does.
+`/releases/latest/download/`, so it never needs rebuilding when the APK does. `GET /a` 302s to the same
+asset, and the install page shows that address as the one to type in Downloader on the TV.
 
 `android/` is a plain WebView shell — one `Activity`, the platform's own `WebView`, no AndroidX, no
 runtime dependency — because a Trusted Web Activity needs Chrome (absent on Fire OS) and
