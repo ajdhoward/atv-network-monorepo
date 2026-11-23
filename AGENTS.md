@@ -3,7 +3,36 @@
 The operating brief for anyone, human or agent, changing this repository. Agent tools load it
 automatically, so every line costs context in every session: point at `README.md` or `docs/` instead of
 restating them. Where this file and a default habit disagree, this file wins; a nested `AGENTS.md` in a
-subdirectory wins for that subtree. Keep the whole file under about 200 lines.
+subdirectory wins for that subtree. Keep this file near 200 lines (it is 203, and every session loads all of it).
+
+## Joining this repo
+
+You need nothing but this file and two small logs. Read and act in this order:
+
+1. Read this file, then [`docs/agents/roster.md`](docs/agents/roster.md) (who is here, what they hold)
+   and [`docs/agents/decisions.md`](docs/agents/decisions.md) (what is proposed, acked, settled).
+2. **Announce yourself.** Append one row to the roster — name, tool or model, date, the paths you will
+   own, your task — and commit it before any other edit. That commit is your announcement; there is no
+   other channel, because agents cannot see each other's sessions.
+3. **Claim only your paths.** If another agent owns what you need, say so in your row or take a
+   different task. Editing a claimed file is the one collision git cannot merge away.
+4. **Propose before reshaping anything shared** — an `/api/*` field, a KV key, a workflow, the APK
+   asset name — and wait for the acks described in
+   [Working with other agents](#working-with-other-agents).
+5. Work, verify, commit, push. When you finish, mark your roster row done and record the outcome in
+   `decisions.md` if you changed a shared shape.
+
+Message to paste when bringing a new coder agent in:
+
+```text
+You are joining an existing project: github.com/ajdhoward/atv-network-monorepo.
+Read AGENTS.md, then docs/agents/roster.md and docs/agents/decisions.md.
+Announce yourself by adding one row to the roster (name, tool, date, paths you will own,
+task) and committing it before any other edit. Claim only those paths, propose before
+changing a shared shape, and follow the ack rule for consensus. Pull before you push,
+never force-push, and never edit another agent's row, branch or commits. Report what you
+verified and what you could not.
+```
 
 ## What this is for
 
@@ -33,6 +62,7 @@ Non-goals: multi-tenant SaaS, accounts for strangers, features nobody in the hou
 | `packages/ui-shared/`        | Shared types and the example seed config                     | `src/index.ts`        |
 | `android/`                   | Fire OS WebView shell; the APK is a release asset            | `android/README.md`   |
 | `scripts/`                   | Seed, dev, smoke, ci-worker, budget, deploy guards           | `README.md` layout    |
+| `docs/agents/`               | Roster (claims) and the decisions log — coordination state   | itself                |
 | `docs/production-cutover.md` | The only authority for replacing production                  | itself                |
 | `wrangler.toml`              | Sandbox `atv-core-v2` — the default deploy target            | `README.md` Deploy    |
 | `wrangler.production.toml`   | Production reference; not deployable from here by default    | `README.md` Deploy    |
@@ -58,59 +88,68 @@ pnpm deploy                        # kv:staging -> guard -> build -> deploy atv-
 ```
 
 `ci:worker` serves the built assets, so run `build:deploy` first. For a local lineup:
-`pnpm seed:local -- --file atv-config.json`. Formatting is Prettier's job and lint rules are ESLint's:
-run them, do not hand-match style or argue with a rule in this file.
+`pnpm seed:local -- --file atv-config.json`. Prettier and ESLint own style; run them, do not hand-match.
 
-## Decisions already made
+## Settled decisions
 
-Do not re-open these without new information; each one cost a real investigation.
+Do not re-open these without new information; the rationale for each is in `docs/agents/decisions.md`.
 
-- **Fire OS has no Chrome**, so a Trusted Web Activity cannot launch. The client ships as a WebView
-  shell. Capacitor or Cordova would add a bridge, plugins and a Node build step for capabilities this
-  shell never calls.
-- **Cloudflare ships no WARP client for Fire OS.** "Encrypt the TV's traffic with WARP" is not
-  available. The substitute is TLS everywhere (resolver refuses non-HTTPS) plus Access/Tunnel in front
-  of control planes.
+- **Fire OS has no Chrome**, so a Trusted Web Activity cannot launch: the client is a WebView shell, not
+  Capacitor or Cordova. Cloudflare ships no WARP client for it either, so encryption is TLS everywhere
+  (the resolver refuses non-HTTPS) plus Access or a Tunnel in front of control planes.
 - **Stream links resolve server-side.** TorBox links expire in about three hours, so they are cached
-  per isolate for 30 minutes and never written to KV or sent as a token to a device. Precedence is
-  `ATV_GDRIVE_MAP` secret, then `torbox_map`, then KV `gdrive_map`.
+  per isolate for 30 minutes and never seeded or sent to a device. Precedence is `ATV_GDRIVE_MAP`, then
+  `torbox_map`, then KV `gdrive_map`.
 - **Google Drive has no direct-play URL.** The agreed approach is a Worker proxy with signed URLs and
-  Range passthrough. It is not built yet; do not "just use the Drive link" instead.
-- **Sandbox first.** `pnpm deploy` targets `atv-core-v2`. The live `atv-core-orchestrator` is not built
-  from this repo, deploying over it drops D1, `REMOTE_HUB`, telemetry and the admin token, and
-  `docs/production-cutover.md` is the plan for changing that.
-- **The APK is a release asset**, not repo content: `.github/workflows/android.yml` publishes
-  `atv-launcher.apk` on the `atv-launcher-latest` release, and `/install` links to
-  `/releases/latest/download/`.
+  Range passthrough; it is not built, and "just use the Drive link" is not a shortcut.
+- **Sandbox first.** `pnpm deploy` targets `atv-core-v2`; the live `atv-core-orchestrator` is not built
+  from this repo, and `docs/production-cutover.md` governs any replacement.
+- **The APK is a release asset**, not repo content: the Android workflow publishes `atv-launcher.apk` on
+  the `atv-launcher-latest` release, and `/install` links to `/releases/latest/download/`.
 
 ## Strategy: reuse, then stitch, then build
 
 The default answer to "how do we do X" is an established component that already does X, wired into
-this repo. A fresh implementation is the exception and needs its reason written down.
+this repo. Prefer editing an existing file to adding one; a fresh build needs its reason written down.
 
 1. **Platform first.** Cloudflare Workers/KV/Durable Objects, Android's own framework APIs, GitHub's
    official actions. Already paid for, already reliable, already documented.
 2. **Established library second.** Maintained, permissive, current. Choose on: smallest surface (few
    dependencies, no native code, runs in workerd), most real users, clearest licence.
-3. **Stitch third.** Compose those pieces behind a thin adapter of ours. Our adapters connect things;
+3. **Stitch third.** Compose those pieces behind a thin adapter of ours; our adapters connect things,
    they do not reimplement them.
 4. **Build last, and say why** in the commit body: no maintained option exists, the licence is
    incompatible, the runtime cannot support it, or it would cost more than it saves.
 
-Prefer editing an existing file to adding one, and one file per concern.
+**Licences.** Allowed without asking: MIT, ISC, BSD-2/3-Clause, Apache-2.0, MPL-2.0, Unlicense/CC0. Ask
+first: LGPL, EPL, GPL, AGPL (network copyleft reaches a hosted Worker), CC-BY-SA, custom or dual
+licences, and anything that calls a paid API. Never: unlicensed or source-available-only code, snippets
+from a blog or Gist with no licence attached, or a vendored blob whose upstream commit is not recorded.
 
-### Licence rules
+Record a dependency with the same caret range the repository uses, let `pnpm-lock.yaml` pin the exact
+version, keep CI on `--frozen-lockfile`, and name its licence in the commit when it is outside the list
+above. Do not upgrade unrelated dependencies in the same change.
 
-- **Allowed without asking:** MIT, ISC, BSD-2/3-Clause, Apache-2.0, MPL-2.0, Unlicense/CC0.
-- **Ask the operator first:** LGPL, EPL, GPL, AGPL (network copyleft reaches a hosted Worker),
-  CC-BY-SA, custom or dual licences, and anything that calls a paid API.
-- **Never:** unlicensed or source-available-only code, snippets from a blog or Gist with no licence
-  attached, or a vendored blob whose upstream commit is not recorded.
+## Working with other agents
 
-A new dependency is also a supply-chain and cold-start cost, so keep the set small. Record it with the
-same caret range the repository uses, let `pnpm-lock.yaml` pin the exact version, keep CI on
-`--frozen-lockfile`, and name its licence in the commit when it is outside the allowed list. Do not
-upgrade unrelated dependencies in the same change.
+Agents cannot talk to each other. The repository is the channel — commits, roster, decisions log, pull
+requests — and the operator is the only synchroniser, since they start each session.
+
+- **Claims are exclusive.** A path in an active roster row belongs to that agent until the row says
+  done. Announce it; do not negotiate it in your head.
+- **Propose, ack, decide.** A shared-shape change is an entry in `decisions.md` with `state: proposed`
+  and the paths it touches. Every other active agent adds one line the next time it works:
+  `ack — <name>` or `object — <name> — <concrete harm>`. The operator marks it accepted once nothing
+  stands objected and records the outcome; with an objection the operator decides and says so in the
+  entry.
+- **Silence is not consent.** If an agent has not acked, the operator records it as absent in the entry.
+  A missing reply never counts as agreement.
+- **Consensus does not authorise** a deploy, a spend, a secret or a new dependency. Those stay the
+  operator's per-change decision, and the hard rules below override any majority.
+- **Collisions keep both.** If a roster append or a decision entry conflicts, keep both lines and let
+  the operator order them. Never resolve a conflict by deleting someone else's row.
+- **Everyone pulls before pushing.** Pushes are non-force, so a stale push is rejected instead of
+  overwriting another agent's work.
 
 ## Verify before you believe
 
@@ -120,27 +159,19 @@ pnpm run build:deploy && pnpm run ci:worker   # for anything the Worker serves
 ```
 
 Run the checks that cover what you changed, not every check every time. Report a path you could not
-exercise — no TV, no token, no account — as untested rather than as working. When filtering output
-through a pipe, keep the tested command's exit status.
+exercise — no TV, no token, no account — as untested, and keep a piped command's exit status.
 
 ## Git workflow
 
-`main` is the integration branch: every finished change lands on it. Nothing else is deployed
-automatically, and the Android workflow publishing the APK on an `android/` change is expected
-automation, not an exception to the deploy rules below.
+`main` is the integration branch; every finished change lands on it. The Android workflow publishing
+the APK on an `android/` change is expected automation, not an exception to the deploy rules.
 
+- Branch per task and open a pull request when your tool supports it; if it can only push `main`, pull
+  first and keep the change small.
 - Imperative subject line; the body says **why**, not what the diff already shows.
 - One logical change per commit; no AI attribution or co-author trailers.
-- Pull before you start and again before you push. Pushes are non-force by design.
-- After pushing, watch the `verify` run (and `Android APK` when `android/` changed). A green result
-  means the run reported success, not that it was queued.
-
-Working alongside another agent:
-
-- Own only the paths your task names. If the change needs another area, say so before touching it.
-- A second instance works on a branch and opens a pull request instead of pushing `main`.
-- Treat another agent's commits and branches as read-only. Never force-push or rewrite published
-  history, including your own.
+- After pushing, watch the `verify` run (and `Android APK` when `android/` changed). Green means the run
+  reported success, not that it was queued.
 
 ## Boundaries
 
@@ -155,7 +186,7 @@ Working alongside another agent:
 
 - Any new dependency outside the licence list, and any new service or API — even a free tier.
 - Anything that changes a public shape: `/api/*` fields, KV key shapes, `torbox_map`/`gdrive_map`
-  entries, the release asset name.
+  entries, the release asset name. Propose it in `decisions.md` first.
 - Deploying the sandbox, publishing a release by hand, changing workflows or deploy config, adding a
   nested `AGENTS.md`.
 - Anything that spends money or changes a Cloudflare plan or limit.
@@ -165,7 +196,7 @@ Working alongside another agent:
 - Deploy production: no `ATV_ALLOW_PROD_DEPLOY=1 pnpm deploy:prod`, no `ATV_ALLOW_SHARED_KV=1`, no
   deploy at `atv.acidwurx.org`.
 - Commit `atv-config.json`, stream URLs, tokens, keystores or `.env`.
-- Force-push, rewrite history, or edit another agent's branch.
+- Force-push, rewrite history, or edit another agent's branch, row or commits.
 - Add D1, R2, Queues or a paid API to this Worker. Production's D1 belongs to the incumbent Worker, not
   to this repository.
 - Delete KV keys or run `seed --prune` against production namespaces.
