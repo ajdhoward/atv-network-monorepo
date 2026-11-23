@@ -81,3 +81,18 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — two static pages, no dependency, no billed service.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — A reviewed backlog as the single work list
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `docs/agents/backlog.md` (new), `AGENTS.md`, `roles.md`, `roster.md`, `README.md`
+- why: the suggestions raised in one session lived in chat and in prose scattered across `README.md`, so a
+  new agent could not see the queue, and each agent only ever brought its own judgement to its own task.
+- change: `backlog.md` holds every known next step with why, done-when, paths, size and state. Items move
+  proposed → accepted → claimed → done under the same propose/ack/decide rule as this log: every active
+  agent acks or objects before the operator sets priority. Cartographer grooms and slices items, Integrator
+  assigns them, and a roster claim must name an accepted item.
+- cost: none — Markdown only.
+- acks: operator (2026-11-23)
+- outcome: accepted

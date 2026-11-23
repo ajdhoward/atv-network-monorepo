@@ -7,11 +7,12 @@ subdirectory wins for that subtree. Keep this file near 200 lines; every session
 
 ## Joining this repo
 
-You need nothing but this file and two small logs. Read and act in this order:
+You need nothing but this file and three small logs. Read and act in this order:
 
-1. Read this file, then [`docs/agents/roster.md`](docs/agents/roster.md) (who is here, what they hold)
-   and [`docs/agents/decisions.md`](docs/agents/decisions.md) (what is proposed, acked, settled). With no
-   GitHub integration, start from `docs/agents/join.md` or `/join` on the Worker.
+1. Read this file, then the three logs: [`roster.md`](docs/agents/roster.md) (who is here, what they
+   hold), [`decisions.md`](docs/agents/decisions.md) (what is acked, settled) and
+   [`backlog.md`](docs/agents/backlog.md) (what is next). With no GitHub integration, start from
+   `docs/agents/join.md` or `/join` on the Worker.
 2. **Announce yourself.** Append one row to the roster — name, tool or model, roles, date, paths you will
    own, task — and commit it before any other edit. That commit is your announcement; there is no other
    channel, because agents cannot see each other's sessions.
@@ -27,7 +28,8 @@ Message to paste when bringing a new coder agent in:
 
 ```text
 You are joining an existing project: github.com/ajdhoward/atv-network-monorepo.
-Read AGENTS.md, then docs/agents/roster.md and docs/agents/decisions.md.
+Read AGENTS.md, then docs/agents/roster.md, docs/agents/decisions.md and docs/agents/backlog.md.
+Review the backlog: ack or object to the items in it, or add one, before you claim work.
 Announce yourself by adding one row to the roster (name, tool, roles, date, paths you will
 own, task) and committing it before any other edit. Claim only those paths, propose before
 changing a shared shape, and follow the ack rule for consensus. Pull before you push,
@@ -55,17 +57,16 @@ Non-goals: multi-tenant SaaS, accounts for strangers, features nobody in the hou
 
 ## Map
 
-| Path                         | What lives there                                             | Read more             |
-| ---------------------------- | ------------------------------------------------------------ | --------------------- |
-| `services/atv-core/`         | Worker: router, guide, resolver, TorBox, `/install`, limiter | `README.md` API table |
-| `apps/tv-client/`            | Guide grid, player, overlays, D-pad handling                 | `apps/tv-client/src/` |
-| `apps/admin-cms/`            | Health and stream-coverage panel, served at `/admin/`        | `README.md` API table |
-| `packages/ui-shared/`        | Shared types and the example seed config                     | `src/index.ts`        |
-| `android/`                   | Fire OS WebView shell; the APK is a release asset            | `android/README.md`   |
-| `scripts/`                   | Seed, dev, smoke, ci-worker, budget, deploy guards           | `README.md` layout    |
-| `docs/agents/`               | Roster (claims, coverage), roles, decisions log              | itself                |
-| `docs/production-cutover.md` | The only authority for replacing production                  | itself                |
-| `wrangler.toml`              | Sandbox `atv-core-v2` — the default deploy target            | `README.md` Deploy    |
+| Path                 | What lives there                                             | Read more             |
+| -------------------- | ------------------------------------------------------------ | --------------------- |
+| `services/atv-core/` | Worker: router, guide, resolver, TorBox, `/install`, limiter | `README.md` API table |
+| `apps/tv-client/`    | Guide grid, player, overlays, D-pad handling                 | `apps/tv-client/src/` |
+
+| `android/` | Fire OS WebView shell; the APK is a release asset | `android/README.md` |
+| `scripts/` | Seed, dev, smoke, ci-worker, budget, deploy guards | `README.md` layout |
+| `docs/agents/` | Roster (claims, coverage), roles, decisions log | itself |
+| `docs/production-cutover.md` | The only authority for replacing production | itself |
+| `wrangler.toml` | Sandbox `atv-core-v2` — the default deploy target | `README.md` Deploy |
 
 ## Commands
 
@@ -76,7 +77,6 @@ pnpm install --frozen-lockfile      # restore dependencies; never edit the lockf
 pnpm dev                           # seed local KV, then wrangler dev on :8788
 pnpm typecheck                     # worker + tv-client + admin-cms
 pnpm lint                          # ESLint
-pnpm format                        # Prettier write (CI runs format:check)
 pnpm test                          # full Vitest suite
 pnpm exec vitest run services/atv-core/test/install.test.ts   # one file
 pnpm exec vitest run -t "name of the test"                    # one test
@@ -92,7 +92,7 @@ pnpm deploy                        # kv:staging -> guard -> build -> deploy atv-
 
 ## Settled decisions
 
-Do not re-open these without new information; the rationale for each is in `docs/agents/decisions.md`.
+Rationale for each is in `decisions.md`; do not re-open them without new information.
 
 - **Fire OS has no Chrome**, so a Trusted Web Activity cannot launch: the client is a WebView shell, not
   Capacitor or Cordova. Cloudflare ships no WARP client for it either, so encryption is TLS everywhere
@@ -157,6 +157,10 @@ requests — and the operator is the only synchroniser, since they start each se
 - **Claims are exclusive.** A path in an active roster row is that agent's until the row says done.
 - **Consensus authorises nothing:** deploy, spend, secret and dependency stay the operator's call. Pull
   before you push, and collisions keep both sides with the operator ordering them.
+
+## The plan
+
+`docs/agents/backlog.md` is the work list _and_ the debate: read it each session, ack, object or add, and let the operator set priority before anyone claims. Nothing is built that is not listed; nothing is claimed unreviewed.
 
 ## Verify before you believe
 

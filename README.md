@@ -273,6 +273,9 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
 
 ### Still open before production is complete
 
+`docs/agents/backlog.md` is the live work list, with owners and states; this section records only what is
+known about production specifically.
+
 - The deployed `4fb54df2` source is not in git; download it from the dashboard before any
   `deploy:prod`, and treat `services/atv-core` as the sandbox generation until then.
 - No assets on `atv-core-orchestrator`, so nothing serves the TV client at `atv.acidwurx.org`.

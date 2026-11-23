@@ -1,0 +1,172 @@
+# Backlog
+
+The work list for this repository, and the place the work is argued about. Read it at the start of every
+session. It is deliberately short: a section here means someone thought it was worth doing and someone
+else reviewed it.
+
+More agents only help if they add judgement before the work starts, so an item is reviewed by everyone
+active before it is accepted, and the review is written down where the next session will see it.
+
+## How an item moves
+
+`proposed` → `accepted` → `claimed` → `done`, or `parked` / `blocked`.
+
+1. **Propose.** Add a section with why it matters, how you will know it is done, the paths it touches and a
+   size. Anyone may propose; nobody needs permission to write a section.
+2. **Review.** Every other active agent adds one line the next time it works: `ack — <name>`, or
+   `object — <name> — <concrete harm>`, or a smaller alternative. The rule in `decisions.md` applies here
+   too: silence is recorded as absence, never as consent.
+3. **Decide.** The operator sets priority and accepts, rejects or parks it. An objection is answered in the
+   section, not ignored.
+4. **Claim.** An accepted item is claimed by naming it and its paths in your roster row. If two agents want
+   one item, the Integrator assigns it.
+5. **Finish.** Mark it done with the commit that closed it, and write down anything the next agent would
+   otherwise have to rediscover.
+
+Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisions.md` first.
+
+---
+
+## Live and operator-gated
+
+### L1 · Deploy the sandbox so `/install` and `/join` are served
+
+- **Why:** both pages exist and are tested, but no host serves them, so the phone install and the guest
+  agent path are unreachable in practice.
+- **Done when:** `GET /install` and `GET /join` answer 200 on the workers.dev host and `pnpm smoke` passes.
+- **Paths:** `.github/workflows/deploy.yml` (manual `workflow_dispatch`, target `v2`)
+- **Size:** S
+- **State:** blocked — needs the operator's go-ahead, because it publishes a public host
+
+### L2 · Protect `main` with `verify` and a pull request
+
+- **Why:** guest agents hold write tokens. "Branch and PR only" is a page, not enforcement, and a
+  `Contents: write` token can push `main` directly today.
+- **Done when:** a direct push is rejected and a pull request needs the `verify` check.
+- **Paths:** GitHub → Settings → Branches
+- **Size:** S
+- **State:** blocked — operator, and it should land before the first guest agent is authorised
+
+### L3 · Add the Android signing secrets
+
+- **Why:** without `ANDROID_KEYSTORE_BASE64` and friends each CI build is debug-signed with a new key, so a
+  fresh APK will not install over the old one.
+- **Done when:** two consecutive workflow runs produce APKs that install over each other.
+- **Paths:** `.github/workflows/android.yml`, repository secrets
+- **Size:** S
+- **State:** blocked — the operator holds the keystore
+
+### L4 · Set `ATV_TORBOX_API_KEY` and `ATV_GDRIVE_MAP`
+
+- **Why:** a TorBox-mapped channel answers 502 and a Drive-mapped one 404 until these exist; `/api/health`
+  counts them as missing.
+- **Done when:** `pnpm streams` reports every channel ready, or the gaps are the ones the operator expects.
+- **Paths:** Worker secrets (never the repo)
+- **Size:** S
+- **State:** blocked — operator, out of band
+
+### L5 · Install and play on a real Fire TV
+
+- **Why:** no build of this app has ever run on hardware. Every claim about D-pad focus, playback and the
+  retry screen is inference from the code.
+- **Done when:** one channel resolves and plays from the installed APK, and the notes are written down.
+- **Paths:** none; findings go in `docs/`
+- **Size:** M
+- **State:** blocked — needs a device and the operator's hands
+
+## Playing
+
+### P1 · Google Drive proxy at `/api/stream/<id>`
+
+- **Why:** Drive has no direct-play URL. Until this exists a Drive-backed channel cannot play at all, and
+  the alternatives are expiring links or exposing the drive.
+- **Done when:** the Worker serves `Range` requests with 206 and seeks work in a TV player; signed URLs are
+  covered by tests, including expiry and a bad signature.
+- **Paths:** `services/atv-core/src/`, `services/atv-core/test/`
+- **Size:** L
+- **State:** proposed — the approach is settled, the design is not; it wants a `decisions.md` entry first
+
+### P2 · Drive service-account secret for P1
+
+- **Why:** the proxy authenticates to Drive server-side, so the key must live in a Worker secret.
+- **Done when:** the secret exists and a check reads one byte range through the proxy.
+- **Paths:** Worker secrets
+- **Size:** S
+- **State:** blocked — operator, and only useful after P1
+
+### P3 · Short path `/a` that redirects to the APK
+
+- **Why:** typing a release URL with a TV remote is the worst step of the install; `/a` is four characters
+  in Downloader.
+- **Done when:** `GET /a` 302s to the release asset and smoke checks the redirect rather than a body.
+- **Paths:** `services/atv-core/src/index.ts`, `scripts/smoke.mjs`
+- **Size:** S
+- **State:** proposed
+
+## Safety and quality
+
+### Q1 · Make `pnpm budget` part of CI
+
+- **Why:** the $5 ceiling is honour-system outside the budget unit tests; nothing fails a change that would
+  leave the allowance.
+- **Done when:** `verify` fails when the modelled usage exceeds the plan.
+- **Paths:** `.github/workflows/deploy.yml`, `scripts/budget.mjs`
+- **Size:** S
+- **State:** proposed
+
+### Q2 · Smoke-check the release asset
+
+- **Why:** an existing install updates from one URL. If the release or the asset name changes, nothing
+  notices until someone tries to install.
+- **Done when:** the deploy smoke sends a HEAD to the asset URL and fails on a non-200.
+- **Paths:** `scripts/smoke.mjs`
+- **Size:** S
+- **State:** proposed
+
+### Q3 · Alert when the Worker is down
+
+- **Why:** health is only checked when a person runs smoke, so a dead guide is found by someone sitting in
+  front of the TV.
+- **Done when:** a free external monitor hits `/api/health` on a schedule and alerts the operator.
+- **Paths:** none in this repo
+- **Size:** S
+- **State:** proposed — needs a decision, because a new service needs approval even when it is free
+
+## Production cutover
+
+### Q4 · Download and commit the deployed `4fb54df2` source
+
+- **Why:** the live `atv-core-orchestrator` is not in git. Replacing it without its source loses D1,
+  `REMOTE_HUB`, telemetry and the admin token.
+- **Done when:** that source is in the repo (or a branch) and matches the deployed bindings.
+- **Paths:** new, per `docs/production-cutover.md`
+- **Size:** M
+- **State:** blocked — operator, dashboard access
+
+### Q5 · Scope the zone-wide Access application
+
+- **Why:** the `acidwurx.org` application covers every host, so players and CI cannot reach api/atv hosts
+  without a browser login.
+- **Done when:** the app covers only the hosts that need a login and a service-token policy lets CI through.
+- **Paths:** Cloudflare Zero Trust
+- **Size:** M
+- **State:** blocked — operator
+
+## Team
+
+### T1 · Roster row and a nested `android/AGENTS.md` for the next agent
+
+- **Why:** a guest with no map edits the wrong area, and the Android module has conventions that do not
+  belong in the root brief.
+- **Done when:** the row exists and, only if `android/` is theirs, the nested file explains just that
+  subtree.
+- **Paths:** `docs/agents/roster.md`, `android/AGENTS.md`
+- **Size:** S
+- **State:** proposed — waits for the operator to say which paths the next agent owns
+
+## Parked
+
+- **ADB console for the TV.** Needs an always-on LAN host behind a Tunnel; Apps2Fire and Bugjaeger already
+  cover the one-off install. Parked 2026-11-23.
+- **Weekly role rotation.** Worth doing at three or more agents so review does not harden into one
+  perspective; pointless with one. Parked until then.

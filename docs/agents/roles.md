@@ -19,7 +19,8 @@ real cost, and a two-day change does not need five hats.
 - **Decides:** what merges and in what order, which agent gets which slice, how a claim conflict resolves.
 - **Must ensure:** `main` stays green; every change has a non-author reviewer when another agent is
   active; the roster's claims and coverage stay true.
-- **Deliverables:** merged changes, a triaged red `verify`, an updated roster.
+- **Deliverables:** merged changes, a triaged red `verify`, an updated roster, and accepted backlog items
+  assigned in priority order with their states kept true.
 - **Does not:** author in the same window when someone else can, or approve its own work.
 - **Why one:** two integrators merge into each other. Handing it over is an explicit roster change with
   the state it carries.
@@ -29,7 +30,8 @@ real cost, and a two-day change does not need five hats.
 - **Decides:** where a change belongs; reuse, stitch or build; what the slice is.
 - **Must ensure:** the map in `AGENTS.md` matches the tree; new files and dependencies are justified; the
   same concern is not implemented twice.
-- **Deliverables:** the plan — paths touched, interfaces changed, blast radius, why this component.
+- **Deliverables:** the plan — paths touched, interfaces changed, blast radius, why this component — and a
+  groomed `backlog.md`: items sized, sliced path-disjoint, duplicates killed.
 - **Does not:** treat writing production code as its output; if it writes, the Author role is on too.
 - **Why:** it prevents drift — three ad-hoc resizers, two retry helpers, a paid API where a platform
   primitive already existed.

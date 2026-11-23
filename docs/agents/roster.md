@@ -46,6 +46,8 @@ here and are deleted.
 - Keep the claim as small as truth allows. A whole-package claim two agents could share is a mistake.
 - A standing role moves by editing **both** the coverage table and the two agent rows, in one commit, with
   what the role carries: open changes, red CI, unclaimed paths.
+- A claim must name an accepted item in `backlog.md`; the two have to agree, and a claim without an item
+  is not a claim.
 - Release a claim by moving your row to **Done** with what you left behind (a route, a doc, a decision).
 - If two rows claim the same path, the merged pull request that touched it first wins; the second agent
   asks the operator to reassign rather than assuming.
