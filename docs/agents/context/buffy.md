@@ -15,8 +15,8 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 - `866dda1` — full repository evaluation, `docs/agents/reviews.md`, first review record.
 - `36e32b2` — `/onboard`, `pnpm handoff`, `docs/agents/handoffs/`.
 - `2adcc4d` — `docs/continuity.md`, `docs/README.md`, `pnpm continuity` in `verify`.
-- All pushed; `verify` green to run #47. Nothing deployed: the sandbox still serves the pre-`/install`
-  build.
+- `e75a7b1` — per-agent context files, the roster `Context` column and the check that enforces it.
+- All pushed; `verify` green to run #49. Nothing deployed: the sandbox still serves the pre-`/install` build.
 
 ## What I am doing
 
@@ -42,17 +42,24 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
 - `/tmp/pnpm-cli/bin` is how pnpm is available here; `corepack` is not on `PATH`. Export it before `pnpm`.
 - `read_files` and shell calls are sometimes refused once with the project brief injected; retrying the same
   call works.
-- Deploying from this chat is impossible without the operator: no Cloudflare credentials, and the sandbox has
-  no browser for an OAuth callback.
+- There are no Cloudflare credentials in the shell and no browser for an OAuth callback, so `wrangler` cannot
+  authenticate here. The connected Cloudflare integration is the only path and it is server-side: it reads the
+  account, KV and scripts, and it exposes *Create Worker Version* with `deploy: true`, which does accept
+  bindings. It exposes no KV-namespace creation and no worker deletion — so a deploy is possible, provisioning
+  is not.
 
 ## Outside this repository
 
 - A separate project, `mcp-onboard` (a Cloudflare Worker with one KV binding), was reviewed in this chat and
   left **undeployed**: the account has no `ONBOARD_KV` namespace, the connected integration cannot create one,
   and the environment cannot run `wrangler login`. Its code was verified end to end under local workerd and
-  one bug fixed (the landing page printed a hardcoded host instead of the request origin). Its checkout is
-  `/tmp/mcp-onboard` on this machine, outside this repository and outside its git. It must not be mixed into
-  this repo; its deploy blockers are in this file only because a session cannot hold them.
+  one bug fixed (the landing page printed a hardcoded host instead of the request origin). The checkout was
+  `/tmp/mcp-onboard` and is **gone**: `/tmp` is not checkpointed and the account has no `mcp-onboard`
+  repository to clone from, so the code has to be re-supplied. Next time it goes into its own repo before any
+  work starts. What this session established, so it is not re-derived: the credential can deploy a version
+  with a `kv_namespace` binding, so once a namespace exists the deploy is one API call; the only missing step
+  is creating that namespace, which the integration does not offer at all. The operator creates it in the
+  dashboard (Workers & Pages → KV → Create), and the name and id are recorded here when they do.
 
 ## Next session, in order
 
