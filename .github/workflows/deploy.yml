@@ -35,6 +35,12 @@ jobs:
       # build:deploy is client + admin + the pack step the Worker's asset
       # directory depends on, so CI exercises the same build the deploy does.
       - run: pnpm run build:deploy
+      # Boots that build in workerd with a fixture lineup, so KV bindings, the
+      # asset and /admin routing, the cron snapshot and the Durable Object
+      # limiter are exercised on the push instead of after a deploy. No account
+      # or remote KV: everything lands in the local .wrangler store.
+      - name: Exercise the Worker locally
+        run: pnpm run ci:worker
       # The guard itself is covered by scripts/test. It cannot run here: the
       # committed wrangler.toml still carries production's namespace ids as a
       # placeholder and is only patched by kv:staging in the deploy job.

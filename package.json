@@ -8,6 +8,7 @@
     "build:admin": "pnpm --filter @atv/admin-cms build",
     "build:deploy": "pnpm run build:client && pnpm run build:admin && node scripts/pack-assets.mjs",
     "dev": "node scripts/dev.mjs",
+    "ci:worker": "node scripts/ci-worker.mjs",
     "kv:staging": "node scripts/staging-kv.mjs",
     "seed": "node scripts/seed-kv.mjs",
     "seed:local": "node scripts/seed-kv.mjs --local",

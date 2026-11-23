@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "channels": [
+    {
+      "id": "ci-atv-one",
+      "name": "CI One",
+      "country": "US",
+      "category": "news",
+      "genre": ["news"]
+    },
+    {
+      "id": "ci-atv-two",
+      "name": "CI Two",
+      "country": "GB",
+      "category": "sports",
+      "genre": ["sports"]
+    }
+  ],
+  "idents": ["https://cdn.example.invalid/idents/ci-1.mp4"],
+  "gdrive_map": {
+    "ci-atv-one": "https://cdn.example.invalid/streams/ci-atv-one.m3u8",
+    "ci-atv-two": "https://cdn.example.invalid/streams/ci-atv-two.m3u8"
+  }
+}

@@ -34,6 +34,7 @@ scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) in
 scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
 scripts/check-streams.mjs           audits /api/resolve per channel, optionally probing each link
 scripts/dev.mjs                     one command: seed the local store, then run wrangler dev
+scripts/ci-worker.mjs               boot the built worker locally and check bindings, assets and the limiter
 scripts/budget.mjs                  models monthly usage against the Workers Paid allowance
 scripts/smoke.mjs                   post-deploy check of a deployed origin
 scripts/validate-config.mjs         validates a seed config before uploading
@@ -213,7 +214,10 @@ cutover plan — prerequisites, parity gate, staged candidate, verification, rou
 is in [`docs/production-cutover.md`](docs/production-cutover.md). `deploy:prod` is not that cutover.
 
 CI (`verify`) runs install, typecheck, lint, `format:check`, tests and the full `build:deploy` on
-every push. Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run first executes
+every push, then `pnpm ci:worker`: that boots the build in workerd with a fixture lineup from
+`scripts/fixtures/ci-lineup.json` (local KV only, no account) and runs the smoke check, a `/admin/`
+and deep-link fetch, the cron snapshot and a burst the Durable Object limiter must answer with 429.
+Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run first executes
 the idempotent `pnpm kv:staging` (so the guard and `wrangler deploy` see staging namespace ids instead
 of the committed production placeholders), seeds from `ATV_SEED_CONFIG` when that secret is set, then
 smokes the deployment URL with `--allow-empty`, which is safe because that host is not behind Access
