@@ -175,3 +175,21 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — Markdown plus one rule in the check that already existed.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — A one-off KV provisioning workflow
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `.github/workflows/provision-kv.yml` (new)
+- why: the connected Cloudflare integration can deploy a Worker version with a KV binding but exposes no
+  way to create a namespace, and a token pasted into chat is not an option. `CF_API_TOKEN` already carries
+  Workers KV Storage: Edit — `deploy.yml` puts remote KV keys with it — so the repository can create the
+  namespace without a new scope, a second secret or a local credential.
+- change: a `workflow_dispatch`-only workflow that lists namespaces first, creates the named one only when
+  it is absent, and prints the id in the job summary. It exists for `mcp-onboard-ONBOARD_KV`, which is not
+  an ATV namespace; the file is deletable once that namespace exists.
+- risk: an unused write path on the deploy token. Mitigation: dispatch-only, never on push, idempotent, and
+  removable in one commit.
+- cost: none — one job, no new secret.
+- acks: operator (2026-11-23)
+- outcome: accepted
