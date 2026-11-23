@@ -24,8 +24,10 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 
 Nothing claimed. The queue is the backlog; the first three moves are L1 (deploy the sandbox), L2 (protect
 `main`) and the R1 decision (`/api/resolve` is unauthenticated on a public host). L1 and L2 are the
-operator's to authorise; R1 needs a decision before L4 seeds real links. P1 (the Drive proxy) is the only
-thing left between "resolves" and "plays" for Drive-backed channels.
+operator's to authorise. R1 now has a written proposal in `decisions.md` (a per-device token on
+`/api/resolve`, Access kept for the control planes) and only needs the operator's outcome; it must land
+before L4 seeds real links. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for
+Drive-backed channels.
 
 ## What I learnt that cost time
 
@@ -73,6 +75,6 @@ thing left between "resolves" and "plays" for Drive-backed channels.
 
 1. Merge `4d58bab` (or take it as a review of P3/Q2), then with the operator: L1 deploy, L2 branch
    protection; re-run `pnpm smoke` against the deployed host, which now also checks `/a` and the asset.
-2. R1: choose how `/api/resolve` stays private, in `decisions.md`, before L4.
+2. R1: take the operator's outcome on the written proposal, then the change, before L4.
 3. P1: the Drive proxy.
 4. Keep this file and the roster row honest, or the next session starts blind.

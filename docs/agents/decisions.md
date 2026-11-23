@@ -196,3 +196,54 @@ when it next works, which is why an entry records who is absent rather than trea
 - removed: 2026-11-23 — the namespace exists, so this dispatch-only write path was deleted rather than left
   as an unused way to spend the deploy token. The id now lives only in `ajdhoward/mcp-onboard`'s
   `wrangler.toml`.
+
+### 2026-11-23 — `/api/resolve` stays private with a device token, not with Access on the player
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/index.ts` (`/api/resolve` auth check, `Access-Control-Allow-Headers`,
+  `/api/health`), `services/atv-core/src/env.ts` (`ATV_DEVICE_TOKEN`), `apps/tv-client/src/resolve.ts` and
+  `playerManager.js`, `android/` (first-run token entry), `apps/admin-cms/src/links.ts`,
+  `scripts/smoke.mjs`, `scripts/check-streams.mjs`, `docs/continuity.md` (secret name), backlog R1/L4
+- why: `/api/resolve` answers any caller with a playable URL, and `/api/guide` publishes every id, so one
+  `?ids=` sweep — a single limiter token, twenty channels — returns links for the whole network. Today that
+  discloses nothing, because the sandbox holds no links. L4 seeds real ones, and L5 needs them on this host
+  specifically: `atv-core-orchestrator` serves no assets, so the public workers.dev sandbox is the only host
+  a Fire TV can play from. The question is therefore not whether real links sit behind a public host, but how
+  much of them a stranger can pull. TorBox links expire in about three hours and cost an API call to mint; a
+  Drive link can be durable and may be the access path to the file itself, so "it expires anyway" covers only
+  half the lineup. Leaving it open also spends the per-IP limiter and the TorBox quota on other people's
+  traffic.
+
+| Option                                                   | Cost                                                                                                                                                                      | Risk                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A · Keep the sandbox unseeded**                        | none — no code, no config                                                                                                                                                 | It is a state, not a shape: nothing enforces it, and one `wrangler secret put ATV_GDRIVE_MAP` against `wrangler.toml` silently ends it. It also blocks L5, which is the only real playback test: production is not built from this repo, so keeping links off the public host means never verifying objective 1.                                                                                                 |
+| **B · Access in front of the host, service token**       | none — Zero Trust free covers 50 seats and includes service tokens; `smoke.mjs` already sends `CF-Access-*` when set; config only                                         | The TV cannot use it: a WebView page load carries no custom header, and a token compiled into the client bundle is published to anyone who opens the JS. An email-OTP login on a D-pad is a re-entry whenever the Access session ends. It gates the app shell rather than just resolve, so it protects objective 3 by risking objective 1. Keep it for `/admin` and the control planes (Q5), not for the player. |
+| **C · Per-device token on `/api/resolve`** (recommended) | M — one secret, one check, one CORS header, a first-run entry in the shell, token in WebView storage (the shell already allows it), tests, docs. No dependency, no spend. | A bearer credential lives on the TV: whoever reads it off the device gets links until the secret is rotated, and rotation means re-entering it on every TV. It also moves work — `apps/admin-cms`'s link check and `scripts/smoke.mjs` can no longer call resolve anonymously, so the audit becomes `pnpm streams` with the token in the operator's environment.                                                 |
+| **D · Nothing beyond the limiter**                       | none                                                                                                                                                                      | Every link is public for its lifetime, `?ids=` hands over the whole lineup in one request, and the limiter protects Cloudflare's request budget, not the links. The 2026-11-23 evaluation already recorded this as its one high finding.                                                                                                                                                                         |
+
+**Recommendation: C, with B kept for the control planes.** It is the only option that keeps the links
+private without putting a login in front of the player, it costs nothing, and it revokes by rotating one
+secret. The price is honest and small: a token typed once per TV, and an audit path that moves from the
+admin page to `pnpm streams`. A and D are rejected because neither survives contact with L5: one forbids the
+only real playback test, the other publishes what L4 is for. B is right for `/admin` and wrong for the
+guide.
+
+- change: `/api/resolve` (single and `?ids=`) requires `Authorization: Bearer <ATV_DEVICE_TOKEN>` and answers
+  `401 {error:"unauthorized",code:"unauthorized",requestId}` before it spends a limiter token or calls
+  TorBox; `Authorization` joins `Access-Control-Allow-Headers`. The token is compared as a digest, never
+  logged, and never accepted from a query string, where it would land in logs, analytics and referrers. The
+  shell takes it once on first run — on-screen entry, or the documented `adb` shortcut — and keeps it in
+  WebView storage. `/api/health` gains a boolean saying the token is configured, so an unset secret is a loud
+  401 rather than a silent unauthenticated Worker. `/api/guide`, `/api/health`, `/install`, `/a`, `/join` and
+  `/onboard` stay public. Revocation is `wrangler secret put ATV_DEVICE_TOKEN`.
+- risk: every existing caller has to learn the header in the same change, or it breaks in a way that looks
+  like a broken channel: `apps/tv-client/src/resolve.ts`, `playerManager.js`, `apps/admin-cms/src/links.ts`,
+  `scripts/smoke.mjs`, `scripts/check-streams.mjs`, `scripts/ci-worker.mjs`. A 401 the TV paints as "retry"
+  instead of "this TV needs its token" is the failure to design out, and unauthorised attempts must not spend
+  the household's limiter allowance — they get their own counter, so a wrong token is visible instead of
+  quietly eating the budget.
+- cost: none — no dependency, no service, no spend. M of work; after it L4 can seed real links on the sandbox
+  and L5 can test playback with a token.
+- acks: none outstanding — sole active agent (see `roster.md`), recorded as absence rather than consent.
+- outcome: — awaiting the operator.
