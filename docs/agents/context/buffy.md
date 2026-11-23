@@ -50,16 +50,13 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
 
 ## Outside this repository
 
-- A separate project, `mcp-onboard` (a Cloudflare Worker with one KV binding), was reviewed in this chat and
-  left **undeployed**: the account has no `ONBOARD_KV` namespace, the connected integration cannot create one,
-  and the environment cannot run `wrangler login`. Its code was verified end to end under local workerd and
-  one bug fixed (the landing page printed a hardcoded host instead of the request origin). The checkout was
-  `/tmp/mcp-onboard` and is **gone**: `/tmp` is not checkpointed and the account has no `mcp-onboard`
-  repository to clone from, so the code has to be re-supplied. Next time it goes into its own repo before any
-  work starts. What this session established, so it is not re-derived: the credential can deploy a version
-  with a `kv_namespace` binding, so once a namespace exists the deploy is one API call; the only missing step
-  is creating that namespace, which the integration does not offer at all. The operator creates it in the
-  dashboard (Workers & Pages → KV → Create), and the name and id are recorded here when they do.
+- A separate project, `mcp-onboard` (a Cloudflare Worker with one KV binding), now has its own private
+  repository: `ajdhoward/mcp-onboard`. Its namespace `mcp-onboard-ONBOARD_KV` was created 2026-11-23 by
+  `.github/workflows/provision-kv.yml` in this repository, running on `CF_API_TOKEN`; the id lives in that
+  private repository's `wrangler.toml` rather than here, because this repository is public.
+  **`worker.js` is still missing**: the original was written outside git, the only copy died with `/tmp`,
+  and no other copy exists. The repository holds the config, the binding and the deploy steps so that the
+  next copy lands somewhere durable. Nothing is deployed; the account answers 404 for `mcp-onboard`.
 
 ## Next session, in order
 
