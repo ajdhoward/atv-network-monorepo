@@ -180,8 +180,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   links only, the host sits behind Access with a service token, or resolve requires a per-device token.
 - **Paths:** `services/atv-core/src/index.ts`, `wrangler.toml`, Cloudflare Zero Trust
 - **Size:** M
-- **State:** proposed — the decision record is written (per-device token, Access kept for the control
-  planes); awaiting the operator, before L4 seeds real links
+- **State:** proposed — the decision record is written: one household token shared by every TV, Access kept
+  for the control planes, enforcement only after the client ships. Awaiting the operator, before L4 seeds
+  real links.
 
 ### R2 · Pin the toolchain the repo claims it has
 
