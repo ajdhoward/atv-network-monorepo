@@ -3,6 +3,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // qrcode-generator ships CommonJS with `export =`; the default import in
+    // services/atv-core/src/install.ts needs the interop helper.
+    "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
     "lib": ["ES2022"],

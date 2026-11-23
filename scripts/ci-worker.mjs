@@ -132,6 +132,33 @@ async function checkResolve() {
   );
 }
 
+// /install is Worker-routed (it is in run_worker_first) and its QR comes from a
+// bundled dependency, so this checks the route and the bundle in workerd before
+// a deploy. The page must name the asset the Android workflow publishes, or the
+// install button 404s on a real TV.
+async function checkInstall() {
+  const page = await fetch(`${base}/install`);
+  const html = await page.text();
+  const isHtml = (page.headers.get("content-type") || "").includes("text/html");
+  record(
+    "GET /install",
+    page.status === 200 &&
+      isHtml &&
+      html.includes("/install/qr.svg") &&
+      html.includes("releases/latest/download/atv-launcher.apk"),
+    `HTTP ${page.status}`,
+  );
+
+  const qr = await fetch(`${base}/install/qr.svg`);
+  const svg = await qr.text();
+  const isSvg = (qr.headers.get("content-type") || "").includes("image/svg+xml");
+  record(
+    "GET /install/qr.svg",
+    qr.status === 200 && isSvg && svg.startsWith("<svg") && /viewBox="0 0 \d+ \d+"/.test(svg),
+    `HTTP ${qr.status}, ${svg.length} bytes`,
+  );
+}
+
 // The cron trigger is the only KV write in production, so a broken scheduled
 // handler or a missing ATV_CACHE binding should fail here rather than on the
 // first interval after a deploy. Wrangler's documented /__scheduled route never
@@ -216,6 +243,7 @@ async function main() {
 
   await checkAdmin();
   await checkResolve();
+  await checkInstall();
   await checkCron();
   await checkLimiter();
 }

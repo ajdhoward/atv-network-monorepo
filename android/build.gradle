@@ -1,0 +1,5 @@
+// Pinned so a CI build is reproducible; Gradle itself is provided by
+// gradle/actions/setup-gradle at the version in .github/workflows/android.yml.
+plugins {
+  id "com.android.application" version "8.5.2" apply false
+}

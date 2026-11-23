@@ -1,6 +1,16 @@
 node_modules/
 .wrangler/
 dist/
+
+# Android build output and the local SDK path. The APK ships as a release asset
+# and a signing keystore lives in repository secrets, never in the tree.
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.jks
+*.p12
 .env
 *.log
 .DS_Store

@@ -6,6 +6,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@atv/ui-shared": "workspace:*"
+    "@atv/ui-shared": "workspace:*",
+    "qrcode-generator": "^2.0.4"
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0"
   }
 }

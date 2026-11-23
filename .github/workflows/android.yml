@@ -1,0 +1,85 @@
+name: Android APK
+# Builds the Fire OS shell and republishes it as the `atv-launcher.apk` release
+# asset that /install links to. The schedule is deliberately narrow: the APK is a
+# thin shell over the live Worker, so a web-only change needs no rebuild.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+permissions:
+  # Creating a release and replacing its asset.
+  contents: write
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Gradle from the official action instead of a committed wrapper jar: the
+      # version is pinned here and no binary enters the repository.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Install the SDK packages the build needs
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platforms;android-34" "build-tools;34.0.0"
+      # A stable key is what lets a new APK install over the previous one. Without
+      # the secret the build falls back to the runner's debug key, which is fine
+      # for a first install and requires an uninstall before the next one.
+      - name: Restore the signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret; signing with the debug key."
+            exit 0
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/atv-launcher.p12"
+          echo "ATV_KEYSTORE_PATH=$RUNNER_TEMP/atv-launcher.p12" >> "$GITHUB_ENV"
+      - name: Build the release APK
+        env:
+          ATV_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ATV_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ATV_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          # Repository variable, so the APK can point at the deployed sandbox
+          # without editing source. The default is the sandbox origin.
+          ATV_BASE_URL: ${{ vars.ATV_BASE_URL }}
+        run: |
+          gradle -p android assembleRelease \
+            -PatvVersionCode="${{ github.run_number }}" \
+            -PatvVersionName="1.0.${{ github.run_number }}" \
+            -PatvBaseUrl="${ATV_BASE_URL:-https://atv-core-v2.acidwurx.workers.dev}"
+      - name: Collect the APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk atv-launcher.apk
+          ls -l atv-launcher.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atv-launcher-apk
+          path: atv-launcher.apk
+          retention-days: 30
+      # /install points at /releases/latest/download/atv-launcher.apk, so the
+      # release has to stay the "latest" one and carries a single replaced asset.
+      - name: Publish the release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view atv-launcher-latest > /dev/null 2>&1 || \
+            gh release create atv-launcher-latest \
+              --title "ATV Launcher (latest)" \
+              --notes "WebView shell for Fire OS. It loads the live guide from the Worker, so line-up changes need no reinstall. Install steps: /install on the Worker." \
+              --latest
+          gh release upload atv-launcher-latest atv-launcher.apk --clobber

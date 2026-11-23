@@ -2,6 +2,7 @@ import type { ChannelDef, HealthPayload } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
 import { kvJson, readJson, type Env } from "./env";
+import { handleInstall, handleInstallQr } from "./install";
 import { resolveStream, streamCoverage } from "./resolver";
 import { runRulesIndex } from "./rules";
 
@@ -495,6 +496,12 @@ export default {
           break;
         case "/api/idents/random":
           response = await guard(requestId, path, () => handleIdent(env, requestId));
+          break;
+        case "/install":
+          response = handleInstall(env);
+          break;
+        case "/install/qr.svg":
+          response = handleInstallQr(env);
           break;
         default:
           response = failure("not_found", "not found", requestId, 404);

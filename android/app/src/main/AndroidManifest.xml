@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fire TV surfaces this in two places: the "Your Apps and Channels" row (leanback
+  launcher) and the Fire TV app grid (plain launcher). Both categories are
+  declared so one build appears on a TV and on a phone running the sideload.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Only the network. The app stores nothing and asks for no account. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+
+  <!-- The device is driven with a remote, so no touchscreen may be required. -->
+  <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+  <uses-feature android:name="android.software.leanback" android:required="false" />
+
+  <application
+    android:allowBackup="false"
+    android:banner="@drawable/banner"
+    android:icon="@drawable/ic_launcher"
+    android:label="@string/app_name"
+    android:supportsRtl="true"
+    android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+    android:usesCleartextTraffic="false">
+
+    <activity
+      android:name=".MainActivity"
+      android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+      android:exported="true"
+      android:launchMode="singleTask">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

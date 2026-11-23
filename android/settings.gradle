@@ -1,0 +1,20 @@
+// One Android module: a WebView shell for Fire OS, built by the Gradle plugin
+// (AGP) that Google publishes. No AndroidX and no third-party runtime library:
+// see android/README.md for why this is smaller than Capacitor or a TWA here.
+pluginManagement {
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = "atv-launcher"
+include ":app"

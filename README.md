@@ -23,6 +23,7 @@ services/atv-core/src/env.ts        Env bindings + typed JSON/memo KV reads
 services/atv-core/src/config-meta.ts config schema version + checksum
 services/atv-core/src/rules.ts      guide indexing (country/category groups, deterministic)
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
+services/atv-core/src/install.ts    /install page + QR for the Fire TV APK
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
@@ -41,6 +42,7 @@ scripts/validate-config.mjs         validates a seed config before uploading
 scripts/pack-assets.mjs             copies the admin build under the TV client's assets
 scripts/check-deploy-target.mjs     blocks deploys that would replace production or write prod KV
 scripts/test/                       deploy-guard suite
+android/                            WebView shell for Fire OS, built by .github/workflows/android.yml
 wrangler.toml                       sandbox worker atv-core-v2: KV bindings, cron, assets, /admin
 wrangler.production.toml            production worker atv-core-orchestrator (reference only)
 ```
@@ -55,6 +57,8 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/resolve?id=<id>` | `{id,url,profile}` from the `ATV_GDRIVE_MAP` secret, a `torbox_map` entry or `ATV_CONFIG/gdrive_map`; `?ids=a,b` answers up to 20 in one request as `{resolved,missing,invalid}` and spends one limiter token; 400 without id, 404 unknown, 502 non-HTTPS, 429 per-IP when the limiter trips |
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                         |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                                 |
+| `GET /install`             | Install page for the Fire TV APK: release-asset link, QR (`/install/qr.svg`) and the sideload steps                                                                                                                                                                                          |
+| `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.
@@ -279,6 +283,28 @@ them. Fixing it is a Zero Trust change: scope the application to the hosts that 
   mirror are both inactive.
 - The channel grid's focus and scroll behaviour is still exercised by hand; `apps/tv-client/test`
   covers the guide loader, the resolve retry, the player swap and the overlay banner.
+
+## Fire TV install
+
+`/install` on a deployed Worker is the install page: a download button, a QR code and the sideload
+steps. The APK is the `atv-launcher.apk` asset on the `atv-launcher-latest` GitHub release, which
+`.github/workflows/android.yml` rebuilds and republishes whenever `android/` changes. The page links to
+`/releases/latest/download/`, so it never needs rebuilding when the APK does.
+
+`android/` is a plain WebView shell — one `Activity`, the platform's own `WebView`, no AndroidX, no
+runtime dependency — because a Trusted Web Activity needs Chrome (absent on Fire OS) and
+Capacitor/Cordova would add a bridge and toolchain this shell never uses. `android/README.md` records
+that reasoning. The guide origin is compiled in and defaults to the sandbox; the `ATV_BASE_URL`
+repository variable overrides it for CI, and `-PatvBaseUrl=…` does for a local build.
+
+A stable signing key is what lets a new APK install over the previous one. Adding
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` (plus
+`ANDROID_KEY_PASSWORD` if the key differs) as repository secrets signs with your own key; without them
+CI uses the runner's debug key and each build needs an uninstall before the next install.
+
+Sideloading needs _Install unknown apps_ enabled for whatever pushes the APK — Apps2Fire or Bugjaeger
+from a phone, Downloader on the TV, or `adb install`. The page spells the steps out; the phone route
+is the one that works without typing a URL with a remote.
 
 ## Budget
 

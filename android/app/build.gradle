@@ -1,0 +1,60 @@
+plugins {
+  id "com.android.application"
+}
+
+// The guide origin. Overridable from the command line or CI without editing the
+// source: gradle -PatvBaseUrl=https://your-worker.workers.dev assembleRelease
+def atvBaseUrl = (findProperty("atvBaseUrl") ?: "https://atv-core-v2.acidwurx.workers.dev").toString()
+// A Cloudflare Worker writes the session id on every response. Fire OS has no
+// Chrome, so there is no TWA and no digital asset link; the WebView loads the
+// origin directly, and the origin must match the Worker's.
+def atvVersionCode = (findProperty("atvVersionCode") ?: "1").toString().toInteger()
+def atvVersionName = (findProperty("atvVersionName") ?: "1.0").toString()
+
+// A stable signing key is what lets a new APK install over the old one. CI
+// restores one from the ANDROID_KEYSTORE_* repository secrets; without it the
+// build falls back to the debug key, which changes per runner and therefore
+// needs an uninstall before the next install.
+def keystorePath = System.getenv("ATV_KEYSTORE_PATH")
+
+android {
+  namespace "org.acidwurx.atv"
+  compileSdk 34
+
+  defaultConfig {
+    applicationId "org.acidwurx.atv"
+    // Fire OS 5 (Fire TV Stick gen 1/2) is Android 5.1, API 22.
+    minSdk 21
+    targetSdk 34
+    versionCode atvVersionCode
+    versionName atvVersionName
+    buildConfigField "String", "ATV_BASE_URL", "\"${atvBaseUrl}\""
+  }
+
+  buildFeatures {
+    buildConfig true
+  }
+
+  signingConfigs {
+    if (keystorePath) {
+      release {
+        storeFile file(keystorePath)
+        storePassword System.getenv("ATV_KEYSTORE_PASSWORD")
+        keyAlias System.getenv("ATV_KEY_ALIAS") ?: "atv-launcher"
+        keyPassword System.getenv("ATV_KEY_PASSWORD") ?: System.getenv("ATV_KEYSTORE_PASSWORD")
+      }
+    }
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+      signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}

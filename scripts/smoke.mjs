@@ -175,6 +175,18 @@ try {
     `HTTP ${ident.res.status}${ident.res.status === 503 ? " (no idents seeded)" : ""}`,
   );
 
+  // The install page is what a phone opens before it has the app, so a broken
+  // route here is the difference between installed and no way in.
+  const install = await get("/install");
+  const installQr = await get("/install/qr.svg");
+  record(
+    "GET /install",
+    install.res.status === 200 &&
+      install.text.includes("/install/qr.svg") &&
+      (installQr.res.headers.get("content-type") || "").includes("image/svg+xml"),
+    `HTTP ${install.res.status}, QR HTTP ${installQr.res.status}`,
+  );
+
   const unknown = await get("/api/does-not-exist");
   record(
     "GET /api/does-not-exist (JSON 404)",

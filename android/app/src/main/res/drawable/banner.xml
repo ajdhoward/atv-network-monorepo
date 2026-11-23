@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Leanback banner: 320x180dp, drawn as a vector so there is no binary asset to
+  maintain. Fire TV shows this in "Your Apps and Channels".
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="320dp"
+  android:height="180dp"
+  android:viewportWidth="320"
+  android:viewportHeight="180">
+
+  <path
+    android:fillColor="#0B0B0F"
+    android:pathData="M0,0h320v180h-320z" />
+  <path
+    android:fillColor="#F6821F"
+    android:pathData="M0,164h320v16h-320z" />
+
+  <!-- "ATV" as strokes: A (77..123), T (137..183), V (191..237). -->
+  <path
+    android:pathData="M100,72L77,120M100,72L123,120M86,102L114,102"
+    android:strokeColor="#F5F5F7"
+    android:strokeLineCap="round"
+    android:strokeLineJoin="round"
+    android:strokeWidth="11" />
+  <path
+    android:pathData="M137,72L183,72M160,72L160,120"
+    android:strokeColor="#F5821F"
+    android:strokeLineCap="round"
+    android:strokeLineJoin="round"
+    android:strokeWidth="11" />
+  <path
+    android:pathData="M191,72L214,120L237,72"
+    android:strokeColor="#F5F5F7"
+    android:strokeLineCap="round"
+    android:strokeLineJoin="round"
+    android:strokeWidth="11" />
+</vector>
