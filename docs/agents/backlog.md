@@ -164,6 +164,38 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** proposed — waits for the operator to say which paths the next agent owns
 
+## Findings from the 2026-11-23 review
+
+### R1 · Decide how `/api/resolve` stays private on a public host
+
+- **Why:** the sandbox has no Access in front of it and `/api/resolve?id=` answers any caller with the
+  stream URL. That is harmless while the sandbox is unseeded and stops being harmless the moment L4 seeds
+  it.
+- **Done when:** one of these is chosen in `decisions.md` and enforced — the sandbox is seeded with test
+  links only, the host sits behind Access with a service token, or resolve requires a per-device token.
+- **Paths:** `services/atv-core/src/index.ts`, `wrangler.toml`, Cloudflare Zero Trust
+- **Size:** M
+- **State:** proposed — needs the decision before L4
+
+### R2 · Pin the toolchain the repo claims it has
+
+- **Why:** `package.json` names no `engines`, and CI runs wrangler 4.166.0 while the dependency range is
+  `^4.136.1`, so a local build and the deploy can use different CLIs and disagree about a deploy.
+- **Done when:** `engines` states Node 22 and pnpm 9, and the workflow takes its wrangler version from the
+  lockfile instead of carrying a second pin.
+- **Paths:** `package.json`, `.github/workflows/deploy.yml`
+- **Size:** S
+- **State:** proposed
+
+### R3 · Report test coverage in the review
+
+- **Why:** 160 tests say nothing about the files with none, so a new module can land unexercised without a
+  signal.
+- **Done when:** each review record carries a coverage number and names the files at zero.
+- **Paths:** `vitest.config`, `docs/agents/reviews.md`
+- **Size:** S
+- **State:** proposed — adds a dev dependency, so it needs the usual approval
+
 ## Parked
 
 - **ADB console for the TV.** Needs an always-on LAN host behind a Tunnel; Apps2Fire and Bugjaeger already

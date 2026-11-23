@@ -23,7 +23,9 @@ services/atv-core/src/env.ts        Env bindings + typed JSON/memo KV reads
 services/atv-core/src/config-meta.ts config schema version + checksum
 services/atv-core/src/rules.ts      guide indexing (country/category groups, deterministic)
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
+services/atv-core/src/page.ts       shared page shell, CSS and CSP for /install and /join
 services/atv-core/src/install.ts    /install page + QR for the Fire TV APK
+services/atv-core/src/join.ts       /join page: onboarding for an agent with no GitHub integration
 services/atv-core/src/backup.ts     guide snapshot -> KV (guide:latest)
 services/atv-core/test/             route suite (Vitest, in-memory KV)
 apps/tv-client/src/                 guide-driven channel grid, player, overlays, D-pad handling
@@ -58,7 +60,8 @@ wrangler.production.toml            production worker atv-core-orchestrator (ref
 | `GET /api/idents/random`   | 302 to a random HTTPS ident from `ATV_CONFIG/idents`; 503 when unset                                                                                                                                                                                                                         |
 | `GET /admin`               | 308 to `/admin/`; the CMS is served from the asset directory                                                                                                                                                                                                                                 |
 | `GET /install`             | Install page for the Fire TV APK: release-asset link, QR (`/install/qr.svg`) and the sideload steps                                                                                                                                                                                          |
-| `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |     | `GET /join` | Public onboarding for a coding agent with no GitHub integration: `gh` device code or a fine-grained token, its roles, and what stays private |
+| `GET /install/qr.svg`      | QR of the APK link, rendered server-side as SVG                                                                                                                                                                                                                                              |
+| `GET /join`                | Public onboarding for a coding agent with no GitHub integration: `gh` device code or a fine-grained token, its roles, and what stays private                                                                                                                                                 |
 
 Error bodies are `{error, code, requestId}` and every response carries `X-Request-Id`. Internal
 failures return a generic 503 and are logged with the same id instead of echoing the exception.

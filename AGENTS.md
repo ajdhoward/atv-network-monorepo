@@ -57,16 +57,15 @@ Non-goals: multi-tenant SaaS, accounts for strangers, features nobody in the hou
 
 ## Map
 
-| Path                 | What lives there                                             | Read more             |
-| -------------------- | ------------------------------------------------------------ | --------------------- |
-| `services/atv-core/` | Worker: router, guide, resolver, TorBox, `/install`, limiter | `README.md` API table |
-| `apps/tv-client/`    | Guide grid, player, overlays, D-pad handling                 | `apps/tv-client/src/` |
-
-| `android/` | Fire OS WebView shell; the APK is a release asset | `android/README.md` |
-| `scripts/` | Seed, dev, smoke, ci-worker, budget, deploy guards | `README.md` layout |
-| `docs/agents/` | Roster (claims, coverage), roles, decisions log | itself |
-| `docs/production-cutover.md` | The only authority for replacing production | itself |
-| `wrangler.toml` | Sandbox `atv-core-v2` — the default deploy target | `README.md` Deploy |
+| Path                         | What lives there                                             | Read more             |
+| ---------------------------- | ------------------------------------------------------------ | --------------------- |
+| `services/atv-core/`         | Worker: router, guide, resolver, TorBox, `/install`, limiter | `README.md` API table |
+| `apps/tv-client/`            | Guide grid, player, overlays, D-pad handling                 | `apps/tv-client/src/` |
+| `android/`                   | Fire OS WebView shell; the APK is a release asset            | `android/README.md`   |
+| `scripts/`                   | Seed, dev, smoke, ci-worker, budget, deploy guards           | `README.md` layout    |
+| `docs/agents/`               | Roster (claims, coverage), roles, decisions log              | itself                |
+| `docs/production-cutover.md` | The only authority for replacing production                  | itself                |
+| `wrangler.toml`              | Sandbox `atv-core-v2` — the default deploy target            | `README.md` Deploy    |
 
 ## Commands
 
@@ -148,8 +147,7 @@ ever goes unowned. Put the roles you take in your roster row.
 - **Hand over explicitly.** A role that moves is recorded in the roster with its state: open changes, red
   CI, unclaimed paths.
 
-Agents cannot talk to each other. The repository is the channel — commits, roster, decisions log, pull
-requests — and the operator is the only synchroniser, since they start each session.
+Agents cannot talk to each other; the repository is the channel, and the operator starts each session.
 
 - **Propose, ack, decide.** A shared-shape change is an entry in `decisions.md` with `state: proposed`;
   every other active agent adds `ack — <name>` or `object — <name> — <concrete harm>`; the operator marks
@@ -160,7 +158,7 @@ requests — and the operator is the only synchroniser, since they start each se
 
 ## The plan
 
-`docs/agents/backlog.md` is the work list _and_ the debate: read it each session, ack, object or add, and let the operator set priority before anyone claims. Nothing is built that is not listed; nothing is claimed unreviewed.
+`docs/agents/backlog.md` is the work list _and_ the debate: read it each session, ack, object or add, and let the operator set priority before anyone claims. Nothing is built that is not listed; nothing is claimed unreviewed. `docs/agents/reviews.md` sets when the process itself gets reviewed: every five changes, every two weeks, or after a red `main`.
 
 ## Verify before you believe
 

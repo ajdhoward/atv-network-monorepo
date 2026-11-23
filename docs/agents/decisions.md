@@ -96,3 +96,20 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — Markdown only.
 - acks: operator (2026-11-23)
 - outcome: accepted
+
+### 2026-11-23 — A periodic review of the process itself
+
+- state: accepted
+- proposed by: operator, written by Buffy (Freebuff)
+- touches: `docs/agents/reviews.md` (new), `docs/reviews/`, `AGENTS.md`
+- why: the rules that coordinate the agents were being added but never re-read. A process that only
+  accumulates rules slowly costs more context than it saves, and nothing would notice.
+- change: a review every five merged changes, every two weeks, or immediately after an incident, run by the
+  Scribe with the Reviewer and Verifier, recorded in `docs/reviews/YYYY-MM-DD.md` with a fixed scorecard and
+  six questions about the process. Its outputs are backlog items, direct edits, or a rejection with a
+  reason.
+- risk: a review that is expensive to write stops happening. Mitigation: the record is a scorecard and
+  short answers, and the operator triggers it in a session rather than watching for the trigger.
+- cost: none — Markdown only.
+- acks: operator (2026-11-23)
+- outcome: accepted
