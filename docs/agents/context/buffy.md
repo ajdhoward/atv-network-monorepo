@@ -44,7 +44,7 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
   call works.
 - There are no Cloudflare credentials in the shell and no browser for an OAuth callback, so `wrangler` cannot
   authenticate here. The connected Cloudflare integration is the only path and it is server-side: it reads the
-  account, KV and scripts, and it exposes *Create Worker Version* with `deploy: true`, which does accept
+  account, KV and scripts, and it exposes _Create Worker Version_ with `deploy: true`, which does accept
   bindings. It exposes no KV-namespace creation and no worker deletion — so a deploy is possible, provisioning
   is not.
 
