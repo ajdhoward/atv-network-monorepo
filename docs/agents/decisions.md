@@ -193,3 +193,6 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — one job, no new secret.
 - acks: operator (2026-11-23)
 - outcome: accepted
+- removed: 2026-11-23 — the namespace exists, so this dispatch-only write path was deleted rather than left
+  as an unused way to spend the deploy token. The id now lives only in `ajdhoward/mcp-onboard`'s
+  `wrangler.toml`.

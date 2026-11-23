@@ -50,13 +50,13 @@ operator's to authorise; R1 needs a decision before L4 seeds real links.
 
 ## Outside this repository
 
-- A separate project, `mcp-onboard` (a Cloudflare Worker with one KV binding), now has its own private
-  repository: `ajdhoward/mcp-onboard`. Its namespace `mcp-onboard-ONBOARD_KV` was created 2026-11-23 by
-  `.github/workflows/provision-kv.yml` in this repository, running on `CF_API_TOKEN`; the id lives in that
-  private repository's `wrangler.toml` rather than here, because this repository is public.
-  **`worker.js` is still missing**: the original was written outside git, the only copy died with `/tmp`,
-  and no other copy exists. The repository holds the config, the binding and the deploy steps so that the
-  next copy lands somewhere durable. Nothing is deployed; the account answers 404 for `mcp-onboard`.
+- A separate project, `mcp-onboard` (a Cloudflare Worker with one KV binding), lives in its own private
+  repository: `ajdhoward/mcp-onboard`. Its namespace `mcp-onboard-ONBOARD_KV` was created 2026-11-23 on
+  `CF_API_TOKEN`; the id lives in that repository's `wrangler.toml`, not here, because this repository is
+  public. `worker.js` is a **reconstruction**: the original died with `/tmp`, so it was rebuilt from the
+  behaviour recorded there and labelled as such in its README. It runs under local workerd with
+  `test/smoke.sh` at 42/42, and is still not deployed (the account answers 404 for `mcp-onboard`);
+  `/authorize*` needs a Cloudflare Access application first. The provisioning workflow is gone.
 
 ## Next session, in order
 
