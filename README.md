@@ -15,6 +15,8 @@ admin CMS, a React admin app, and shared types.
 - Admin CMS (React): `apps/admin-cms` — built into `apps/tv-client/dist/admin` and served at `/admin/`
 - Shared types/schema: `packages/ui-shared`
 
+Changes are recorded in [CHANGELOG.md](CHANGELOG.md), one section per branch until a deploy ships it.
+
 ## Layout
 
 ```
