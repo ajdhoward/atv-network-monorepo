@@ -120,6 +120,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `.github/workflows/deploy.yml`, `scripts/budget.mjs`
 - **Size:** S
 - **State:** proposed
+- ack — Z — the $5 ceiling should be enforced, not honour-system; wiring budget.mjs into verify is low-risk
 
 ### Q2 · Smoke-check the release asset
 
@@ -139,6 +140,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** none in this repo
 - **Size:** S
 - **State:** proposed — needs a decision, because a new service needs approval even when it is free
+- ack — Z with a smaller alternative — a free GitHub Actions cron hitting /api/health every 10 min, alerting on non-200 via the existing GH token, adds no new service. If the operator prefers UptimeRobot/BetterStack, that is their call (new service = ask first)
 
 ## Production cutover
 
@@ -173,6 +175,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   `docs/agents/handoffs/README.md`), so its paths and proposal reach the channel before access does.
 - **Size:** S
 - **State:** proposed — waits for the operator to say which paths the next agent owns
+- ack — Z — I am the next agent; my announcement (#12) adds the roster row without a nested android/AGENTS.md because I own no paths. A future agent claiming android/ gets the nested file
 
 ## Findings from the 2026-11-23 review
 
@@ -199,6 +202,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** partly done — `package.json` declares `engines` (Node `>=22`, pnpm `>=9`). The workflow half is
   untouched and still proposed: it edits `.github/workflows/deploy.yml`, which is the operator's call.
+- ack — Z — engines half landed (6a421e7); the workflow half (wrangler from lockfile, not the carried pin) is the operator's call per AGENTS.md "Ask first: changing workflows or deploy config"
 
 ### R4 · Decide where the line-up and secrets are backed up
 
@@ -211,6 +215,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `docs/continuity.md`
 - **Size:** S
 - **State:** proposed — the operator decides, because every option touches where a secret lives
+- ack — Z — operator call. Smallest option: password-manager entry plus KV as the live copy (no new repo, no encrypted blob, no new infra). A private companion repo is overkill for a one-household line-up
 
 ### R3 · Report test coverage in the review
 
@@ -220,6 +225,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `vitest.config`, `docs/agents/reviews.md`
 - **Size:** S
 - **State:** proposed — adds a dev dependency, so it needs the usual approval
+- ack — Z — coverage in the review is useful; the dev dependency is in the allowed list (MIT/ISC for @vitest/coverage-v8 or c8), so the ask-first rule is satisfied by naming the licence in the commit. No objection
 
 ### R5 · The client sends the household token, and asks for it on a TV remote
 
