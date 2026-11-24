@@ -89,24 +89,41 @@ Dashboard → Workers & Pages → `atv-core-v2` → **Deployments** → the prev
 namespaces and secrets are untouched, so a rollback is seconds and loses nothing. Re-check `/api/health` and
 `pnpm smoke "$BASE" --allow-empty` after it.
 
-## Step 2 — Install the client on every TV
+## Step 2 — Prove every TV is running this Worker's client
 
 Do this on **every** TV before Step 3. A TV missed here is the one that gets stranded.
 
-1. Open `GET /install` on a phone or the TV browser, or type the short address `…workers.dev/a` in
-   Downloader. The page carries the APK link, a QR, and the sideload steps.
-2. Install over the previous build. If the APK is debug-signed with a fresh key (L3 not done), Android
-   refuses to install over the old one and you must uninstall first — which also clears the WebView's
-   storage, so that TV will need its token again in Step 4.
-3. Launch the app. The guide should render. No token exists yet, and none is asked for: the guide is public
-   and the Worker is not enforcing.
+An installed app needs **no reinstall**: it bundles nothing and loads `BuildConfig.ATV_BASE_URL` on every
+launch, and the Worker serves its assets with `max-age=0, must-revalidate`, so a TV that already has the app
+pointed at this Worker is running the client Step 1 just deployed. What can go wrong is not a stale client,
+it is an app pointed at the **wrong** Worker: the origin is compiled into the APK
+(`android/app/build.gradle`, `-PatvBaseUrl` locally or the `ATV_BASE_URL` repository variable in CI), so an
+app built against `atv.acidwurx.org` renders a guide that looks perfect from this deploy and never carries the
+R5 prompt. That is the TV that gets stranded at Step 3, and "the guide renders" does not distinguish it.
 
-### Check
+1. Only for a TV that has never had the app: open `GET /install` on a phone or the TV browser, or type the
+   short address `…workers.dev/a` in Downloader. The page carries the APK link, a QR, and the sideload steps.
+2. If you do need to install over the previous build: when the APK is debug-signed with a fresh key (L3 not
+   done), Android refuses to install over the old one and you must uninstall first, which clears the app's
+   storage. Nothing is lost yet — there is no token to lose — but it is why an unnecessary reinstall is worth
+   avoiding.
+3. Launch the app. No token exists yet and none is asked for: the guide is public and the Worker is not
+   enforcing.
 
-- The guide renders on every TV, and a channel that is expected to be configured plays (a Drive-backed
-  channel still needs `ATV_STREAM_SIGNING_KEY`, which this runbook does not set).
-- `curl -sS "$BASE/api/health"` still reports `"deviceTokenSet":false` — enforcement is not on yet, so a
-  TV you have not reached yet is failing safe.
+### Check — evidence that this TV is talking to `$BASE`
+
+- **The unseeded guide is itself the proof, while it lasts.** L4 (the real line-up) comes after this runbook,
+  so a sandbox with no channels answers `"channels": 0` and the TV shows _No channels available right now._
+  A TV showing channels at this step is on another Worker — production — and has to be rebuilt against
+  `$BASE` before Step 3 rather than after.
+- **`pnpm exec wrangler tail atv-core-v2` while you launch the app on that TV** (this needs the operator's
+  credentials). The TV's `/api/guide` request appears in the tail; a TV that shows a guide and produces no
+  request there is not talking to this Worker. Use this once the sandbox is seeded, when the empty-guide
+  signal is gone.
+- A channel that is expected to be configured plays — a Drive-backed channel still needs
+  `ATV_STREAM_SIGNING_KEY`, which this runbook does not set.
+- `curl -sS "$BASE/api/health"` still reports `"deviceTokenSet": false` — enforcement is not on yet, so a TV
+  you have not reached yet is still failing safe.
 
 ### Back out
 
@@ -243,13 +260,13 @@ stops sending the header and is shown the prompt again.
 
 ## If something goes wrong
 
-| Symptom                                              | Likely cause                                            | Action                                                     |
-| ---------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
-| A TV says the channel is unavailable, never a dialog | That TV is still on a pre-R5 client (Step 2 missed it)  | Install the current APK on that TV, or delete the secret   |
-| The dialog reappears on every launch                 | The WebView refused storage, or the token is not saved  | Check the TV's storage; uninstall/reinstall the app        |
-| Every channel 401s from a script but TVs play        | The script is not sending the header                    | Export `ATV_DEVICE_TOKEN` in that shell                    |
-| Headerless resolve still answers 200                 | The secret is not on this Worker, or a stale deployment | Re-check `/api/health` `deviceTokenSet`, re-put the secret |
-| Resolve 401s everywhere right after a deploy         | The secret survived, but the client did not             | Roll the deployment back (Step 1), then re-run Step 2      |
+| Symptom                                              | Likely cause                                              | Action                                                                          |
+| ---------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| A TV says the channel is unavailable, never a dialog | That TV is on another Worker, so it never got this client | Rebuild an APK with `ATV_BASE_URL=$BASE` (Step 2's check), or delete the secret |
+| The dialog reappears on every launch                 | The WebView refused storage, or the token is not saved    | Check the TV's storage; uninstall/reinstall the app                             |
+| Every channel 401s from a script but TVs play        | The script is not sending the header                      | Export `ATV_DEVICE_TOKEN` in that shell                                         |
+| Headerless resolve still answers 200                 | The secret is not on this Worker, or a stale deployment   | Re-check `/api/health` `deviceTokenSet`, re-put the secret                      |
+| Resolve 401s everywhere right after a deploy         | The secret survived, but the client did not               | Roll the deployment back (Step 1), then re-run Step 2                           |
 
 ## What this runbook does not cover
 
