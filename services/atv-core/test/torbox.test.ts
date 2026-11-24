@@ -259,4 +259,40 @@ describe("TorBox links", () => {
       missing: 1,
     });
   });
+
+  // A hover prefetch and the Enter that follows it resolve the same channel at
+  // once, and a second TV can do it at the same time. Without a shared promise
+  // each of them mints its own link and spends its own TorBox call.
+  it("shares one TorBox request between concurrent resolves of the same item", async () => {
+    const fetchMock = mockTorbox();
+    const worker = await freshWorker();
+    const env = makeEnv(
+      { channels, torbox_map: { "news-us": torrent } },
+      { ATV_TORBOX_API_KEY: TOKEN },
+    );
+
+    const [first, second] = await Promise.all([
+      call(worker, env, "/api/resolve?id=news-us"),
+      call(worker, env, "/api/resolve?id=news-us"),
+    ]);
+
+    expect(first.body.url).toBe("https://cdn.torbox.example/file.mp4");
+    expect(second.body.url).toBe("https://cdn.torbox.example/file.mp4");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries after a failed call instead of caching the failure", async () => {
+    mockTorbox(undefined, 403);
+    const worker = await freshWorker();
+    const env = makeEnv(
+      { channels, torbox_map: { "news-us": torrent } },
+      { ATV_TORBOX_API_KEY: TOKEN },
+    );
+    expect((await call(worker, env, "/api/resolve?id=news-us")).res.status).toBe(502);
+
+    const retry = mockTorbox();
+    const second = await call(worker, env, "/api/resolve?id=news-us");
+    expect(second.res.status).toBe(200);
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
 });

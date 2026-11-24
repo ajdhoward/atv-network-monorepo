@@ -38,11 +38,32 @@ export async function readJson<T>(kv: KVNamespace, key: string): Promise<T | nul
 // (gdrive_map, idents). KV reads are cheap but not free, and these are read on
 // every resolve/hover. The guide has its own request-path memo.
 const memo = new Map<string, { at: number; value: unknown }>();
+// Reads already in the air, per key. A grid sweep resolves many channels in
+// parallel, so without this a cold isolate starts one KV read per caller for the
+// same key: `Promise.all` of a dozen hovers is a dozen reads of `torbox_map`.
+const inFlight = new Map<string, Promise<unknown>>();
+
+function sharedRead<T>(kv: KVNamespace, key: string): Promise<T | null> {
+  const existing = inFlight.get(key);
+  if (existing) return existing as Promise<T | null>;
+
+  const mine: Promise<T | null> = readJson<T>(kv, key).then((value) => {
+    memo.set(key, { at: Date.now(), value });
+    return value;
+  });
+  inFlight.set(key, mine);
+  // Settle-and-forget, keyed on this promise: the entry goes away when it
+  // finishes, so a failed read is never remembered for the rest of the TTL and
+  // the next request can try KV again instead of inheriting the failure.
+  const clear = () => {
+    if (inFlight.get(key) === mine) inFlight.delete(key);
+  };
+  mine.then(clear, clear);
+  return mine;
+}
 
 export async function kvJson<T>(kv: KVNamespace, key: string, ttlMs = 60_000): Promise<T | null> {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.value as T | null;
-  const value = await readJson<T>(kv, key);
-  memo.set(key, { at: Date.now(), value });
-  return value;
+  return sharedRead<T>(kv, key);
 }

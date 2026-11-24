@@ -21,6 +21,11 @@ const ENDPOINTS: Record<TorboxKind, { path: string; param: string }> = {
 
 const LINK_TTL_MS = 30 * 60 * 1000;
 const cache = new Map<string, { url: string; expiresAt: number }>();
+// Requests already in the air, per item. A TV prefetches on hover and presses
+// Enter on the same channel, and a second TV can sweep at the same moment, so
+// two resolves of one item can miss the cache together and spend two TorBox
+// calls (and two different links) for the same file.
+const inflight = new Map<string, Promise<string>>();
 
 function nonNegativeInt(value: unknown): number | null {
   const n = typeof value === "string" ? Number(value) : value;
@@ -62,6 +67,25 @@ export async function resolveTorbox(id: string, env: Env): Promise<string | null
   const hit = cache.get(key);
   if (hit && hit.expiresAt > Date.now()) return hit.url;
 
+  const pending = inflight.get(key);
+  if (pending) return pending;
+
+  const request = fetchLink(ref, token)
+    .then((link) => {
+      cache.set(key, { url: link, expiresAt: Date.now() + LINK_TTL_MS });
+      return link;
+    })
+    // Dropped once settled: a failure is not shared with a later attempt.
+    .finally(() => {
+      if (inflight.get(key) === request) inflight.delete(key);
+    });
+  inflight.set(key, request);
+  return request;
+}
+
+// The upstream call on its own, so the cache and the in-flight map above stay
+// readable. Never echoes the response body: it can quote the token and the link.
+async function fetchLink(ref: TorboxRef, token: string): Promise<string> {
   const endpoint = new URL(`https://api.torbox.app/v1/api/${ENDPOINTS[ref.kind].path}`);
   endpoint.searchParams.set("token", token);
   endpoint.searchParams.set(ENDPOINTS[ref.kind].param, String(ref.itemId));
@@ -71,14 +95,11 @@ export async function resolveTorbox(id: string, env: Env): Promise<string | null
     headers: { Authorization: `Bearer ${token}`, accept: "application/json" },
     signal: AbortSignal.timeout(8000),
   });
-  // Never echo the upstream body: it can quote the token and the link.
   if (!res.ok) throw new Error(`torbox responded ${res.status}`);
   const body = (await res.json()) as { success?: unknown; data?: unknown } | null;
   const data = body?.data as { url?: unknown } | string | undefined;
   const link = typeof data === "string" ? data : typeof data?.url === "string" ? data.url : null;
   if (!link) throw new Error("torbox returned no link");
   if (!link.startsWith("https://")) throw new Error("insecure url blocked - TLS 1.3 required");
-
-  cache.set(key, { url: link, expiresAt: Date.now() + LINK_TTL_MS });
   return link;
 }
