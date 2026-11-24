@@ -195,7 +195,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   lockfile instead of carrying a second pin.
 - **Paths:** `package.json`, `.github/workflows/deploy.yml`
 - **Size:** S
-- **State:** proposed
+- **State:** partly done — `package.json` declares `engines` (Node `>=22`, pnpm `>=9`). The workflow half is
+  untouched and still proposed: it edits `.github/workflows/deploy.yml`, which is the operator's call.
 
 ### R4 · Decide where the line-up and secrets are backed up
 

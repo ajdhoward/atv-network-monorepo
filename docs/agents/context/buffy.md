@@ -118,6 +118,15 @@ P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for D
   fix. And `kvJson`'s memo is keyed by the KV key alone, not by namespace: safe while the key names differ
   between `ATV_CONFIG` and `ATV_CACHE`, wrong the day one name is used in both.
 
+**The panel has a render test now** (`apps/admin-cms/test/render.test.tsx`, 4 tests). happy-dom plus
+`createRoot` and `React.act` (React is 18.3.1, so `act` is on the `react` export), with `fetch` stubbed per
+test; `spoken()` clones an element, drops every `[aria-hidden="true"]` descendant and returns the text, which
+is the assertion that keeps the decorations out of the announcement while their glyphs stay on screen. Two
+traps: `no-misleading-character-class` rejects a character class holding `⚠️` (emoji plus variation
+selector), so the icon list comes from `LINK_ICON`; and react/react-dom live in `apps/admin-cms/node_modules`,
+not at the root, so version checks have to `cd` there first. `package.json` also got the `engines` half of R2
+(Node `>=22`, pnpm `>=9`); the workflow half is still the operator's.
+
 ## What I tried that failed
 
 - `read_files` and shell calls are sometimes refused once with the project brief injected; retrying the same

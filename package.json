@@ -2,6 +2,10 @@
   "name": "atv-network-monorepo",
   "private": true,
   "packageManager": "pnpm@9.1.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit && pnpm --filter @atv/tv-client typecheck && pnpm --filter @atv/admin-cms typecheck",
     "build:client": "pnpm --filter @atv/tv-client build",

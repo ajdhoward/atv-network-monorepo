@@ -10,6 +10,13 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `apps/admin-cms/test/render.test.tsx` — the first test in the panel that renders JSX, because decoration no logic
+  test could see was quietly load-bearing: a folder emoji, four breadcrumb slashes, three link-state
+  icons and the pending dash are all hidden with `aria-hidden`, and a wrapper deleted by accident changes what
+  a screen reader says without failing anything. The test renders in happy-dom, computes the announcement of an
+  element by dropping everything marked hidden, and asserts both halves — the glyph is still on screen, and it
+  is not in the name. It also pins the folder-row Tab rule (the step you are on is disabled) and takes its
+  icon list from `LINK_ICON` rather than repeating it.
 - The grid's first tests (`apps/tv-client/test/grid.test.ts`, 8): wrap-around focus, play-focused, an empty
   and a non-array lineup, notice, show/hide, and a click. It was the last client module with real behaviour
   and no coverage, which is how the click-vs-hover distinction went unrecorded until a test assumed wrong.
@@ -52,6 +59,13 @@ Nothing here is merged or deployed.
 
 - `.env.example` — every environment variable the scripts read, plus the ones deliberately absent because
   they are `wrangler.toml` vars or Worker secrets, so a secret is not added to a file nothing loads.
+
+### Changed
+
+- `package.json` declares `engines` — Node `>=22` and pnpm `>=9` — the toolchain the repository already
+  assumes in `AGENTS.md` and in CI, so a local build can no longer quietly use something else. The other half
+  of R2, having the workflow take its wrangler version from the lockfile instead of carrying a second pin, is
+  untouched: it edits a workflow, which is the operator's call.
 
 ### Fixed
 
