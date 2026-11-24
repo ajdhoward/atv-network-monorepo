@@ -288,6 +288,22 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **State:** proposed — a second Worker boot doubles the slowest check's runtime, so the operator decides
   whether it runs on every push or only in the deploy workflow.
 
+### Q12 · Replace either secret without stranding the household
+
+- **Why:** R8 sets `ATV_DEVICE_TOKEN` once and nothing covered replacing it afterwards. One shared token with no
+  per-device identity means a rotation is a walk around the house, and the only evidence of a TV that was
+  missed is an Analytics Engine counter; the signing key is the cheap rotation, but rotating it mid-film loses
+  the position. Neither had a written order, a check or a back-out.
+- **Done when:** a runbook covers both secrets, their order, the checks after each step and how to put the old
+  value back, and it is indexed so `pnpm continuity` keeps it visible.
+- **Paths:** `docs/rotating-secrets.md`, `docs/r8-rollout.md`
+- **Size:** S
+- **State:** done — `docs/rotating-secrets.md`, pointed at from R8's closing section. Every no-credential claim
+  in it was exercised against a real local Worker enforcing a test token in the cloud browser: guide public,
+  `401` on a channel press, the missing then rejected wording, the correct value resolving `200` and retrying,
+  a reload that plays without asking, and Escape cancelling with the dialog reopening on the next press. Not
+  exercised: `wrangler secret put`/`delete` (needs credentials), the sandbox, and a Fire TV remote.
+
 ## Production cutover
 
 ### Q4 · Download and commit the deployed `4fb54df2` source

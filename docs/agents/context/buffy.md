@@ -423,3 +423,29 @@ unenforced; that is still R8's sitting.
   `pnpm install --frozen-lockfile` rebuilds the links in seconds.
 - **`pnpm ci:worker` outlives the five-minute command cap** (300 limiter requests in workerd); start it detached
   with a log and poll it. Finished 31/31 — its own smoke 19/19 plus 12 route, cron and limiter checks.
+
+## Session 2026-11-24 (rotation, and the prompt seen working)
+
+Wrote [`docs/rotating-secrets.md`](../../rotating-secrets.md) (Q12): what replacing `ATV_DEVICE_TOKEN` and
+`ATV_STREAM_SIGNING_KEY` costs, the order, the checks and the back-out for each. Rotation order is secret first,
+then TVs — the reverse of R8's first-time rule, because the prompt-bearing client is already everywhere and
+only the `401` opens the dialog. One shared token has no per-device identity, so "revoke one TV" does not exist;
+the signing key rotates with no device work but restarts a paused film.
+
+Then observed the prompt path instead of trusting happy-dom, with `wrangler dev --local` enforcing
+`--var ATV_DEVICE_TOKEN:house-token-1234` and the cloud browser on the chat's preview origin:
+
+- guide renders with no prompt (public), channel press → `401` → dialog _This TV has no household token yet._;
+- a wrong value → dialog returns as _That token was not accepted._ (not "channel unavailable");
+- the right value → resolve `200`, dialog closes, the channel retries; the fixture host fails so the notice is
+  _CI One would not play — press Enter to try again_;
+- reload → plays without asking (stored token used, `200`, no `401`);
+- Escape cancels and leaves the notice; pressing the channel again reopens the dialog.
+
+- **The cloud browser cannot reach `127.0.0.1`.** It runs outside the dev-server namespace
+  (`ERR_CONNECTION_REFUSED`), and `cloud_show_dev_server` only accepts this chat's port 3000. Run the Worker with
+  `--ip 0.0.0.0 --port 3000`, call `cloud_show_dev_server`, then open the returned `*.style.dev` hostname in the
+  browser. A cured 401 loop is normal: one click produced several identical `resolve` 401s (hover prefetch plus
+  the retry), which is noise in the log, not a fault.
+- **Still unverified:** the Fire TV on-screen keyboard and Back key (L5), `wrangler secret put`/`delete`, and
+  every step against the sandbox — the runbook says so in its own words.

@@ -10,6 +10,14 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `docs/rotating-secrets.md` — what replacing `ATV_DEVICE_TOKEN` and `ATV_STREAM_SIGNING_KEY` costs and in what
+  order, with the back-out for each. R8 covered setting the household token once; nothing covered replacing it,
+  and one shared token with no per-device identity means a rotation is a walk around the house, not a click. The
+  signing key is the cheap one (no device work, at most one film restarts). The prompt path it depends on was
+  observed rather than mocked: against a local Worker enforcing a test token in the cloud browser, a channel
+  press answers `401` and opens the dialog (_This TV has no household token yet._), a wrong value reopens it as
+  _That token was not accepted._, the right one resolves `200` and retries the channel, a reload plays without
+  asking, Escape cancels and leaves the notice, and pressing the channel again reopens it.
 - `pnpm smoke` checks `/api/stream`. It was the one route with no post-deploy check, and the one that fails
   silently if the asset layer answers it instead: a shadowed route returns `200` with the TV shell, the player
   calls the channel broken, and every other smoke check still passes. The check needs no ticket and no Drive

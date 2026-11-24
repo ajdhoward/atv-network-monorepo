@@ -299,5 +299,7 @@ stops sending the header and is shown the prompt again.
 
 - **L4**, seeding the real line-up and stream links — deliberately last, after this.
 - **P2**, the Drive service-account credential; a file not shared link-wide still answers `502`.
-- `ATV_STREAM_SIGNING_KEY`, which the Drive proxy needs independently of this rollout.
+- `ATV_STREAM_SIGNING_KEY`, which the Drive proxy needs independently of this rollout. Setting, rotating and
+  backing out either secret **after** this first rollout is [`rotating-secrets.md`](rotating-secrets.md); the
+  order there is secret first, then TVs, which is the reverse of this runbook for the reason it gives.
 - **Production.** Do not run these commands against `atv.acidwurx.org`; see `production-cutover.md`.
