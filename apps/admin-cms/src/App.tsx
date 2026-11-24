@@ -2,17 +2,12 @@ import { useEffect, useState } from "react";
 import type { HealthPayload } from "@atv/ui-shared";
 import { fetchHealth, summariseHealth } from "./health";
 import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck } from "./links";
-
-const STATUS_COLOUR = {
-  ok: "#0a7d32",
-  degraded: "#b45309",
-  unreachable: "#b91c1c",
-} as const;
+import { colour, font, grid, muted, panel, sectionHeading } from "./styles";
 
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
-    <div style={{ border: "1px solid #ddd", padding: 16, borderRadius: 12 }}>
-      <div style={{ fontSize: 13, color: "#555" }}>{label}</div>
+    <div style={panel}>
+      <div style={{ fontSize: 13, ...muted }}>{label}</div>
       <div style={{ fontSize: 24 }}>{value}</div>
     </div>
   );
@@ -20,7 +15,9 @@ function Card({ label, value }: { label: string; value: number | string }) {
 
 export default function App() {
   const [health, setHealth] = useState<HealthPayload | null>(null);
-  const [checked, setChecked] = useState(false);
+  // Distinguishes "not asked yet" from "asked and got nothing": both leave
+  // `health` null, and only the second is worth calling unreachable.
+  const [settled, setSettled] = useState(false);
   const [checks, setChecks] = useState<LinkCheck[] | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
@@ -33,7 +30,7 @@ export default function App() {
     fetchHealth().then((payload) => {
       if (!live) return;
       setHealth(payload);
-      setChecked(true);
+      setSettled(true);
     });
     return () => {
       live = false;
@@ -54,6 +51,10 @@ export default function App() {
   }
 
   const summary = summariseHealth(health);
+  // Before the first answer the summary is a guess, so the panel says it is
+  // checking instead of flashing UNREACHABLE and a list of problems it has not
+  // confirmed. A zero that has not been measured is shown as a dash.
+  const pending = !settled;
   const ready =
     summary.status === "ok" &&
     summary.channels > 0 &&
@@ -61,37 +62,41 @@ export default function App() {
   const linkReady = checks ? checks.filter((c) => c.state === "configured").length : 0;
 
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, system-ui" }}>
+    <div style={{ padding: 24, fontFamily: font, color: colour.ink }}>
       <h1>ATV Admin CMS - Setup Panel</h1>
       <p role="status" style={{ marginTop: 0 }}>
         Worker{" "}
-        <strong style={{ color: STATUS_COLOUR[summary.status] }}>
-          {summary.status.toUpperCase()}
+        <strong style={{ color: pending ? colour.muted : colour.status[summary.status] }}>
+          {pending ? "CHECKING…" : summary.status.toUpperCase()}
         </strong>
-        {checked ? "" : " (checking...)"}
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
-        <Card label="Channels" value={summary.channels} />
-        <Card label="Links configured" value={summary.links.configured} />
-        <Card label="Links unset" value={summary.links.missing} />
-        <Card label="Links unusable" value={summary.links.invalid} />
+      <div style={grid}>
+        <Card label="Channels" value={pending ? "—" : summary.channels} />
+        <Card label="Links configured" value={pending ? "—" : summary.links.configured} />
+        <Card label="Links unset" value={pending ? "—" : summary.links.missing} />
+        <Card label="Links unusable" value={pending ? "—" : summary.links.invalid} />
       </div>
-      {summary.problems.length > 0 && (
-        <ul style={{ marginTop: 16, color: "#8a4b00" }}>
+      {!pending && summary.problems.length > 0 && (
+        <ul style={{ marginTop: 16, color: colour.warn }}>
           {summary.problems.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}
         </ul>
       )}
 
-      <h2 style={{ marginTop: 32 }}>Stream links</h2>
+      <h2 style={sectionHeading}>Stream links</h2>
       <button onClick={runCheck} disabled={checking}>
-        {checking ? "Checking..." : "Check stream links"}
+        {checking ? "Checking…" : "Check stream links"}
       </button>
-      {checkError && <p style={{ color: "#b91c1c" }}>{checkError}</p>}
+      {checking && (
+        <p style={muted} role="status">
+          Asking the guide and the batched resolve endpoint; this walks every channel once.
+        </p>
+      )}
+      {checkError && <p style={{ color: colour.danger }}>{checkError}</p>}
       {checks && (
         <>
-          <p style={{ color: "#555" }}>
+          <p style={muted}>
             {linkReady}/{checks.length} channel(s) have a usable link. Nothing here shows a URL.
           </p>
           <ul style={{ paddingLeft: 18 }}>
@@ -105,8 +110,8 @@ export default function App() {
         </>
       )}
 
-      <h2 style={{ marginTop: 32 }}>Google Drive Folder Tree</h2>
-      <div style={{ border: "1px solid #ccc", padding: 12, borderRadius: 8 }}>
+      <h2 style={sectionHeading}>Google Drive Folder Tree</h2>
+      <div style={panel}>
         <div>
           <code>{path}</code>
         </div>
