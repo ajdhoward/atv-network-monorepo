@@ -84,7 +84,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   covered by tests, including expiry and a bad signature.
 - **Paths:** `services/atv-core/src/`, `services/atv-core/test/`
 - **Size:** L
-- **State:** proposed — the approach is settled, the design is not; it wants a `decisions.md` entry first
+- **State:** proposed, design written — `decisions.md` entry of 2026-11-24: a signed ticket per resolve
+  (HMAC-SHA256 over `<id>\n<exp>`, 15-minute TTL), `Range` passed through, and distinct status codes for
+  unconfigured, bad signature and expiry. `services/atv-core/src/stream-sign.ts` and its tests landed as the
+  first file; nothing calls it, and the route plus the `/api/resolve` change wait for the operator's accept.
 
 ### P2 · Drive service-account secret for P1
 

@@ -10,6 +10,11 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `services/atv-core/src/stream-sign.ts` — the P1 ticket, before the route exists: `/api/resolve` will mint
+  `/api/stream/<id>?exp&sig`, signed with HMAC-SHA256 over `<id>\n<exp>`, and the proxy will check for a
+  configured secret, a valid signature, the id it was minted for and a 15-minute expiry. Each failure has its
+  own answer (`unconfigured`, `missing`, `bad-signature`, `expired`) so a misconfigured Worker never reads as a
+  forged link. Nothing calls it yet; the design is a `decisions.md` entry awaiting the operator.
 - Every non-TV caller can carry the token (R7). The admin panel takes it once per browser and keeps it in
   `localStorage` (`linkToken.ts`), sends it only on resolve batches — the guide stays public — and reads a 401
   as "the worker needs the household token" instead of scoring every channel as broken. `pnpm smoke`,

@@ -41,6 +41,12 @@ streams and `ci:worker` read `ATV_DEVICE_TOKEN` from the environment and name th
 is the useful one: it starts the Worker with `--var ATV_DEVICE_TOKEN:…` and asserts 401 headerless and 200
 with the header, so enforcement is exercised in workerd on every run rather than only in the route suite.
 
+**P1 has a design and its first file.** `decisions.md` (2026-11-24) proposes `/api/stream/<id>?exp&sig`: the
+resolve call (already token-protected) mints a 15-minute HMAC ticket, because a `<video src>` cannot send a
+header; the proxy verifies the ticket then passes `Range` through to Drive. `stream-sign.ts` implements the
+ticket and its tests cover id binding, expiry, forgery and a missing secret. The route and the `/api/resolve`
+change wait for the operator to accept the entry — that is a shared shape, so it does not land on my say-so.
+
 **Next: R8, which is the operator's** — set `ATV_DEVICE_TOKEN` on `atv-core-v2`, deploy the R5 client, get the
 token onto each TV, confirm headerless resolves have stopped, then enforcement is already live (there is no
 second switch: the secret _is_ the switch). Then L1 (deploy), L2 (branch protection), L4 (seed real links).

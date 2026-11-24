@@ -33,6 +33,38 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ## Log
 
+### 2026-11-24 — Drive proxy: a signed stream URL per resolve
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/` (new `stream-sign.ts`, later `stream.ts`), `services/atv-core/src/index.ts`
+  (a new `/api/stream/<id>` route), `wrangler.toml` (`run_worker_first`), Worker secret
+  `ATV_STREAM_SIGNING_KEY`, `services/atv-core/test/`
+- why: Drive has no direct-play URL, so a Drive-backed channel cannot play at all today — it resolves to 404
+  and the household sees "no stream configured" for a channel that is configured. The alternatives are a
+  link that expires in the player's hands or exposing the drive to the internet; both are worse than a
+  proxy this Worker already has the runtime for.
+- change: `/api/resolve` stops handing out a Drive link and returns a same-origin
+  `/api/stream/<id>?exp=<unix>&sig=<hex>` instead, where `sig` is HMAC-SHA256 over `<id>\n<exp>` under
+  `ATV_STREAM_SIGNING_KEY` and `exp` is 15 minutes out. `/api/stream` verifies the ticket (secret present,
+  signature valid, id bound, not expired), then proxies `GET` to the Drive media endpoint with `Range`
+  forwarded and answers 206 (or 200 for a whole-file request) with `Content-Range`, `Accept-Ranges`,
+  `Content-Length` and `Content-Type`, `no-store` throughout, and `Access-Control-Allow-Origin: *`.
+- why signed rather than the household token: a `<video src>` cannot send `Authorization` — that is the whole
+  reason option C puts the token on resolve and not on media. The resolve call is already token-protected
+  (R6), so only a TV holding the token can mint a ticket, and the ticket is useless for another id and dead
+  after its expiry. Status codes stay distinct so the TV can tell them apart: 503 `unconfigured` (no secret),
+  403 `bad-signature`/`expired`, 404 unknown id.
+- risk: a proxy that skips the signature is an open door to the drive, and one that mishandles `Range` makes
+  seeking fail in a player that otherwise plays — the second is the likelier bug, so the tests assert a
+  mid-file 206 with the right `Content-Range` start, not just a 200. A leaked ticket is a leaked 15 minutes
+  of one channel; the TTL is the lever if that is judged too long.
+- cost: none — WebCrypto only, no dependency, no service. Size L, so the first file (`stream-sign.ts`) lands
+  on its own, nothing calls it, and the route waits for this entry to be accepted.
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: open — the operator accepts, rejects or narrows it. P2 (the service-account secret) only matters
+  after it is accepted.
+
 ### 2026-11-23 — Agent coordination files
 
 - state: accepted
