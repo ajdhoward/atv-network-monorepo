@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { HealthPayload } from "@atv/ui-shared";
-import { fetchHealth, summariseHealth } from "../src/health";
+import { DRIVE_PROXY_OFF_NOTE, fetchHealth, summariseHealth } from "../src/health";
 
 function health(over: Partial<HealthPayload> = {}): HealthPayload {
   return {
@@ -107,21 +107,32 @@ describe("summariseHealth", () => {
   it("reports the Drive proxy live when the signing key is set", () => {
     const summary = summariseHealth(health({ streamSigningKeySet: true }));
     expect(summary.driveProxy).toBe("live");
+    expect(summary.driveProxyNote).toBeNull();
     expect(summary.problems).toEqual([]);
   });
 
-  it("calls out a proxy that is deployed with no signing key", () => {
+  it("explains a proxy with no signing key beside the state, not as a problem", () => {
     const summary = summariseHealth(health({ streamSigningKeySet: false }));
     expect(summary.driveProxy).toBe("off");
-    expect(summary.problems).toContain(
-      "Drive proxy is off: the worker has no signing key, so Drive channels resolve to their stored link",
-    );
+    expect(summary.driveProxyNote).toBe(DRIVE_PROXY_OFF_NOTE);
+    expect(summary.problems).toEqual([]);
   });
 
   it("does not guess about a deployment that never reports the flag", () => {
     const summary = summariseHealth(health());
     expect(summary.driveProxy).toBe("unknown");
+    expect(summary.driveProxyNote).toBeNull();
     expect(summary.problems).toEqual([]);
+  });
+
+  it("reads the household token flag neutrally", () => {
+    expect(summariseHealth(health({ deviceTokenSet: true })).householdToken).toBe("set");
+    const unset = summariseHealth(health({ deviceTokenSet: false }));
+    expect(unset.householdToken).toBe("unset");
+    // The rollout order (R8) makes an unset token correct until enforcement
+    // lands, so this is a state to show, never a problem to report.
+    expect(unset.problems).toEqual([]);
+    expect(summariseHealth(health()).householdToken).toBe("unknown");
   });
 
   it("tolerates a deployment without link counts", () => {

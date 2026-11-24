@@ -1,5 +1,10 @@
 import type { HealthPayload, ResolveCoverage } from "@atv/ui-shared";
 
+// Shown under the Drive proxy line rather than in `problems`: it explains the
+// state beside it instead of reporting a second, separate fault.
+export const DRIVE_PROXY_OFF_NOTE =
+  "No signing key, so Drive channels resolve to their stored link.";
+
 export type HealthSummary = {
   reachable: boolean;
   status: "ok" | "degraded" | "unreachable";
@@ -9,6 +14,11 @@ export type HealthSummary = {
   // deployment that does not report the field, never an assumption that the
   // proxy is off: the panel must not blame a key it cannot see.
   driveProxy: "live" | "off" | "unknown";
+  driveProxyNote: string | null;
+  // Whether "enforcement" has a token to enforce. `unset` is the expected state
+  // until R8 sets the secret, so it is shown but never reported as a problem:
+  // an amber warning there would train the operator to ignore the page.
+  householdToken: "set" | "unset" | "unknown";
   problems: string[];
 };
 
@@ -25,6 +35,8 @@ export function summariseHealth(health: HealthPayload | null): HealthSummary {
       channels: 0,
       links: { ...NO_LINKS },
       driveProxy: "unknown",
+      driveProxyNote: null,
+      householdToken: "unknown",
       problems: ["Health check did not answer"],
     };
   }
@@ -36,6 +48,13 @@ export function summariseHealth(health: HealthPayload | null): HealthSummary {
       ? health.streamSigningKeySet
         ? "live"
         : "off"
+      : "unknown";
+  const driveProxyNote = driveProxy === "off" ? DRIVE_PROXY_OFF_NOTE : null;
+  const householdToken =
+    typeof health.deviceTokenSet === "boolean"
+      ? health.deviceTokenSet
+        ? "set"
+        : "unset"
       : "unknown";
   const problems: string[] = [];
   if (!health.config.seeded) problems.push("Lineup is not seeded");
@@ -51,19 +70,14 @@ export function summariseHealth(health: HealthPayload | null): HealthSummary {
   if (links.missing > 0) {
     problems.push(`${links.missing} channel(s) have no stream link`);
   }
-  // Deployed but dead is the failure a channel count hides: each Drive channel
-  // still resolves, just to the stored link instead of the proxy.
-  if (driveProxy === "off") {
-    problems.push(
-      "Drive proxy is off: the worker has no signing key, so Drive channels resolve to their stored link",
-    );
-  }
   return {
     reachable: true,
     status: health.status,
     channels: health.config.channels,
     links,
     driveProxy,
+    driveProxyNote,
+    householdToken,
     problems,
   };
 }

@@ -18,10 +18,13 @@ Nothing here is merged or deployed.
   the Developer Platform's paid services, and this account is on Workers Paid with no egress charge and one
   subrequest per media request. The entry stays `proposed` with its outcome open, because that log's rule is
   that the operator marks the outcome, not the agent.
-- The admin panel's health view shows `Drive proxy: LIVE/OFF/UNKNOWN` beside the worker status and adds the
-  reason to its problems list when the proxy is off; `UNKNOWN` is a deployment too old to report the flag,
-  not an assumption that the key is missing. The channel counts alone cannot show a proxy deployed without
-  `ATV_STREAM_SIGNING_KEY`, because every Drive channel still resolves — just to its stored link.
+- The admin panel's health view shows `Drive proxy: LIVE/OFF/UNKNOWN` and
+  `Household token: SET/NOT SET/UNKNOWN` side by side under the worker status; `UNKNOWN` is a deployment too
+  old to report a flag, not an assumption the key or token is missing. The proxy's reason sits directly under
+  that row rather than in the problems list, and an unset token is never a problem while R8 is pending, because
+  the token has to reach every TV before enforcement lands. The channel counts alone cannot show a proxy
+  deployed without `ATV_STREAM_SIGNING_KEY`, because every Drive channel still resolves — just to its stored
+  link.
 - The Drive proxy (P1), after the operator accepted its `decisions.md` entry: `/api/stream/<id>?exp&sig`
   verifies a signed ticket, re-reads the link for the id and streams the file with `Range` forwarded, so a
   Drive-backed channel can seek instead of resolving to an HTML page it cannot play. `/api/resolve` mints

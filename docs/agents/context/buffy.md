@@ -150,13 +150,15 @@ with its outcome open, because that log's own rule is that the operator marks th
 (`Content-Encoding` and `Content-Disposition` included): a proxy that drops what describes the bytes is
 lying about them, and the route test pins both. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
 
-**The panel now shows the proxy.** `summariseHealth` maps `streamSigningKeySet` to
-`driveProxy: "live" | "off" | "unknown"` — an absent flag is `unknown`, never `off`, so an older deployment is
-not blamed for a key it cannot report — the health view prints `Drive proxy: LIVE/OFF/UNKNOWN` under the worker
-status, and an `off` adds its reason to the problems list. The channel counts cannot show this on their own: a
-proxy deployed without `ATV_STREAM_SIGNING_KEY` still answers `ok` and still resolves every Drive channel, just
-to the stored link. Covered in `apps/admin-cms/test/health.test.ts` (three cases) and one `render.test.tsx`
-assertion that the line is spoken as `Drive proxy: OFF`.
+**The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
+`driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
+an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it
+cannot report. The health view prints `Drive proxy: LIVE/OFF/UNKNOWN` and `Household token: SET/NOT SET/UNKNOWN`
+side by side under the worker status. The proxy's explanation is a note under that row (`driveProxyNote`), not
+a problems entry, so it sits beside the state it explains; and `NOT SET` is deliberately never a problem,
+because R8's order makes an unset token correct until enforcement lands — an amber warning there would train
+the operator to ignore the page. Covered by three logic cases per flag in `health.test.ts` and two
+`render.test.tsx` assertions: the proxy line with its note, and the token line with no problems entry.
 
 - The GitHub integration's write proxy refuses some file bodies with a 403 its message does not explain: a
   page whose markup held a shell line of the form `curl -sS -X POST ${…}` was refused, while a 3-byte file

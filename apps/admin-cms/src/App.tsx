@@ -24,6 +24,14 @@ const PROXY_COLOUR = {
   off: colour.warn,
   unknown: colour.muted,
 } as const;
+// `NOT SET` is deliberately grey: until R8 puts the token on every TV, an unset
+// token is the correct state, so it must not look like a fault.
+const TOKEN_LABEL = { set: "SET", unset: "NOT SET", unknown: "UNKNOWN" } as const;
+const TOKEN_COLOUR = {
+  set: colour.status.ok,
+  unset: colour.muted,
+  unknown: colour.muted,
+} as const;
 
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
@@ -112,12 +120,26 @@ export default function App() {
           {pending ? "CHECKING…" : summary.status.toUpperCase()}
         </strong>
       </p>
-      <p style={{ marginTop: 0 }}>
-        Drive proxy:{" "}
-        <strong style={{ color: pending ? colour.muted : PROXY_COLOUR[summary.driveProxy] }}>
-          {pending ? "CHECKING…" : PROXY_LABEL[summary.driveProxy]}
-        </strong>
-      </p>
+      {/* Both flags answer the same question — is the deployed worker the build we
+          think it is — so they share a row, and each keeps its own paragraph so
+          a screen reader hears them as two facts rather than one long sentence. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 24px", marginTop: 0 }}>
+        <p style={{ margin: 0 }}>
+          Drive proxy:{" "}
+          <strong style={{ color: pending ? colour.muted : PROXY_COLOUR[summary.driveProxy] }}>
+            {pending ? "CHECKING…" : PROXY_LABEL[summary.driveProxy]}
+          </strong>
+        </p>
+        <p style={{ margin: 0 }}>
+          Household token:{" "}
+          <strong style={{ color: pending ? colour.muted : TOKEN_COLOUR[summary.householdToken] }}>
+            {pending ? "CHECKING…" : TOKEN_LABEL[summary.householdToken]}
+          </strong>
+        </p>
+      </div>
+      {!pending && summary.driveProxyNote && (
+        <p style={{ margin: "4px 0 0", color: colour.warn }}>{summary.driveProxyNote}</p>
+      )}
       <div style={grid}>
         <Card label="Channels" value={pending ? "—" : summary.channels} />
         <Card label="Links configured" value={pending ? "—" : summary.links.configured} />

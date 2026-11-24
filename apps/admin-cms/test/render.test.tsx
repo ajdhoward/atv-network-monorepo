@@ -154,7 +154,31 @@ describe("the panel's decorations", () => {
     // `LIVE`/`OFF` is the whole point: a deployment with no key still answers
     // `ok`, so the channel counts alone cannot show a dead proxy.
     expect(spoken(line)).toBe("Drive proxy: OFF");
-    expect(spoken(container)).toContain("Drive proxy is off");
+
+    // The explanation belongs beside the state it explains, not in the
+    // problems list where a coverage count also lives.
+    const note =
+      Array.from(container.querySelectorAll("p")).find((element) =>
+        shown(element).startsWith("No signing key"),
+      ) ?? null;
+    expect(spoken(note)).toBe("No signing key, so Drive channels resolve to their stored link.");
+    expect(spoken(container)).not.toContain("Drive proxy is off");
+  });
+
+  it("shows the household token beside the proxy without calling it a problem", async () => {
+    stubFetch((url) => (url === "/api/health" ? { ...HEALTH, deviceTokenSet: false } : GUIDE));
+    await render();
+
+    const line =
+      Array.from(container.querySelectorAll("p")).find((element) =>
+        shown(element).startsWith("Household token:"),
+      ) ?? null;
+    expect(spoken(line)).toBe("Household token: NOT SET");
+    // An unset token is correct until R8, so it must stay out of the problems
+    // list; there an amber entry would teach the operator to ignore the page.
+    for (const problem of Array.from(container.querySelectorAll("li"))) {
+      expect(spoken(problem)).not.toContain("Household token");
+    }
   });
 
   it("keeps the link-state icon on screen and out of the announcement", async () => {
