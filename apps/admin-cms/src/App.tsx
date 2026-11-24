@@ -4,7 +4,7 @@ import { ROOT, enter } from "./folders";
 import { fetchHealth, summariseHealth } from "./health";
 import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck, type LinkProgress } from "./links";
 import { readLinkToken, saveLinkToken } from "./linkToken";
-import { colour, crumb, font, grid, muted, panel, sectionHeading } from "./styles";
+import { colour, crumb, folderButton, font, grid, muted, panel, sectionHeading } from "./styles";
 
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
@@ -179,12 +179,17 @@ export default function App() {
           ))}
         </nav>
         {folders.map((f) => (
-          <div
-            key={f}
-            onClick={() => setCrumbs((current) => enter(current, f))}
-            style={{ cursor: "pointer", padding: 6 }}
-          >
-            📁 {f} <button disabled>Bind to gdrive.identsFolder</button>
+          <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+            {/* A button, not a clickable div: the tree has to be walkable with Tab
+                and Enter. The binding hint stays a sibling so no button nests. */}
+            <button
+              type="button"
+              style={folderButton}
+              onClick={() => setCrumbs((current) => enter(current, f))}
+            >
+              📁 {f}
+            </button>
+            <button disabled>Bind to gdrive.identsFolder</button>
           </div>
         ))}
       </div>

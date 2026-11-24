@@ -49,6 +49,12 @@ and a `<code>` line saying the same thing), and the token input's 280px floor pl
 `artifacts/`. Playwright routes die when the call ends, so a held response has to be photographed in the same
 call; `setViewportSize` does nothing on this tab — use a CDP `Emulation.setDeviceMetricsOverride`.
 
+**The folder tree is keyboard-navigable.** Rows are `<button type="button">` styled by `folderButton` in
+`styles.ts`; the "Bind to …" hint is a sibling so no button nests, and the click semantics stayed `enter()`,
+so keyboard and mouse share one rule. Checked with real Tab presses in the browser: the order is token →
+Check stream links → the four folders, Enter descends, a second Enter is a no-op, and the root crumb becomes
+tabbable once inside a folder and takes you back.
+
 **The grid now has tests** (`apps/tv-client/test/grid.test.ts`, 8), including the click path — which taught me the
 one thing a test can: a tile click focuses and plays but does not re-fire `onFocus`, because the hover prefetch
 belongs to `mouseenter`. `PlayerManager.detectProfile()` is gone; the review had flagged it as dead.

@@ -55,6 +55,11 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- The Drive folder rows are real `<button type="button">` elements, so the tree can be walked with Tab and
+  opened with Enter instead of needing a mouse; `styles.ts` holds the shared reset as `folderButton`. The
+  binding hint stays a sibling rather than nesting a button, and the click semantics are the breadcrumb's own
+  `enter()`, so keyboard and mouse cannot drift apart. Verified in the browser: Tab reaches each folder and
+  the root crumb once inside a folder, and Enter walks in, repeats as a no-op, and comes back out.
 - The Drive folder tree went in and never came out: each row click appended to one path, so clicking Idents
   twice gave `/ATV Network/Idents/Idents` and the only way back was a reload. `apps/admin-cms/src/folders.ts`
   now decides what a click means — a folder already on the path is a step back to it, anything else descends —

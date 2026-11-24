@@ -44,6 +44,19 @@ export const crumb: CSSProperties = {
   cursor: "pointer",
 };
 
+// A folder row's name is its control, and it is a real <button> so the tree can be
+// walked with Tab and opened with Enter. That means resetting the button chrome
+// here instead of repeating the reset at each call site.
+export const folderButton: CSSProperties = {
+  background: "none",
+  border: 0,
+  padding: 0,
+  font: "inherit",
+  color: "inherit",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
 export const grid: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
