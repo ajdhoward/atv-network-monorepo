@@ -10,6 +10,12 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `pnpm smoke` checks `/api/stream`. It was the one route with no post-deploy check, and the one that fails
+  silently if the asset layer answers it instead: a shadowed route returns `200` with the TV shell, the player
+  calls the channel broken, and every other smoke check still passes. The check needs no ticket and no Drive
+  file — it asks for the route bare and expects the refusal `/api/health` implies: `403 missing` when a signing
+  key exists, `503 stream_unconfigured` when it does not. Verified on a real local Worker in both states (19/19
+  either way), which is also how the two branches were checked rather than assumed.
 - `pnpm budget` counts the Drive proxy. `mediaRequestsPerTvPerDay` (default 300) is a fourth traffic class —
   one Worker request and one Drive subrequest each, no limiter token, because the signed ticket is the
   admission — so a deployment serving proxied video no longer reports the same 0.43% worst share as one that

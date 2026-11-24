@@ -284,6 +284,15 @@ which keeps the check strict and duplicates the value into GitHub; or the local 
 Q9 is decided). The workflow itself matches what the runbook says about Step 1: manual dispatch, target `v2`,
 `kv:staging`, an optional seed, and smoke with `--allow-empty` — all verified by reading it, not by running it.
 
+**`pnpm smoke` now proves the proxy route, which nothing checked before.** `/api/stream` had no post-deploy
+check, and it is the route that fails silently when something shadows it: the asset layer answers 200 with the
+TV shell, the player calls the channel broken, and every other smoke check still passes — the same shape `/a`
+hit when it was added. The check needs no ticket and no Drive file: it asks for the route bare and expects the
+refusal `/api/health` already implies — `403 missing` with a signing key, `503 stream_unconfigured` without.
+Both branches were verified against a real `wrangler dev` (`19/19` either way, no listener left behind), and
+`wrangler` has to be run as `pnpm exec wrangler` here because it is not on the shell PATH. That is the second
+check in this project fixed by asking what it does _not_ look at.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

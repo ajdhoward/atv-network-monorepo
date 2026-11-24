@@ -7,6 +7,8 @@ that need no credentials were exercised on 2026-11-24 against a local `wrangler 
 `--var ATV_DEVICE_TOKEN:` test value (no deploy, no secret): the health snapshot and its parse, the status
 checks, the guide-id derivation, the headerless `401` carrying `WWW-Authenticate: Bearer realm="atv"`, the
 with-token `200`, all three Step 5 curls, and `pnpm smoke` with and without the token (18/18 and 17/18).
+`smoke` has since gained a `/api/stream` check, so those counts read 19/19 and 18/19 today — the missing one is
+still the resolve check, which is the point of the exercise.
 `wrangler secret put`/`delete` and `wrangler tail` were not run — they need the operator's credentials — and
 no step has been run against the sandbox or a TV.
 

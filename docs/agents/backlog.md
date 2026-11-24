@@ -95,8 +95,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **State:** done — operator accepted the 2026-11-24 entry. `stream.ts` holds the Drive id parsing, the
   media URL and the response headers; `/api/stream/<id>` verifies the ticket, re-reads the link and forwards
   `Range`; `/api/resolve` mints a ticket for a Drive link and leaves every other link alone. Route tests
-  cover a mid-file 206, a whole-file 200, a 416, each refusal and a resolve→stream round trip. Not exercised
-  against Drive itself, and two gaps stay open: with no `ATV_STREAM_SIGNING_KEY` a Drive channel still
+  cover a mid-file 206, a whole-file 200, a 416, each refusal and a resolve→stream round trip. `pnpm smoke`
+  now asks for the route with no ticket and expects the refusal health implies (`403 missing` with the key,
+  `503 stream_unconfigured` without), because a shadowed route answers `200` with the TV shell and every other
+  post-deploy check still passes. Not exercised against Drive itself, and two gaps stay open: with no `ATV_STREAM_SIGNING_KEY` a Drive channel still
   resolves to its unusable link, and a file not shared link-wide needs P2's service-account credential.
 
 ### P2 · Drive service-account secret for P1
