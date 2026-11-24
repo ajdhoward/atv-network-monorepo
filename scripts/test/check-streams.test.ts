@@ -66,6 +66,10 @@ beforeAll(async () => {
       for (const id of ids) {
         if (id === "atv-1") resolved.push({ id, url: LINK, profile: "1080p_hevc" });
         else if (id === "atv-probe") resolved.push(link("/stream.m3u8", id));
+        // What P1's resolve actually answers for a Drive channel: a
+        // same-origin path with no host, which the TV resolves against the page
+        // and a Node `fetch` cannot parse.
+        else if (id === "atv-ticket") resolved.push({ id, url: "/stream.m3u8" });
         else if (id === "atv-login") resolved.push(link("/login.html", id));
         else if (id === "atv-dead") resolved.push(link("/dead.m3u8", id));
         // A 200 the Worker should never produce: resolved without a url.
@@ -217,6 +221,12 @@ describe("check-streams", () => {
     const result = await run(["--probe", "--ids", "atv-probe"]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("PASS  atv-probe — hls playlist, HTTP 200");
+  });
+
+  it("probes a same-origin ticket, which has no host of its own", async () => {
+    const result = await run(["--probe", "--ids", "atv-ticket"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("PASS  atv-ticket — hls playlist, HTTP 200");
   });
 
   it("fails a link the CDN no longer serves", async () => {

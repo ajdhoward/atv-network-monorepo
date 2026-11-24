@@ -108,13 +108,30 @@ function parseJson(text) {
   }
 }
 
+// A resolved link is not always absolute. P1's Drive ticket is same-origin by
+// design — `/api/stream/<id>?exp&sig` — because the TV's `<video>` resolves it
+// against the page that loaded it, and the ticket is only valid on the host that
+// minted it. Node's `fetch` has no page to resolve against and throws "Failed to
+// parse URL" on a path, so a working proxy was reported as an unreachable link.
+// Resolved against the audited origin, which is the host that verifies the
+// signature. `null` means the value is not a URL the audit can follow.
+function absoluteLink(url) {
+  try {
+    return new URL(url, `${base}/`).toString();
+  } catch {
+    return null;
+  }
+}
+
 // Checks the resolved link upstream. Errors are deliberately flattened into a
 // generic message: a fetch failure can carry the URL in its message or its
 // cause, and these lines are what an operator pastes into a ticket.
 async function probeLink(url) {
+  const target = absoluteLink(url);
+  if (!target) return { ok: false, detail: "link is not a URL this audit can follow" };
   let res;
   try {
-    res = await fetch(url, {
+    res = await fetch(target, {
       // A byte range keeps a multi-gigabyte file from being downloaded; a
       // playlist answers the whole thing anyway.
       headers: { range: "bytes=0-4095" },
