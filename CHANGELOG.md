@@ -10,6 +10,14 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `pnpm coverage` and `vitest.config.ts` (R3), so a review can carry a coverage number and name the files at
+  zero instead of only a test count. It measures the four `src` trees and leaves `scripts/` out on purpose: its
+  tests spawn the CLIs with `spawnSync`, v8 only sees the test process, and a report calling every script
+  uncovered would be the lie the measure exists to catch. First baseline: 90.05% lines over 33 files, three at
+  zero — the two DOM entry points and `packages/ui-shared`'s runtime half.
+- A parity test for `checksum` and `CONFIG_SCHEMA_VERSION`, which exist twice on purpose (`config-meta.ts` for
+  the Worker, `config-meta.mjs` for the seed script) and had nothing comparing them. A drift would not fail a
+  build: it would warn on every `/api/guide` request against a deployment that looks seeded.
 - `docs/r8-rollout.md` — the operator's runbook for R8, written rather than executed: L1 deploy, the client
   on every TV, then `ATV_DEVICE_TOKEN`, the token typed on each TV, and the evidence that headerless
   resolves are refused. Every step carries its own check and its back-out (roll back the deployment, delete

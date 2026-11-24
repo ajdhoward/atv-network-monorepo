@@ -125,6 +125,11 @@ P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for D
   fix. And `kvJson`'s memo is keyed by the KV key alone, not by namespace: safe while the key names differ
   between `ATV_CONFIG` and `ATV_CACHE`, wrong the day one name is used in both.
 
+- **`scripts/test/` can still reach a `.mjs` helper — as a child process, not an import.** `tsc` refuses the
+  import (no declaration file), but `spawnSync(process.execPath, ["--input-type=module", "--eval", script])`
+  with the module URL produced by `pathToFileURL` runs the real helper, so a parity test compares the shipped
+  functions instead of a copy of them.
+
 **The panel has a render test now** (`apps/admin-cms/test/render.test.tsx`, 4 tests). happy-dom plus
 `createRoot` and `React.act` (React is 18.3.1, so `act` is on the `react` export), with `fetch` stubbed per
 test; `spoken()` clones an element, drops every `[aria-hidden="true"]` descendant and returns the text, which
@@ -183,6 +188,24 @@ ticket. Two proposals came out of the same pass and are waiting on the operator:
 resolve should answer `503 stream_unconfigured` instead of a share page, which makes the batch shape a fourth
 list) and **P4** (a 15-minute ticket can be outlived by a paused TV, so either the TTL or the client's recovery
 has to change). L4's done-when now says `--probe`, because a plain run only proves a link is stored.
+
+**R3 is done, and coverage paid for itself on its first run.** `vitest.config.ts` plus `pnpm coverage`
+(`@vitest/coverage-v8` 3.2.7, MIT, the same range as the pinned `vitest`) measure the four `src` trees.
+`scripts/` is out on purpose: its tests spawn the CLIs with `spawnSync`, v8 only sees the test process, and a
+report calling every script 0% would be a lie. Baseline at `5ce7b7e`: **90.05% lines over 33 files**, three at
+zero — `apps/admin-cms/src/main.tsx` and `apps/tv-client/src/main.ts` (DOM entry points, expected) and
+`packages/ui-shared/src/index.ts`, which is the finding: every importer writes `import type`, so the package's
+only runtime exports (`CONFIG_SCHEMA_VERSION`, `validateConfig`) execute nowhere. That is **Q6**, proposed, not
+deleted, because the shared package is a contract. Lowest covered file with real logic is `playerManager.js`
+at 73.5% lines / 55.6% functions, which matches the untested hardware path rather than a gap the suite could
+close here.
+
+The same pass found an untested duplication: `checksum` and `CONFIG_SCHEMA_VERSION` exist twice on purpose
+(Worker `.ts`, seed `.mjs`) and nothing compared them, so a drift would have warned on every `/api/guide`
+request against a deployment that looks seeded. `scripts/test/config-meta.test.ts` asks the `.mjs` copy in a
+child process (`--input-type=module --eval`) and compares version and checksums over six samples including
+unicode. No threshold was set on coverage: `pnpm coverage` is a review instrument, not a gate, and a floor
+nothing enforces is decoration.
 
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;

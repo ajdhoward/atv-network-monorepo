@@ -174,6 +174,21 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** proposed — needs a decision, because a new service needs approval even when it is free
 
+### Q6 · `@atv/ui-shared`'s runtime half is dead, and the schema version lives three times
+
+- **Why:** coverage found the shared package at 0% and the reason is not a missing test: every importer writes
+  `import type`, so `validateConfig` and `CONFIG_SCHEMA_VERSION` are executed by nothing. The constant they
+  duplicate is maintained again in `services/atv-core/src/config-meta.ts` and
+  `scripts/lib/config-meta.mjs`, so the one number the seed, the Worker and the wire contract must agree on has
+  three homes. The two that are actually read now have a parity test; the third has no reader at all.
+- **Done when:** `packages/ui-shared` exports types only (the two unused exports deleted) or is the single
+  source of the constant, and nothing imports as a value what it does not execute.
+- **Paths:** `packages/ui-shared/src/index.ts`, `README.md` if the package description changes
+- **Size:** S
+- **State:** proposed — the shared package is a contract other code imports, so deleting an export is the
+  operator's call rather than a cleanup an agent does unasked. Types-only is the honest option: the seed script
+  is plain `.mjs` and cannot import a `.ts` value without a build step.
+
 ## Production cutover
 
 ### Q4 · Download and commit the deployed `4fb54df2` source
@@ -253,7 +268,11 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Done when:** each review record carries a coverage number and names the files at zero.
 - **Paths:** `vitest.config`, `docs/agents/reviews.md`
 - **Size:** S
-- **State:** proposed — adds a dev dependency, so it needs the usual approval
+- **State:** done — `vitest.config.ts` and `pnpm coverage` (`@vitest/coverage-v8` 3.2.7, MIT, matching the
+  pinned `vitest`). The scorecard has a Coverage row and "Outputs" now requires the number plus the files at
+  zero; the 2026-11-24 P1 record carries the baseline as an addendum (90.05% lines over 33 files, three at
+  zero). `scripts/` is excluded deliberately: its tests spawn the CLIs, v8 only sees the test process, and a
+  report that calls every script uncovered would be a lie. Not wired into CI — a review instrument, not a gate.
 
 ### R5 · The client sends the household token, and asks for it on a TV remote
 
