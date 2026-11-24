@@ -449,3 +449,24 @@ Then observed the prompt path instead of trusting happy-dom, with `wrangler dev 
   the retry), which is noise in the log, not a fault.
 - **Still unverified:** the Fire TV on-screen keyboard and Back key (L5), `wrangler secret put`/`delete`, and
   every step against the sandbox — the runbook says so in its own words.
+
+## Session 2026-11-24 (what was checked, said out loud; drift as a command)
+
+`docs/rotating-secrets.md` stated its steps without saying which of them had been run, so a reader could not
+tell the browser-observed prompt path from the parts that need a credential or a TV. It now opens with a short
+"What was checked, and how": exercised against a local Worker in the cloud browser, nothing against the sandbox,
+and the rest named as needing a credential, a TV or the deployment.
+
+New: `pnpm drift` (`scripts/check-drift.mjs`, `scripts/test/drift.test.ts`, Q13), a read-only check that an
+origin serves this checkout's build. It compares the `/` and `/admin/` entry assets (content-hashed names) with
+`apps/tv-client/dist`, fetches the asset each page names so a reference to nothing is caught, and checks health
+for the fields this build adds (`deviceTokenSet`, `streamSigningKeySet`, `config.schemaMatches`/`checksumMatches`,
+`resolve`, `guideSnapshot`) plus `schemaVersion`. Measured against the sandbox: 2/5 — client `index-ZN5Kcyr4`
+against `index-D8Do0dvy`, admin `index-7V4mIGVB` against `index-BqxNKxS8`, and a pre-R6 health body.
+
+- **The test has to `execFile`, not `spawnSync`.** The stub origin lives in the test process, and a synchronous
+  spawn blocks its event loop, so the child's requests would never be answered. `check-streams.test.ts` already
+  does it this way for the same reason.
+- **The blind spot is real and written down in three places:** a Worker-only change leaves both asset hashes
+  identical, so the check passes. Closing it needs a build id in `/api/health` — a public shape, so a
+  `decisions.md` entry before any code.

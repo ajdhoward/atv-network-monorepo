@@ -10,6 +10,13 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `pnpm drift` (Q13) — a read-only comparison of a deployed origin's build with this checkout, so a stale
+  sandbox is a failing command instead of a backlog paragraph. It matches the client and admin entry assets
+  (their names carry Vite's content hash, so identical sources produce identical names), checks that the asset
+  each page names is actually served, and asks `/api/health` for the fields this build adds. Measured on the
+  sandbox the same session: 2/5 — a client and an admin bundle from before this branch, and a health body
+  without `deviceTokenSet` or `streamSigningKeySet`. Blind spot, written down rather than papered over: a
+  Worker-only change with an unchanged client bundle passes it.
 - `docs/rotating-secrets.md` — what replacing `ATV_DEVICE_TOKEN` and `ATV_STREAM_SIGNING_KEY` costs and in what
   order, with the back-out for each. R8 covered setting the household token once; nothing covered replacing it,
   and one shared token with no per-device identity means a rotation is a walk around the house, not a click. The
@@ -17,7 +24,8 @@ Nothing here is merged or deployed.
   observed rather than mocked: against a local Worker enforcing a test token in the cloud browser, a channel
   press answers `401` and opens the dialog (_This TV has no household token yet._), a wrong value reopens it as
   _That token was not accepted._, the right one resolves `200` and retries the channel, a reload plays without
-  asking, Escape cancels and leaves the notice, and pressing the channel again reopens it.
+  asking, Escape cancels and leaves the notice, and pressing the channel again reopens it. The document now says
+  that split at the top, so a reader can tell which claims were observed and which are reasoned from the code.
 - `pnpm smoke` checks `/api/stream`. It was the one route with no post-deploy check, and the one that fails
   silently if the asset layer answers it instead: a shadowed route returns `200` with the TV shell, the player
   calls the channel broken, and every other smoke check still passes. The check needs no ticket and no Drive

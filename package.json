@@ -21,6 +21,7 @@
     "continuity": "node scripts/check-continuity.mjs",
     "smoke": "node scripts/smoke.mjs",
     "streams": "node scripts/check-streams.mjs",
+    "drift": "node scripts/check-drift.mjs",
     "deploy": "node scripts/staging-kv.mjs && node scripts/check-deploy-target.mjs wrangler.toml && pnpm run build:deploy && wrangler deploy --config wrangler.toml",
     "deploy:prod": "node scripts/check-deploy-target.mjs wrangler.production.toml && pnpm run build:deploy && wrangler deploy --config wrangler.production.toml",
     "test": "vitest run",

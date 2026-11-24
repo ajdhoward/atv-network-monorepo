@@ -8,6 +8,24 @@ It is the second half of [`r8-rollout.md`](r8-rollout.md): that runbook sets `AT
 time, this one replaces it. Production's secrets move only inside
 [`production-cutover.md`](production-cutover.md).
 
+## What was checked, and how
+
+Short answer: the prompt path was exercised for real; the secret and TV steps were not.
+
+- **Exercised against a local Worker in the cloud browser** (`wrangler dev --local` with a test token and the two
+  seeded fixture channels): the guide is public and asks for nothing, a channel press answers `401`, the dialog
+  says _This TV has no household token yet._, a wrong value returns it as _That token was not accepted._, the
+  right one resolves `200` and retries the channel, a reload plays without asking, and Escape cancels with the
+  next press reopening it. `pnpm smoke` and `pnpm streams` were also run against that Worker in both failure
+  states, which is where the `503 device_token_invalid` / `503 stream_unconfigured` split in the checks below
+  was read rather than assumed.
+- **Exercised against the sandbox**: nothing here. `pnpm drift` shows it serving a client older than this
+  checkout, so its behaviour says nothing about this runbook.
+- **Needs a credential, a TV or the sandbox**: `wrangler secret put` and `wrangler secret delete` (and their
+  dashboard equivalents), the repository secret, every step performed on a TV, `wrangler tail`, the Analytics
+  Engine counter, and the Drive-backed probe in the signing-key section. The order and the back-outs are reasoned
+  from the code and from [`r8-rollout.md`](r8-rollout.md), not from a rotation that has actually been run.
+
 ## What each secret does, and why the two rotations differ
 
 | Secret                   | Guards                | Stored where                     | Rotation cost                                    |

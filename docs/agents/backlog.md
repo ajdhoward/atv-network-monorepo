@@ -42,7 +42,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   because `not_found_handling = "single-page-application"` answers every unmatched path — check the body (an
   APK link; `/a` must be a `302` to the release) or run `pnpm smoke`, which does. The same read showed the host
   is on a build from before R5/R6: the live bundle is 9.6 kB with no token prompt, `/api/health` has neither
-  `deviceTokenSet` nor `streamSigningKeySet`, and a headerless `/api/resolve` answers `404`, not `401`.
+  `deviceTokenSet` nor `streamSigningKeySet`, and a headerless `/api/resolve` answers `404`, not `401`. That
+  read is a command now (Q13): `pnpm drift` fails on this host's client, its admin bundle and its pre-R6 health
+  shape.
 
 ### L2 · Protect `main` with `verify` and a pull request
 
@@ -303,6 +305,25 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   `401` on a channel press, the missing then rejected wording, the correct value resolving `200` and retrying,
   a reload that plays without asking, and Escape cancelling with the dialog reopening on the next press. Not
   exercised: `wrangler secret put`/`delete` (needs credentials), the sandbox, and a Fire TV remote.
+
+### Q13 · A deployed build cannot be compared with this repo by machine
+
+- **Why:** L1's state paragraph is the only record that the sandbox runs a build from before R5/R6, and it was
+  written by hand — fetching `/`, reading the bundle, looking in `/api/health` for fields that are absent. A
+  paragraph cannot fail, so the next session reads it as history and cannot tell whether it is still true; the
+  gap between "we know it is stale" and "it is stale and nobody has re-checked" is not visible in prose.
+- **Done when:** one read-only command fetches an origin and fails when its client, its admin bundle or the
+  Worker's health shape is older than this checkout, and a document says how to run it.
+- **Paths:** `scripts/check-drift.mjs`, `scripts/test/drift.test.ts`, `package.json`, `README.md`
+- **Size:** S
+- **State:** done — `pnpm drift`, measured rather than assumed: against the sandbox on 2026-11-24 it reports
+  2/5, serving `/assets/index-ZN5Kcyr4.js` where this checkout builds `/assets/index-D8Do0dvy.js`, admin
+  `index-7V4mIGVB` where this checkout builds `index-BqxNKxS8`, and a health body without `deviceTokenSet` or
+  `streamSigningKeySet`. An entry asset's name carries Vite's content hash, so identical sources produce
+  identical names and a different name is a different bundle; the health fields are the second signal, which is
+  what catches a copied bundle over an old Worker. It cannot see a Worker-only change with an unchanged client
+  bundle — that needs a build id in `/api/health`, which is a public shape and so starts with a
+  `decisions.md` entry.
 
 ## Production cutover
 

@@ -43,6 +43,7 @@ scripts/copy-kv.mjs                 copies the production lineup into the stagin
 scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) into the bound KV
 scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
 scripts/check-streams.mjs           audits /api/resolve per channel, optionally probing each link
+scripts/check-drift.mjs             compares a deployed origin's build with this checkout, read-only
 scripts/dev.mjs                     one command: seed the local store, then run wrangler dev
 scripts/ci-worker.mjs               boot the built worker locally and check bindings, assets and the limiter
 scripts/budget.mjs                  models monthly usage against the Workers Paid allowance
@@ -257,6 +258,22 @@ pnpm smoke <origin>                   # workers.dev host is not behind Access
 `pnpm deploy` runs `pnpm kv:staging` first, so a fresh clone provisions `atv-cache-staging` and
 `atv-config-staging` before the guard runs. The ids it writes into `wrangler.toml` are
 account-specific: commit them or let the next run rewrite them — both work, and CI runs the same step.
+
+### Is that origin serving this build?
+
+```bash
+pnpm run build:deploy
+pnpm drift https://atv-core-v2.acidwurx.workers.dev
+```
+
+Read-only: it fetches `/`, `/admin/` and `/api/health` and compares them with the built files in this
+checkout, so a sandbox still serving last week's bundle is a failing command rather than a note in the
+backlog. The entry asset's name carries a content hash, so the same sources built twice produce the same
+name; health adds a second, independent signal, because the fields this build adds (`deviceTokenSet`,
+`streamSigningKeySet`, `config.schemaMatches`, `config.checksumMatches`, `resolve`, `guideSnapshot`) are
+absent on an older Worker, which catches a copied bundle over an old one. It cannot see a Worker-only
+change that leaves the client bundle byte-identical — that needs a build id in `/api/health`, a public
+shape, so it starts with a `decisions.md` entry.
 
 The sandbox is `https://atv-core-v2.acidwurx.workers.dev`: the account's workers.dev subdomain is
 `acidwurx`, the Worker does not exist until the first deploy, and that host is not behind Access.
