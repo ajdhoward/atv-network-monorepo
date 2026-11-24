@@ -29,16 +29,52 @@ id = "7e635f2e4ac44488a336f9d509b63061"
 binding = "ATV_CONFIG"
 id = "a59048e76fbd47c185bd4fc62fc3111a"
 
+# Q8: the rest of what this Worker's code reads, mirrored from wrangler.toml.
+# Without these a candidate built from this file resolved without the strict
+# per-client limiter, wrote no counters, and answered the short install address
+# with the TV shell — three silent gaps `docs/production-cutover.md` listed as
+# things to add by hand on the day. Ids are per-Worker, so reusing the numbers
+# here is safe: they name a namespace inside this script, not a shared resource.
+
+[[ratelimits]]
+name = "ATV_RATE_LIMITER"
+namespace_id = "4210"
+
+  [ratelimits.simple]
+  limit = 300
+  period = 60
+
+[[durable_objects.bindings]]
+name = "ATV_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimiter"]
+
+[[analytics_engine_datasets]]
+binding = "ATV_METRICS"
+dataset = "atv_metrics"
+
+# The guide snapshot is what `/api/health`'s `guideSnapshot` and the backup path
+# read. The incumbent has its own schedule; a candidate production Worker needs
+# this trigger or it never writes one.
+[triggers]
+crons = ["*/10 * * * *"]
+
 [assets]
 directory = "./apps/tv-client/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 # /admin is Worker-routed too, exactly as in wrangler.toml: the bare path has
 # to redirect and deep links fall back to the admin shell, not the TV client.
-run_worker_first = ["/api", "/api/*", "/admin", "/admin/*", "/install", "/install/*", "/join", "/onboard"]
+run_worker_first = ["/api", "/api/*", "/admin", "/admin/*", "/install", "/install/*", "/join", "/onboard", "/a", "/a/*"]
 
 [placement]
 mode = "smart"
 
 [observability]
 enabled = true
+# Matches the sandbox: 10% of requests is enough for one household, and logging
+# every request would spend the free allowance on `/api/guide` polls.
+head_sampling_rate = 0.1
