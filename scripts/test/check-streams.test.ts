@@ -258,6 +258,23 @@ describe("check-streams", () => {
     expect(result.stdout).toContain("PASS  atv-ticket — hls playlist, HTTP 200");
   });
 
+  // "What does this lineup actually serve" is a question the audit can answer
+  // without printing a link: the tally is the content type of each probed link.
+  it("tallies the formats the lineup resolves to", async () => {
+    const result = await run(["--probe", "--ids", "atv-probe,atv-ticket"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Formats: 2 hls playlist");
+    expect(result.stdout).toContain("docs/playback-formats.md");
+  });
+
+  // Without an upstream fetch there is no content type to count, and a tally of
+  // zero would read as "nothing is HLS" rather than "nobody looked".
+  it("prints no format tally without --probe", async () => {
+    const result = await run(["--ids", "atv-probe"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain("Formats:");
+  });
+
   it("fails a link the CDN no longer serves", async () => {
     const result = await run(["--probe", "--ids", "atv-dead"]);
     expect(result.status).toBe(1);

@@ -58,6 +58,12 @@ export type HealthPayload = {
   // answers 503, so this is the difference between "proxy live" and "proxy
   // deployed but dead". Presence only; a deployment older than this field omits it.
   streamSigningKeySet?: boolean;
+  // The commit this Worker was built from, so `pnpm drift` can see a deploy that
+  // did not take effect even when nothing under `apps/` changed. `id` is null when
+  // the deploy carried no ATV_BUILD_ID. Optional because a deployment older than
+  // this field omits it: a consumer must treat absent and null the same way, which
+  // is how `deviceTokenSet` is read too.
+  build?: { id: string | null };
   guideSnapshot: { generatedAt: number | null; total: number | null } | null;
 };
 // Single-channel wire shape of GET /api/resolve?id=.

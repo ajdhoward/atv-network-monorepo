@@ -10,6 +10,16 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `/api/health` reports `build.id`, the commit the running Worker was built from, and `pnpm drift` compares it
+  with the checkout's `HEAD`. The asset hashes could never see a change confined to `services/atv-core`, so a
+  Worker-only deploy passed the check; now a different id, a missing id or a dirty local tree fails it. `pnpm
+deploy`, `deploy:prod` and the deploy workflow all attach the id through `scripts/build-id.mjs` and
+  `scripts/deploy-worker.mjs` (one value, so they cannot disagree), and the field is a var rather than a
+  secret. Accepted in `decisions.md` on 2026-11-24, built in the same session.
+- `pnpm streams --probe` ends with a `Formats:` tally and warns when a link is an HLS playlist, and
+  `docs/playback-formats.md` records what is and is not known about the TV shell playing HLS: the player is a
+  bare `<video>` with no HLS support, every fixture is `.m3u8`, and Chromium's own HLS support varies by
+  WebView build. Nothing has been played on hardware, and the document says so.
 - A deploy now has to prove it took effect: the deploy job runs `pnpm drift` against the URL it just deployed,
   after the smoke test, retrying three times ten seconds apart because an edge can answer with the previous
   version for a few seconds. Smoke asks whether the routes answer; drift asks whether the build that answers is

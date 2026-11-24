@@ -272,8 +272,11 @@ backlog. The entry asset's name carries a content hash, so the same sources buil
 name; health adds a second, independent signal, because the fields this build adds (`deviceTokenSet`,
 `streamSigningKeySet`, `config.schemaMatches`, `config.checksumMatches`, `resolve`, `guideSnapshot`) are
 absent on an older Worker, which catches a copied bundle over an old one. It cannot see a Worker-only
-change that leaves the client bundle byte-identical — that needs a build id in `/api/health`, a public
-shape, so it is proposed in `decisions.md` (2026-11-24) and not built yet.
+change that leaves the client bundle byte-identical, so `/api/health` also reports `build.id`: `pnpm
+deploy` and the deploy workflow attach the commit they build (`scripts/build-id.mjs`), and `pnpm drift`
+compares it with this checkout's `HEAD`. A deployment that reports no id fails rather than passing, and so
+does a dirty working tree — no commit explains what was built. A hand-run `wrangler deploy` is one of
+those: it leaves the field null, on purpose.
 
 The deploy job ends with the same command against the URL it just deployed (three attempts, ten seconds
 apart, because an edge can serve the previous version for a few seconds), so a deploy that reported

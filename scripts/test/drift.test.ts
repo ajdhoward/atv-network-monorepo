@@ -30,6 +30,9 @@ function healthy(): Health {
       checksumMatches: true,
     },
     resolve: { configured: 0, invalid: 0, missing: 2 },
+    // `run()` pins ATV_BUILD_ID, so this comparison does not depend on the
+    // working tree the suite happens to be running in.
+    build: { id: "localbuild1" },
     deviceTokenSet: false,
     streamSigningKeySet: false,
     guideSnapshot: null,
@@ -113,6 +116,7 @@ function run(argv: string[], target = base): Promise<Result> {
         env: {
           ...process.env,
           ATV_BASE_URL: "",
+          ATV_BUILD_ID: "localbuild1",
           CF_ACCESS_CLIENT_ID: "",
           CF_ACCESS_CLIENT_SECRET: "",
         },
@@ -132,7 +136,8 @@ describe("check-drift", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("PASS  GET / (build)");
     expect(result.stdout).toContain("PASS  GET /admin/ (build)");
-    expect(result.stdout).toContain("7/7 checks matched");
+    expect(result.stdout).toContain("PASS  health build id — localbuild1");
+    expect(result.stdout).toContain("8/8 checks matched");
   });
 
   // The failure the check exists for: the sandbox serving last week's bundle. A
@@ -174,6 +179,38 @@ describe("check-drift", () => {
       expect(result.stdout).toContain("PASS  GET / (build)");
       expect(result.stdout).toContain("deviceTokenSet (R6)");
       expect(result.stdout).toContain("older than this checkout");
+    } finally {
+      state.health = healthy();
+    }
+  });
+
+  // The reason the field exists: a change confined to `services/atv-core` leaves
+  // every asset hash identical, so without the build id this deployment passes.
+  it("fails a Worker-only change, where both asset checks match", async () => {
+    state.health = { ...healthy(), build: { id: "deployedonly" } };
+    try {
+      const result = await run(["--build", local]);
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("PASS  GET / (build)");
+      expect(result.stdout).toContain("PASS  GET /admin/ (build)");
+      expect(result.stdout).toContain("FAIL  health build id");
+      expect(result.stdout).toContain("deployed deployedonly, this checkout is localbuild1");
+    } finally {
+      state.health = healthy();
+    }
+  });
+
+  // A deploy that did not carry the var is not a deployment this checkout can
+  // vouch for, so it fails loudly and names the fix.
+  it("fails a deployment that reports no build id at all", async () => {
+    const { build: _drop, ...older } = healthy();
+    state.health = older;
+    try {
+      const result = await run(["--build", local]);
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("FAIL  health build id");
+      expect(result.stdout).toContain("deployed without ATV_BUILD_ID");
+      expect(result.stdout).toContain("pnpm deploy");
     } finally {
       state.health = healthy();
     }

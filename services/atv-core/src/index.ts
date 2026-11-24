@@ -594,6 +594,10 @@ async function handleHealth(env: Env): Promise<Response> {
       checksumMatches,
     },
     resolve,
+    // The commit this Worker came from, attached by the deploy (scripts/deploy-worker.mjs
+    // and the deploy workflow). Null when a deploy carried none, which is a fact
+    // about the deployment rather than an error here: `pnpm drift` is what fails.
+    build: { id: env.ATV_BUILD_ID?.trim() || null },
     // Presence only: this is how an operator sees that R8 is half-done, and it
     // says nothing about the value.
     deviceTokenSet: !!env.ATV_DEVICE_TOKEN?.trim(),

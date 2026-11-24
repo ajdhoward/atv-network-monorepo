@@ -20,7 +20,10 @@
 // --probe follows each resolved link to the CDN, because a 200 from
 // /api/resolve only means the Worker has a URL stored. A dead link, a 403 and
 // an HTML sign-in page all look resolved otherwise. The link itself is still
-// never printed: only its status and content type are.
+// never printed: only its status and content type are. The run ends with a
+// `Formats:` tally, which is how "what does this lineup actually serve" is
+// answered without opening each link: the player is a bare `<video>`, and an HLS
+// playlist plays only where the TV's own WebView does HLS (docs/playback-formats.md).
 //
 // Behind Cloudflare Access, supply a service token, and once the worker enforces
 // the household token (R6), supply that too — otherwise every channel reads as a
@@ -169,7 +172,7 @@ async function probeLink(url) {
     return { ok: false, detail: `link answered HTML (${type}), not a stream` };
   }
   const kind = type.includes("mpegurl") ? "hls playlist" : type || "no content type";
-  return { ok: true, detail: `${kind}, HTTP ${res.status}` };
+  return { ok: true, detail: `${kind}, HTTP ${res.status}`, format: kind };
 }
 
 // id -> { kind: "ok", url? } | { kind: "missing" } | { kind: "insecure" } |
@@ -313,6 +316,9 @@ for (const id of ids) {
 let resolved = 0;
 let failed = 0;
 const missing = [];
+// format -> count, from the probes that succeeded. `--probe` is the only mode
+// that has an answer: without it the audit never sees the bytes' content type.
+const formats = new Map();
 
 for (const id of ids) {
   const outcome = outcomes.get(id);
@@ -330,6 +336,7 @@ for (const id of ids) {
     const verdict = await probeLink(outcome.url);
     if (verdict.ok) {
       resolved++;
+      if (verdict.format) formats.set(verdict.format, (formats.get(verdict.format) ?? 0) + 1);
       console.log(`PASS  ${id} — ${verdict.detail}`);
     } else {
       failed++;
@@ -357,7 +364,21 @@ for (const id of ids) {
 }
 
 console.log(`\n${resolved}/${ids.length} channel(s) resolve against ${base}`);
-if (probe) console.log("Each resolved link was followed upstream; links are never printed.");
+if (probe) {
+  console.log("Each resolved link was followed upstream; links are never printed.");
+  if (formats.size) {
+    const tally = [...formats].map(([format, count]) => `${count} ${format}`).join(", ");
+    console.log(`Formats: ${tally}`);
+    // Not a failure: some Fire OS WebView builds play HLS natively and some do
+    // not, so this is the number that says how much of the lineup depends on
+    // that. See docs/playback-formats.md before blaming a channel.
+    if (formats.has("hls playlist")) {
+      console.log(
+        `WARN  ${formats.get("hls playlist")} link(s) are HLS playlists; the TV shell has no HLS player of its own (docs/playback-formats.md)`,
+      );
+    }
+  }
+}
 
 if (stopped) {
   console.error(`✗ Audit stopped early: ${stopped.detail}.`);

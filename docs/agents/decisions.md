@@ -35,7 +35,7 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ### 2026-11-24 — A build id in `/api/health`, so `pnpm drift` can see a Worker-only change
 
-- state: proposed
+- state: accepted
 - proposed by: Buffy (Freebuff)
 - touches: `services/atv-core/src/index.ts` (`/api/health`), `services/atv-core/src/env.ts` (`ATV_BUILD_ID`),
   `packages/ui-shared` (`HealthPayload`), `docs/continuity.md` (secret name inventory),
@@ -65,7 +65,52 @@ when it next works, which is why an entry records who is absent rather than trea
   `ATV_BUILD_ID` must join `docs/continuity.md`'s inventory, which `pnpm continuity` enforces.
 - cost: none — no dependency, no service, no spend.
 - acks: no other agent active (`roster.md`), recorded as absence rather than consent.
-- outcome: open — the operator marks it.
+- outcome: accepted — operator, 2026-11-24 ("Accept the build id proposal in decisions.md and build it").
+  Built as written, with four details settled in the build: the id is a 12-character sha (`--short=12`, and
+  the workflow uses the same script rather than `GITHUB_SHA`, so local and CI cannot disagree about its
+  shape); dirtiness counts tracked files only (`--untracked-files=no`), because `dist/` and `.wrangler/`
+  are ignored build output and counting them would make every CI deploy look dirty; comparison accepts a
+  prefix either way, since `--short` may extend in a large repository or a full sha may be supplied; and
+  the value is a var (`wrangler deploy --var ATV_BUILD_ID:…`, one wrapper used by `pnpm deploy`,
+  `deploy:prod` and the workflow), not a secret, so it needs no write path into the secrets store and no
+  entry in the settled-secrets list — the inventory names it only because `pnpm continuity` checks every
+  `ATV_*` string the Worker reads.
+
+### 2026-11-24 — The player cannot tell you the TV cannot play this format
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `apps/tv-client/src/` (`playerManager.js`, the notice in `main.ts`), possibly
+  `apps/tv-client/package.json` (a runtime dependency), `apps/tv-client/test/`, `docs/playback-formats.md`
+- why: the client is a bare `<video src>` with no HLS support and no capability detection, every fixture and
+  test in this repository is an `.m3u8`, and `/api/resolve` hands over whatever the provider returned. A Fire
+  TV's WebView plays HLS only where its own build implements it: Chromium gained a built-in HLS player around
+  version 135 with public codec and demux gaps, older Amazon WebView builds predate it, and `minSdk 21` covers
+  devices whose WebView is years older than a current model's. Today the failure reads "… would not play —
+  press Enter to try again", which is the same sentence as a 403 and a dead link, so neither the household nor
+  the next session can tell a format problem from an expired URL.
+- change: three parts, only the first of which this entry asks to build now.
+  1. The client names the failure: when a resolved URL looks like an HLS playlist and the element reports
+     `MEDIA_ERR_SRC_NOT_SUPPORTED` (code 4), the notice says the TV cannot play that channel's format instead
+     of offering a retry that cannot work. Detection is by extension plus
+     `canPlayType('application/vnd.apple.mpegurl')`, both hints, so the error code is what the message keys on.
+  2. `pnpm streams --probe` reports the format mix — built 2026-11-24 as a `Formats:` tally plus an HLS
+     warning, not a shared shape, so it did not wait for this outcome.
+  3. If L5 shows HLS failing on the household's hardware, bundle `hls.js` (MIT, requires MSE with
+     `video/mp4`, documented for Chrome for Android 5+) behind a feature check, keeping the native `src`
+     path for MP4 so nothing that plays today changes.
+- why not bundle it now: it would be the project's first runtime dependency, it would add a second playback
+  path for every channel including the ones that already play, and nothing has yet shown that it is needed.
+  One HLS channel and one MP4 channel on the actual TV decide it; until then the honest change is the one that
+  makes the failure legible.
+- risk: part 1 adds copy and a heuristic to the error path, and a wrong guess names the format for a failure
+  that was something else — so the wording states a likely cause and still offers the retry. Part 3 is the
+  real cost: bundle weight on a TV, a licence to record, and a code path that has never run in this app.
+  Nothing here touches the Worker, health or a secret.
+- cost: none for parts 1 and 2. Part 3 is one MIT dependency, which is the operator's call.
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: open — the operator marks it. The evidence and the three options are in
+  [`../playback-formats.md`](../playback-formats.md); part 2 is already built.
 
 ### 2026-11-24 — A Drive channel with no signing key should say so, not hand out a link that cannot play
 

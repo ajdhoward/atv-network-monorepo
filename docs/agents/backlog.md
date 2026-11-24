@@ -82,6 +82,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Why:** no build of this app has ever run on hardware. Every claim about D-pad focus, playback and the
   retry screen is inference from the code.
 - **Done when:** one channel resolves and plays from the installed APK, and the notes are written down.
+  Record the formats the lineup actually serves (`pnpm streams --probe` now ends with a `Formats:` tally) and
+  whether an HLS channel plays on the device — [`../playback-formats.md`](../playback-formats.md) explains why
+  that is a different question from whether the channel resolves, and the client has no HLS support of its own.
 - **Paths:** none; findings go in `docs/`
 - **Size:** M
 - **State:** blocked — needs a device and the operator's hands
@@ -326,7 +329,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   bundle — that needs a build id in `/api/health`, which is a public shape and so starts with a
   `decisions.md` entry; that entry is proposed (2026-11-24) and unbuilt. The deploy job now runs `pnpm drift`
   on the URL it just deployed, after smoke, so a deploy that did not take effect is a red job rather than a
-  paragraph someone has to remember to read.
+  paragraph someone has to remember to read. The Worker-only blind spot is closed too: `/api/health` reports
+  `build.id` (accepted 2026-11-24) and drift compares it with the checkout's `HEAD`, so a deployment whose
+  Worker is older fails even when every asset matches.
 
 ## Production cutover
 

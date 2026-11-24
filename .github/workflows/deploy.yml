@@ -110,6 +110,14 @@ jobs:
           fi
           printf '%s' "$ATV_TORBOX_API_KEY" | pnpm exec wrangler secret put ATV_TORBOX_API_KEY \
             --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+      # The commit the Worker reports at /api/health. A Worker cannot learn its own
+      # deployment id (no binding, and asking the API would need a token in the
+      # request path), so it travels with the deploy. Computed by the same script
+      # `pnpm deploy` uses, so the two cannot disagree, and read back after the
+      # deploy — the only way a Worker-only change is visible to the drift check.
+      - name: Compute the build id
+        id: build
+        run: echo "id=$(node scripts/build-id.mjs)" >> "$GITHUB_OUTPUT"
       - uses: cloudflare/wrangler-action@v4
         id: deploy
         with:
@@ -117,7 +125,7 @@ jobs:
           accountId: d9491f1ab703e0a99b69919230410f2a
           packageManager: pnpm
           wranglerVersion: "4.166.0"
-          command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }}
+          command: deploy --config ${{ inputs.target == 'production' && 'wrangler.production.toml' || 'wrangler.toml' }} --var ATV_BUILD_ID:${{ steps.build.outputs.id }}
       # Optional: with an ATV_SEED_CONFIG repository secret holding the lineup JSON,
       # the deploy also seeds staging, so the guide is not empty. The secret keeps
       # stream URLs out of this public repo; without it the deploy is still valid.

@@ -35,6 +35,13 @@ export interface Env {
   // `/api/stream` answers 503 rather than pretending a ticket is wrong. Set as a
   // Worker secret; rotating it invalidates every URL already handed out.
   ATV_STREAM_SIGNING_KEY?: string;
+  // The commit this Worker was built from, attached at deploy time by
+  // `scripts/deploy-worker.mjs` and the deploy workflow, and reported by
+  // `/api/health`. Not a secret (a short sha of a public repository) and a var
+  // rather than a secret because `wrangler deploy --var` can set it without a
+  // write path into the secrets store. Absent from a deployment that predates it,
+  // and from one deployed without it — which is exactly what `pnpm drift` fails on.
+  ATV_BUILD_ID?: string;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

@@ -59,9 +59,12 @@ This repository is public. None of these may ever be committed; each is recovera
 ### Secret name inventory
 
 Checked against the repository by `pnpm continuity`; add every new name here in the same change that
-introduces it.
+introduces it. One entry is not a secret: `ATV_BUILD_ID` is the commit a deploy was built from, listed
+because this check reads every `ATV_*` string the Worker declares, and a deployment without one is a
+deployment `pnpm drift` cannot vouch for.
 
 ```text
+ATV_BUILD_ID
 ATV_SEED_CONFIG
 ATV_DEVICE_TOKEN
 ATV_STREAM_SIGNING_KEY

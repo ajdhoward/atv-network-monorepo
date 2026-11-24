@@ -16,11 +16,13 @@
 // independent signal: the fields this build adds are absent on an older Worker,
 // so a deployment from before R6/P1 is caught even if someone copied assets in.
 //
-// What it cannot see: a Worker-only change that does not touch the client. Same
-// sources for `apps/` means the same asset hashes, so a deployment serving an old
-// `services/atv-core` over a current client passes the asset check. Closing that
-// needs a build id in `/api/health`, which is a public shape and therefore a
-// proposal in `decisions.md` (2026-11-24), not something this script can invent.
+// A Worker-only change leaves both asset hashes identical, so the asset checks on
+// their own cannot see it. `/api/health` therefore carries `build.id`, the commit
+// the running Worker was built from: `pnpm deploy` and the deploy workflow attach
+// it (`scripts/build-id.mjs`), and this script compares it with the checkout's
+// HEAD. Accepting that field (2026-11-24) is what made the comparison possible; a
+// deployment that predates it, or one deployed without the var, reports no id and
+// fails here rather than passing quietly.
 //
 // The deploy job runs this against the URL it just deployed, so a deploy that did
 // not take effect is a red job rather than a note; the step retries briefly first,
@@ -30,6 +32,7 @@
 //   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... pnpm drift https://atv.acidwurx.org
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildId, isDirty, sameBuild } from "./build-id.mjs";
 import { CONFIG_SCHEMA_VERSION } from "./lib/config-meta.mjs";
 
 const VALUE_FLAGS = new Set(["--build"]);
@@ -191,6 +194,40 @@ try {
           "health schemaVersion",
           true,
           "null — no config_meta seeded, so there is no stored schema to compare",
+        );
+      }
+
+      // The only signal that can see a Worker-only change. The local side is the
+      // commit, not the built files: the same sources for `apps/` produce the same
+      // asset names, which is why the checks above cannot tell these two builds
+      // apart.
+      const localId = buildId();
+      const deployedId = typeof body.build?.id === "string" ? body.build.id : null;
+      if (!localId) {
+        record(
+          "health build id",
+          false,
+          "no local build id — run this in a git checkout, or set ATV_BUILD_ID to the commit you mean",
+        );
+      } else if (isDirty(localId)) {
+        record(
+          "health build id",
+          false,
+          `${localId} — the working tree has uncommitted changes, so no deployment can be tied to a commit; commit first, then compare`,
+        );
+      } else if (!deployedId) {
+        record(
+          "health build id",
+          false,
+          "the deployment reports no build id — it was deployed without ATV_BUILD_ID, so it could be any build; deploy with `pnpm deploy` or the deploy workflow",
+        );
+      } else if (sameBuild(localId, deployedId)) {
+        record("health build id", true, deployedId);
+      } else {
+        record(
+          "health build id",
+          false,
+          `deployed ${deployedId}, this checkout is ${localId} — the deploy did not take effect (\`pnpm deploy\`)`,
         );
       }
     }

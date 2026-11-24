@@ -488,3 +488,29 @@ the checkout's `HEAD`. If accepted it needs `ATV_BUILD_ID` in `docs/continuity.m
 
 - **Not exercised:** the new workflow step has not run — no `CF_API_TOKEN`, so no deploy and no `workflow_dispatch`.
   `pnpm drift` itself is unchanged; only its header comment moved.
+
+## Session 2026-11-24 (the build id is built; HLS is the open question)
+
+The build id shipped the way the accepted entry said, with four decisions made in the build that the entry
+now records: 12-character sha (`--short=12`) and the workflow calls the same `scripts/build-id.mjs` rather
+than slicing `GITHUB_SHA`, so local and CI cannot disagree; dirtiness is `git status --porcelain
+--untracked-files=no`, because `dist/` and `.wrangler/` are ignored build output and counting them would make
+every CI deploy look dirty — the first version of that idea would have failed drift on a good deploy;
+comparison accepts a prefix either way; and the value is a var attached by `scripts/deploy-worker.mjs`, used
+by both `deploy` and `deploy:prod`, because `$(...)` in a package script is not portable and because one
+wrapper means deploy and drift can never compute different ids.
+
+- **Tests pin `ATV_BUILD_ID`** (`run()` in `drift.test.ts` sets it), because the suite would otherwise depend
+  on whether the working tree happened to be dirty — a deterministic test of an intentionally
+  non-deterministic fact. `build-id.test.ts` builds real temp git repos instead.
+- **Health's new field is optional** in `HealthPayload` (`build?: { id: string | null }`): this build always
+  emits it, but an older deployment omits it, and the admin CMS's typed fixture was the check that caught a
+  required field claiming more than the wire guarantees. Absent and null mean the same thing to a consumer.
+- **Format question, worked not guessed:** `docs/playback-formats.md` now holds it. The client really is a
+  bare `<video src>` with no MSE/HLS code and `apps/tv-client/package.json` has no runtime dependency; every
+  fixture is `.m3u8`; `MainActivity` is a plain WebView (no UA override, `minSdk 21`, i.e. Fire OS 5-era
+  WebViews on old sticks); native HLS in Chromium is build-dependent (built-in player from ~v135 with
+  HEVC/TS and demux gaps). So neither "it plays" nor "it does not" is established, and the answer is a
+  per-device L5 measurement. `pnpm streams --probe` now tallies formats so the lineup half is measurable.
+- **`profile: "1080p_hevc"` is a hardcoded string in `resolver.ts`**, not a provider report — do not read it
+  as a codec fact (it fooled the first pass at this document).
