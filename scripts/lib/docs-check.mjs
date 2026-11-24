@@ -103,6 +103,17 @@ export function activeRowsWithoutContext(rosterText) {
     .map((row) => (row.split("|")[1] ?? "?").trim());
 }
 
+// A script nobody wrote down is a command only its author knows, and `AGENTS.md`
+// already asks for README or docs to change with a command. This is what makes
+// that true: every entry in `package.json` has to be named in some document, in
+// either `pnpm <name>` or `pnpm run <name>` form.
+export function undocumentedScripts(packageJsonText, docsText) {
+  const scripts = Object.keys(JSON.parse(packageJsonText).scripts ?? {});
+  return scripts.filter(
+    (name) => !docsText.includes(`pnpm ${name}`) && !docsText.includes(`pnpm run ${name}`),
+  );
+}
+
 // The review window has to start somewhere, and "five changes" only counts if the
 // commit the last record read is written down. Two sessions in a row noticed the
 // trigger late because it was a judgement about whether enough had happened.

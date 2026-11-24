@@ -26,6 +26,7 @@ import {
   lastReviewSha,
   markdownFiles,
   repositoryNames,
+  undocumentedScripts,
   unindexedDocs,
 } from "./lib/docs-check.mjs";
 
@@ -54,6 +55,20 @@ if (fs.existsSync(path.join(root, INDEX))) {
   );
 } else {
   record("docs/README.md exists", false, "the index is what makes the other documents findable");
+}
+
+// A command that exists and is written down nowhere is the same class of loss as
+// a secret that is inventoried nowhere: the next session cannot find it without
+// reading package.json and guessing what it does.
+const packagePath = path.join(root, "package.json");
+if (fs.existsSync(packagePath)) {
+  const docsText = files.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
+  const undocumented = undocumentedScripts(fs.readFileSync(packagePath, "utf8"), docsText);
+  record(
+    "every package script is written down",
+    undocumented.length === 0,
+    undocumented.length ? `not named in any doc: ${undocumented.join(", ")}` : undefined,
+  );
 }
 
 // The tracked list is the corpus: a secret name that only the docs mention is

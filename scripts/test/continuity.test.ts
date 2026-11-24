@@ -108,6 +108,37 @@ describe("continuity check", () => {
     expect(result.stdout).toContain("every secret the Worker reads is inventoried");
   });
 
+  // A command nothing documents is a command only its author knows. The first run
+  // of this rule found `build:client` and `build:admin`, both real and both absent
+  // from every document.
+  it("catches a package script no document names", () => {
+    const dir = fixture();
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ scripts: { "build:client": "vite build" } }),
+    );
+    const result = run(dir);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("not named in any doc: build:client");
+  });
+
+  it("accepts a script that a document names, in either form", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ scripts: { "build:client": "vite build", deploy: "wrangler deploy" } }),
+    );
+    fs.appendFileSync(path.join(dir, "README.md"), "\n`pnpm build:client` and `pnpm run deploy`\n");
+    git(["add", "-A"]);
+    const result = run(dir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("every package script is written down");
+  });
+
   it("catches an active agent whose row links no context file", () => {
     const dir = fixture();
     fs.mkdirSync(path.join(dir, "docs", "agents"), { recursive: true });
