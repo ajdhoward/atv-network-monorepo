@@ -82,6 +82,15 @@ change is a separate, pre-approved step in §7.4.
   `node scripts/set-gdrive-map.mjs <map.json> --dry-run`. Links never appear in logs, documents, chat or git.
 - Confirmation of whether `ATV_GDRIVE_MAP` is a Worker secret on the incumbent (names only — never read
   values) so you know what you are replacing.
+- Both Worker secrets this build reads, and the decision each one forces. They are not optional extras: the
+  repo Worker is the Drive proxy, and without the key the proxy is deployed but dead.
+  - `ATV_STREAM_SIGNING_KEY`. Unset, a Drive-backed channel resolves to its stored link, which a `<video>`
+    cannot play, and `/api/stream` answers `503 stream_unconfigured`. Set, `/api/resolve` answers a Drive
+    link with a same-origin `/api/stream/<id>?exp&sig` ticket instead, so the TV that reads it has to be the
+    R5 build — the same client-first order `docs/r8-rollout.md` applies to the token.
+  - `ATV_DEVICE_TOKEN`. Unset, resolve answers any caller: the cutover is then not worse than today and not
+    better. Set, every TV needs the token, so the cutover has to happen after the R8 rollout has reached the
+    TVs. Reusing the value the sandbox holds is what lets a TV that already stored it survive the move.
 
 ### 2.5 Operational readiness
 
@@ -165,20 +174,27 @@ Keep a short list, e.g. "what reads D1 `DB`", "does anything use `ATV_TELEMETRY`
 
 No deploy happens until this table is filled in from Phase 0 evidence and the gate is signed off.
 
-| Area                                | Incumbent (from Phase 0) | Repo Worker                                                                                     | Verdict                                 |
-| ----------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `GET /api/guide`                    | shape recorded           | `channels/nextCursor/eTag/counts`, `max-age=30`, `s-maxage=60`, SWR 300, 304 on `If-None-Match` | must match or client updated            |
-| `GET /api/resolve?id=`              | shape recorded           | `{id,url,profile}`, 400/404/502/429, `no-store`; 401 once `ATV_DEVICE_TOKEN` is set (R6)        | must match, or every TV needs the token |
-| `GET /api/resolve?ids=`             | likely absent            | batch of 20, `{resolved,missing,invalid}`                                                       | additive, fine                          |
-| `GET /api/health`                   | may differ or be absent  | `status/config/resolve/guideSnapshot`                                                           | additive, fine                          |
-| `GET /api/status`                   | shape recorded           | confirm the repo serves the same contract the TV client expects                                 | **verify**                              |
-| `GET /api/idents/random`            | shape recorded           | 302 to HTTPS ident, else 503                                                                    | must match                              |
-| `GET /`                             | Phase 0                  | TV client from `apps/tv-client/dist`                                                            | new behaviour (incumbent has no assets) |
-| `GET /admin/`                       | may be absent            | static panel + public health                                                                    | new behaviour                           |
-| D1 `DB`                             | exported                 | unused                                                                                          | **product decision §2.1**               |
-| `REMOTE_HUB` / `/remote`            | traffic measured         | absent                                                                                          | **product decision §2.1**               |
-| `ATV_TELEMETRY` / `ATV_ADMIN_TOKEN` | names only               | absent; Access replaces admin auth                                                              | **product decision §2.1**               |
-| Provider origins                    | observed egress          | none                                                                                            | **product decision §2.1**               |
+| Area                                | Incumbent (from Phase 0) | Repo Worker                                                                                         | Verdict                                                                          |
+| ----------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /api/guide`                    | shape recorded           | `channels/nextCursor/eTag/counts`, `max-age=30`, `s-maxage=60`, SWR 300, 304 on `If-None-Match`     | must match or client updated                                                     |
+| `GET /api/resolve?id=`              | shape recorded           | `{id,url,profile}`, 400/404/502/429, `no-store`; 401 once `ATV_DEVICE_TOKEN` is set (R6)            | must match, or every TV needs the token                                          |
+| `GET /api/resolve?ids=`             | likely absent            | batch of 20, `{resolved,missing,invalid}`                                                           | additive, fine                                                                   |
+| `GET /api/stream/<id>`              | absent                   | signed-ticket Drive proxy: 206 with `Range`, 403 expired/bad-signature/missing, 503 without the key | additive route, **but** resolve answers differently with the key set (see below) |
+| `GET /api/health`                   | may differ or be absent  | `status/config/resolve/guideSnapshot`                                                               | additive, fine                                                                   |
+| `GET /api/status`                   | shape recorded           | confirm the repo serves the same contract the TV client expects                                     | **verify**                                                                       |
+| `GET /api/idents/random`            | shape recorded           | 302 to HTTPS ident, else 503                                                                        | must match                                                                       |
+| `GET /`                             | Phase 0                  | TV client from `apps/tv-client/dist`                                                                | new behaviour (incumbent has no assets)                                          |
+| `GET /admin/`                       | may be absent            | static panel + public health                                                                        | new behaviour                                                                    |
+| D1 `DB`                             | exported                 | unused                                                                                              | **product decision §2.1**                                                        |
+| `REMOTE_HUB` / `/remote`            | traffic measured         | absent                                                                                              | **product decision §2.1**                                                        |
+| `ATV_TELEMETRY` / `ATV_ADMIN_TOKEN` | names only               | absent; Access replaces admin auth                                                                  | **product decision §2.1**                                                        |
+| Provider origins                    | observed egress          | none                                                                                                | **product decision §2.1**                                                        |
+
+**The row that is easy to miss:** with `ATV_STREAM_SIGNING_KEY` set, a Drive-backed id stops resolving to
+its store link and resolves to a ticket path instead. That is the whole point of P1, and it means the parity
+question for Drive is not "does resolve match" but "is the client that reads it the current one". With the
+key unset the client sees the old, unplayable link and every parity check still passes — so decide it here,
+not by accident.
 
 **Gate:** §2.1 answered in writing; every "must match" row confirmed; no `**verify**` or `**product decision**` row left open. If the gate cannot be passed, stop here — the rest of the runbook is not safe to start.
 
@@ -188,7 +204,8 @@ The candidate is a **new Worker with its own name**. The incumbent is never rede
 
 ### 5.1 Create the candidate config
 
-Copy the repo's production config and change exactly three things:
+Copy the repo's production config and change exactly four things. The file is a declaration of the
+**incumbent's** shape, not of what this build needs, so the fourth is the longest:
 
 ```bash
 cp wrangler.production.toml wrangler.cutover.toml
@@ -214,6 +231,19 @@ With separate ids, `scripts/check-deploy-target.mjs` sees a non-production name,
 route and no shared namespace ids, so it passes without any override. **Do not set
 `ATV_ALLOW_PROD_DEPLOY=1` for this deploy**, and do not set `ATV_ALLOW_SHARED_KV=1` unless §5.3
 requires it.
+
+- the bindings this build reads and `wrangler.production.toml` does not declare. Without them the candidate
+  deploys, answers the guide, and fails the checks that matter:
+  - `[[ratelimits]] name = "ATV_RATE_LIMITER"` — the coarse fallback limiter.
+  - `[[durable_objects.bindings]] name = "ATV_LIMITER", class_name = "RateLimiter"` plus the
+    `[[migrations]]` entry `tag = "v1", new_sqlite_classes = ["RateLimiter"]`, copied from `wrangler.toml`.
+    Without it `/api/resolve` is not rate limited per client key at all, which §6.2 tests.
+  - `[[analytics_engine_datasets]] binding = "ATV_METRICS"` — optional, but without it the counters
+    (`resolve_unauthorized` and the rest) go nowhere and §8's tail-and-metrics checks read a blank.
+  - `run_worker_first` must match `wrangler.toml`'s list **exactly**. `wrangler.production.toml` omits `/a`
+    and `/a/*`, so a candidate copied from it answers the SPA shell at the short install address instead of
+    the 302 to the APK — the same trap the sandbox hit when `/a` was first added. `pnpm smoke`'s `/a` row
+    catches it, but only if smoke runs.
 
 `wrangler.cutover.toml` is a local, uncommitted file: keep it out of git (it names the candidate's KV
 ids and temporary route, and it exists only for the window).
@@ -277,20 +307,24 @@ console.log(h.resolve);' < health.json
 Expected: `ok true <n> true true`, where `<n>` is the number of channels in the seeded lineup, and
 `resolve.configured` equal to the number of links you pushed.
 
-| Check           | Command / evidence                         | Pass condition                                                |
-| --------------- | ------------------------------------------ | ------------------------------------------------------------- |
-| Guide           | `curl "$BASE/api/guide"`                   | 200, same channels and field names as Phase 0                 |
-| Guide pages     | `?limit=1`                                 | `channels.length == 1`, `nextCursor` non-null when more exist |
-| Conditional GET | send `If-None-Match` with the ETag         | 304, no body                                                  |
-| Resolve single  | `?id=<known>`                              | 200 `{id,url,profile}`, `Cache-Control: no-store`             |
-| Resolve missing | `?id=__nope__`                             | 404 `not_found`                                               |
-| Resolve batch   | `?ids=a,b,c`                               | 200 grouped; 21 ids → 400 `too_many_ids`                      |
-| Link leakage    | batch response for unknown ids             | no URL for any unresolved id                                  |
-| Idents          | `/api/idents/random`                       | 302 to an `https://` URL, or 503 with no idents seeded        |
-| Assets          | `/` and the referenced `/assets/*.js`      | 200, HTML contains the root div, JS is `javascript`           |
-| Admin           | `/admin` → `/admin/`                       | 308 to `/admin/`; 200 HTML; bundle 200                        |
-| Unknown API     | `/api/does-not-exist`                      | 404 JSON with a request id                                    |
-| Smoke           | `pnpm smoke https://next.atv.acidwurx.org` | all checks pass (no `--allow-empty` if the lineup is seeded)  |
+| Check             | Command / evidence                                                   | Pass condition                                                              |
+| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Guide             | `curl "$BASE/api/guide"`                                             | 200, same channels and field names as Phase 0                               |
+| Guide pages       | `?limit=1`                                                           | `channels.length == 1`, `nextCursor` non-null when more exist               |
+| Conditional GET   | send `If-None-Match` with the ETag                                   | 304, no body                                                                |
+| Resolve single    | `?id=<known>`                                                        | 200 `{id,url,profile}`, `Cache-Control: no-store`                           |
+| Resolve missing   | `?id=__nope__`                                                       | 404 `not_found`                                                             |
+| Resolve batch     | `?ids=a,b,c`                                                         | 200 grouped; 21 ids → 400 `too_many_ids`                                    |
+| Link leakage      | batch response for unknown ids                                       | no URL for any unresolved id                                                |
+| Proxy ticket      | resolve a Drive-backed id, read `.url` only                          | with the key set: a path starting `/api/stream/`, never a Drive URL         |
+| Proxy range       | ranged request at that path                                          | 206 with `Content-Range` and `Accept-Ranges`; whole-file request 200        |
+| Proxy refusals    | the same URL with one `sig` character changed, and with no ticket    | 403 `bad-signature` / 403 `missing`, and no request reaches Drive           |
+| Proxy without key | the same rows against a build whose key is unset (the sandbox today) | 503 `stream_unconfigured`, so the ticket row is proven to depend on the key |
+| Idents            | `/api/idents/random`                                                 | 302 to an `https://` URL, or 503 with no idents seeded                      |
+| Assets            | `/` and the referenced `/assets/*.js`                                | 200, HTML contains the root div, JS is `javascript`                         |
+| Admin             | `/admin` → `/admin/`                                                 | 308 to `/admin/`; 200 HTML; bundle 200                                      |
+| Unknown API       | `/api/does-not-exist`                                                | 404 JSON with a request id                                                  |
+| Smoke             | `pnpm smoke https://next.atv.acidwurx.org`                           | all checks pass (no `--allow-empty` if the lineup is seeded)                |
 
 ### 6.2 Rate limiter and cron
 
@@ -327,7 +361,10 @@ pnpm budget -- --tvs 10 --resolves 120   # headroom check
 
 Both must exit 0. Record the numbers; after cutover the real figures come from the dashboard under
 Workers & Pages → the Worker → Metrics, and they should sit far below the model because it assumes no CDN
-cache and no isolate memo.
+cache and no isolate memo. The model counts the proxy's media requests separately (`--media-requests`, 300
+per TV per day by default) because one play is many ranged requests: set it to what the household actually
+watches before treating the number as evidence, and note that the bytes are Drive's egress, not this
+account's.
 
 ### 6.5 Gate to proceed
 
@@ -396,6 +433,7 @@ npx wrangler tail atv-core-prod --format json | tee tail-post-cutover.ndjson
 | T+0       | `pnpm smoke`      | all checks pass                                                              |
 | T+0       | `/` and `/admin/` | shell + assets 200; admin status matches health                              |
 | T+5       | TV client         | grid loads, a channel with a link plays, hover prefetch does not produce 5xx |
+| T+5       | Drive channel     | a Drive-backed channel plays and seeks; `tail` shows 206s on `/api/stream`   |
 | T+10      | `tail`            | no unexpected 5xx; requests land on the new paths (batch resolve, health)    |
 | T+15      | limiter           | a deliberate burst still yields 429s with `Retry-After`                      |
 | T+10…T+20 | cron              | one `scheduled` invocation and a fresh `guide:latest` write                  |
@@ -459,22 +497,27 @@ Only after **seven days** with no rollback trigger and no unexplained 5xx:
   covered by `pnpm budget`'s model.
 - The incumbent's D1 and `REMOTE_HUB` usage disappears under option A, which _reduces_ spend.
 - Keep observability at the 10% sample rate; 100% burns the free log allowance on guide polls.
+- The Drive proxy is a request class of its own: one Worker request and one Drive subrequest per ranged
+  media request, no egress charge on Workers Paid, and no Durable Object call (the signed ticket is the
+  admission). It is the class that grows with viewing time rather than with tuning, so it is the one to
+  watch if the household starts watching more.
 - Watch: 5xx rate, 429 ratio against 200s on `/api/resolve`, scheduled invocation failures, KV writes per
   hour, and Durable Object errors. Any sustained change is a rollback signal, not a tuning opportunity.
 
 ## 12. Risk register
 
-| Risk                                                                                | Likelihood           | Impact       | Mitigation                                                                         |
-| ----------------------------------------------------------------------------------- | -------------------- | ------------ | ---------------------------------------------------------------------------------- |
-| Incumbent features depend on D1/`RemoteHub` and break                               | medium               | high         | §2.1 decision + Phase 0 traffic evidence; choose option B if unclear               |
-| Repo Worker's wire shapes differ from the incumbent's and the old client misbehaves | medium               | high         | §4 parity table + §6.1 diff before the route moves                                 |
-| Candidate writes into production KV (`guide:latest`, seeded keys)                   | low if §5.1 followed | high         | separate namespaces; never set `ATV_ALLOW_SHARED_KV=1` without a written reason    |
-| Route change done without a rollback rehearsal                                      | low                  | high         | dashboard route edit is reversible in seconds; rehearse on `next.*` first          |
-| Access blocks verification or the household                                         | certain today        | medium       | service token prepared; Access fix kept as a separate change                       |
-| Seed tooling targets the wrong config                                               | low                  | low          | `--config` selects the target and the guard reads the same file (§5.3)             |
-| Stale edge cache serves the incumbent's guide after swap                            | medium               | low          | purge `/api/guide` and `/` (§7.3)                                                  |
-| Incumbent source never becomes available, so a subtle feature is missed             | certain              | medium       | treat as black box; parity matrix + seven-day soak; keep incumbent as spare        |
-| Rollback target deleted too early                                                   | low                  | catastrophic | never delete `atv-core-orchestrator` before the soak ends and sign-off is recorded |
+| Risk                                                                                      | Likelihood           | Impact       | Mitigation                                                                         |
+| ----------------------------------------------------------------------------------------- | -------------------- | ------------ | ---------------------------------------------------------------------------------- |
+| Incumbent features depend on D1/`RemoteHub` and break                                     | medium               | high         | §2.1 decision + Phase 0 traffic evidence; choose option B if unclear               |
+| Repo Worker's wire shapes differ from the incumbent's and the old client misbehaves       | medium               | high         | §4 parity table + §6.1 diff before the route moves                                 |
+| Candidate writes into production KV (`guide:latest`, seeded keys)                         | low if §5.1 followed | high         | separate namespaces; never set `ATV_ALLOW_SHARED_KV=1` without a written reason    |
+| Every Drive channel is dead after the move (no `ATV_STREAM_SIGNING_KEY` on the candidate) | medium               | high         | §2.4 decides the key up front; §6.1's proxy rows prove it before the route moves   |
+| Route change done without a rollback rehearsal                                            | low                  | high         | dashboard route edit is reversible in seconds; rehearse on `next.*` first          |
+| Access blocks verification or the household                                               | certain today        | medium       | service token prepared; Access fix kept as a separate change                       |
+| Seed tooling targets the wrong config                                                     | low                  | low          | `--config` selects the target and the guard reads the same file (§5.3)             |
+| Stale edge cache serves the incumbent's guide after swap                                  | medium               | low          | purge `/api/guide` and `/` (§7.3)                                                  |
+| Incumbent source never becomes available, so a subtle feature is missed                   | certain              | medium       | treat as black box; parity matrix + seven-day soak; keep incumbent as spare        |
+| Rollback target deleted too early                                                         | low                  | catastrophic | never delete `atv-core-orchestrator` before the soak ends and sign-off is recorded |
 
 ## 13. One-page order of operations
 
@@ -482,9 +525,13 @@ Only after **seven days** with no rollback trigger and no unexplained 5xx:
 2. Prepare access, service token, lineup, link map, window.
 3. Phase 0: export D1, inventory KV keys and secret names, capture endpoint shapes, sample traffic.
 4. Fill the §4 parity table; pass the gate.
-5. Create `wrangler.cutover.toml`: new name `atv-core-prod`, its own KV, temporary route `next.*`.
-6. Build, guard, deploy the candidate. Seed it. Push links as a secret.
-7. Verify the candidate completely (§6) — functional, limiter, cron, clients, budget.
+5. Create `wrangler.cutover.toml`: new name `atv-core-prod`, its own KV, temporary route `next.*`, and the
+   bindings and `run_worker_first` this build needs (§5.1) — the copied file lacks the limiter, the counters
+   and `/a`.
+6. Build, guard, deploy the candidate. Seed it. Push links as a secret, set `ATV_STREAM_SIGNING_KEY`, and set
+   `ATV_DEVICE_TOKEN` only if every TV already carries the R5 client.
+7. Verify the candidate completely (§6) — functional including the Drive proxy, limiter, cron, clients,
+   budget.
 8. Freeze; re-check; record the incumbent version.
 9. Point `atv.acidwurx.org/*` at `atv-core-prod`; purge `/api/guide` and `/`.
 10. Verify for 60 minutes (§8), watching `tail` and metrics.
