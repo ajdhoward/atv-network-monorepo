@@ -70,14 +70,15 @@ when it next works, which is why an entry records who is absent rather than trea
   about content on a zone's CDN, which is the entry the terms actually restrict.
 - change: keep the proxy as built, and do not add caching to it — a cached media response would push the
   bytes through the CDN cache, which is the thing the terms do constrain, and the ticket is a 15-minute URL
-  that must not be reused across viewers. If the deployment ever leaves the household or the account drops to
-  Workers Free, re-read the CDN entry before scaling rather than assuming this reading still holds.
+  that must not be reused across viewers. If the deployment ever leaves the household or the account drops
+  to Workers Free, re-read the CDN entry before scaling rather than assuming this reading still holds.
 - risk: the harm to doing nothing is knowing too late; the harm to this reading being wrong is limited
   delivery with notice, recoverable by moving the media origin (Stream, R2, or P2's service account) rather
   than by rewriting the route. The gap a monitor cannot see — a deployment with no signing key, where P1 is
   silent — is now reported by `/api/health` as `streamSigningKeySet`.
 - cost: none
 - acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- ack — Z (2026-11-24) — the terms reading is sound at household scale on Workers Paid: the Service-Specific Terms constrain the CDN cache, and a Worker response with `no-store` is not that. The disproportionate-use language is the real guard, not the §2.8 retirement, so re-read if the deployment leaves the household or drops to Workers Free. Agree on no caching — caching would push bytes through the CDN, which is the surface the terms do restrict, and the 15-min ticket is single-use.
 - outcome: open — the operator marks it (accepted, rejected, or decided against an objection). Everything
   above is the agent's proposal and reading, not a ruling; revisit on a plan change or if this deployment
   grows past one household.
