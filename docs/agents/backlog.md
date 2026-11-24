@@ -247,7 +247,11 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   the repository does not use, which is the right failure), and in `AGENTS.md`'s settled decisions.
 - **Paths:** `services/atv-core/src/`, `services/atv-core/test/`, `docs/continuity.md`, `AGENTS.md`
 - **Size:** S
-- **State:** accepted — split from R1. In the roster row's paths; must not be deployed before R5 is live (R8).
+- **State:** in progress — `services/atv-core/src/device-token.ts` holds the comparison (header parsing, digest
+  compare, and `unenforced` when no secret is configured) with its tests; nothing calls it yet, so behaviour
+  is unchanged. Next in R6: wire it into `handleResolve` ahead of the limiter, add `Authorization` to
+  `Access-Control-Allow-Headers`, its own counter and the "secret set" flag on health, then `ATV_DEVICE_TOKEN`
+  in `env.ts` and `docs/continuity.md` in the same change. Must not be deployed before R5 is live (R8).
 
 ### R7 · Teach every non-TV caller the header
 

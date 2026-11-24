@@ -10,6 +10,11 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `services/atv-core/src/device-token.ts` — the R6 check, before it is wired in: reads the credential out of an
+  `Authorization` header (scheme case-insensitive, no value with spaces), compares SHA-256 digests byte by
+  byte so the timing says nothing about a near miss, and answers `allow`, `reject` or `unenforced` when the
+  deployment has no secret. It never returns the token. `/api/resolve` does not call it yet, so no request
+  behaves differently than before.
 - The TV client carries the household token. `resolve.ts` and the player's hover prefetch send
   `Authorization: Bearer …` when one is stored, read per call so a token entered from the prompt is used by
   the next attempt. A 401 opens `tokenPrompt.ts` instead of reading as an unavailable channel, and the prompt

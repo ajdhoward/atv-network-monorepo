@@ -25,6 +25,7 @@ services/atv-core/src/env.ts        Env bindings + typed JSON/memo KV reads
 services/atv-core/src/config-meta.ts config schema version + checksum
 services/atv-core/src/rules.ts      guide indexing (country/category groups, deterministic)
 services/atv-core/src/resolver.ts   id -> media URL, HTTPS only
+services/atv-core/src/device-token.ts household token check for /api/resolve (R6, not wired yet)
 services/atv-core/src/page.ts       shared page shell, CSS and CSP for /install and /join
 services/atv-core/src/install.ts    /install page + QR for the Fire TV APK
 services/atv-core/src/join.ts       /join page: authorisation for an agent with no GitHub integration
