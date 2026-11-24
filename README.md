@@ -44,6 +44,8 @@ scripts/seed-kv.mjs                 pushes runtime config (incl. config_meta) in
 scripts/set-gdrive-map.mjs          pushes operator stream links into the ATV_GDRIVE_MAP secret
 scripts/check-streams.mjs           audits /api/resolve per channel, optionally probing each link
 scripts/check-drift.mjs             compares a deployed origin's build with this checkout, read-only
+scripts/build-id.mjs               the commit a deploy reports at /api/health, read by deploy and drift
+scripts/deploy-worker.mjs          wrangler deploy with that build id attached as a var
 scripts/dev.mjs                     one command: seed the local store, then run wrangler dev
 scripts/ci-worker.mjs               boot the built worker locally and check bindings, assets and the limiter
 scripts/budget.mjs                  models monthly usage against the Workers Paid allowance
@@ -276,7 +278,11 @@ change that leaves the client bundle byte-identical, so `/api/health` also repor
 deploy` and the deploy workflow attach the commit they build (`scripts/build-id.mjs`), and `pnpm drift`
 compares it with this checkout's `HEAD`. A deployment that reports no id fails rather than passing, and so
 does a dirty working tree — no commit explains what was built. A hand-run `wrangler deploy` is one of
-those: it leaves the field null, on purpose.
+those: it leaves the field null, on purpose. One file is not counted as dirt: `pnpm kv:staging` points
+`wrangler.toml` at the sandbox's KV namespaces before every sandbox deploy, so from the first deploy on it
+differs from the commit. It names namespaces, not the code that was built, so the id ignores that one file
+and nothing else — counting it stamped every correct sandbox deployment `-dirty` and failed the deploy
+job's own drift step.
 
 The deploy job ends with the same command against the URL it just deployed (three attempts, ten seconds
 apart, because an edge can serve the previous version for a few seconds), so a deploy that reported

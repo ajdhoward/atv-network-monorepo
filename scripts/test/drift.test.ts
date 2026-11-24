@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -106,19 +106,27 @@ type Result = { status: number | null; stdout: string; stderr: string };
 
 // Async on purpose: a synchronous spawn would block this process's event loop, so
 // the stub origin above could never answer the child's requests.
-function run(argv: string[], target = base): Promise<Result> {
+function run(
+  argv: string[],
+  target = base,
+  options: { cwd?: string; env?: Record<string, string> } = {},
+): Promise<Result> {
   return new Promise((done) => {
     execFile(
       process.execPath,
       [drift, target, ...argv],
       {
         encoding: "utf8",
+        cwd: options.cwd,
         env: {
           ...process.env,
           ATV_BASE_URL: "",
+          // Pinned by default, so a comparison does not depend on whether this
+          // working tree happens to be dirty. `""` falls back to git.
           ATV_BUILD_ID: "localbuild1",
           CF_ACCESS_CLIENT_ID: "",
           CF_ACCESS_CLIENT_SECRET: "",
+          ...options.env,
         },
       },
       (error, stdout, stderr) => {
@@ -197,6 +205,39 @@ describe("check-drift", () => {
       expect(result.stdout).toContain("deployed deployedonly, this checkout is localbuild1");
     } finally {
       state.health = healthy();
+    }
+  });
+
+  // The deploy job's own checkout: `pnpm kv:staging` points wrangler.toml at the
+  // sandbox's KV namespaces after the build, so the drift step sees one modified
+  // tracked file. That is a deploy input, not source, and reading it as "no commit
+  // built this" failed the step on a deploy that was correct.
+  it("passes in a checkout whose deploy config a deploy rewrote", async () => {
+    const checkout = mkdtempSync(join(dir, "checkout-"));
+    const git = (args: string[]) =>
+      execFileSync("git", args, { cwd: checkout, encoding: "utf8" }).trim();
+    execFileSync("git", ["init", "-q", checkout], { encoding: "utf8" });
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    writeFileSync(join(checkout, "wrangler.toml"), 'id = "committed-placeholder"\n');
+    git(["add", "-A"]);
+    git(["commit", "-qm", "fixture"]);
+    const head = git(["rev-parse", "--short=12", "HEAD"]);
+    // What `staging-kv.mjs` does before the deploy.
+    writeFileSync(join(checkout, "wrangler.toml"), 'id = "staging-namespace"\n');
+
+    state.health = { ...healthy(), build: { id: head } };
+    try {
+      const result = await run(["--build", build(state.client, state.admin)], base, {
+        cwd: checkout,
+        env: { ATV_BUILD_ID: "" },
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(`PASS  health build id — ${head}`);
+      expect(result.stdout).toContain("8/8 checks matched");
+    } finally {
+      state.health = healthy();
+      rmSync(checkout, { recursive: true, force: true });
     }
   });
 

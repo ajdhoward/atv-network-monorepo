@@ -76,6 +76,32 @@ describe("build id", () => {
     }
   });
 
+  // `pnpm kv:staging` points wrangler.toml at the sandbox's namespaces before every
+  // sandbox deploy, so from the first deploy on the tree differs from its commit in
+  // that one file. Counting it marked a correct deployment `-dirty`, and the deploy
+  // job's own drift step then failed it.
+  it("ignores the deploy config a deploy rewrites, but not a source change beside it", () => {
+    const deployRepo = mkdtempSync(join(dir, "deploy-"));
+    execFileSync("git", ["init", "-q", deployRepo], { encoding: "utf8" });
+    git(["config", "user.email", "test@example.com"], deployRepo);
+    git(["config", "user.name", "Test"], deployRepo);
+    writeFileSync(join(deployRepo, "wrangler.toml"), 'id = "committed-placeholder"\n');
+    writeFileSync(join(deployRepo, "worker.ts"), "export {};\n");
+    git(["add", "-A"], deployRepo);
+    git(["commit", "-qm", "fixture"], deployRepo);
+    try {
+      // What `staging-kv.mjs` writes.
+      writeFileSync(join(deployRepo, "wrangler.toml"), 'id = "staging-namespace"\n');
+      expect(helpers.gitBuildId(deployRepo)).not.toMatch(/-dirty$/);
+
+      // The exclusion is one file, not a licence to deploy uncommitted code.
+      writeFileSync(join(deployRepo, "worker.ts"), "export const changed = true;\n");
+      expect(helpers.gitBuildId(deployRepo)).toMatch(/-dirty$/);
+    } finally {
+      rmSync(deployRepo, { recursive: true, force: true });
+    }
+  });
+
   it("is null outside a git checkout", () => {
     const plain = mkdtempSync(join(dir, "plain-"));
     expect(helpers.gitBuildId(plain)).toBeNull();

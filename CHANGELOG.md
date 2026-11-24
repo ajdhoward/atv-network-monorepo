@@ -239,6 +239,16 @@ deploy`, `deploy:prod` and the deploy workflow all attach the id through `script
 
 ### Fixed
 
+- The deploy job's drift step would have failed every correct sandbox deploy. `pnpm kv:staging` rewrites
+  `wrangler.toml`'s KV ids before the deploy (`pnpm deploy` and the job's own step), so by the time `pnpm drift`
+  asked whether the tree matched a commit the answer was always `-dirty` — the check that exists to catch a
+  deploy which did not take effect would have failed the ones that did. The build id now ignores that one file
+  and every other tracked file still counts, so an uncommitted source change is still refused;
+  `scripts/test/build-id.test.ts` and a drift test reproducing the deploy job's checkout cover it, and both
+  fail with the exclusion removed. `scripts/deploy-worker.mjs` gains tests too
+  (`scripts/test/deploy-worker.test.ts`): a stand-in `wrangler` first on PATH records the argv, so the
+  `deploy --config … --var ATV_BUILD_ID:…` shape, the git-derived id, the exit status it propagates and the
+  refusal without an id are exercised rather than read from `wrangler deploy --help`.
 - `pnpm streams` and `pnpm smoke` read a 503's `code` before naming the fault. Both called every 503 a missing
   `ATV_STREAM_SIGNING_KEY`, but that status now covers two unrelated secrets: since Q10 a deployment whose
   `ATV_DEVICE_TOKEN` contains whitespace answers `503 device_token_invalid` to every resolve, so the audit sent the

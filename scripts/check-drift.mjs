@@ -22,7 +22,9 @@
 // it (`scripts/build-id.mjs`), and this script compares it with the checkout's
 // HEAD. Accepting that field (2026-11-24) is what made the comparison possible; a
 // deployment that predates it, or one deployed without the var, reports no id and
-// fails here rather than passing quietly.
+// fails here rather than passing quietly. A tree that differs from its commit only
+// in `wrangler.toml` counts as clean: `pnpm kv:staging` rewrites that file before
+// every sandbox deploy, so counting it would fail this check on a correct deploy.
 //
 // The deploy job runs this against the URL it just deployed, so a deploy that did
 // not take effect is a red job rather than a note; the step retries briefly first,

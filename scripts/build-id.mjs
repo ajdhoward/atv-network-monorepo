@@ -8,7 +8,11 @@
 // The id is the commit the Worker was built from, `-dirty` when tracked files
 // differ from it. Untracked files are ignored deliberately: `dist/` and
 // `.wrangler/` are ignored build output, so a CI checkout must not look dirty
-// because a build step wrote them.
+// because a build step wrote them. `wrangler.toml` is ignored for the same reason,
+// one step further on: `scripts/staging-kv.mjs` rewrites its KV ids before every
+// sandbox deploy, so every tree that has deployed differs from the commit in that
+// one file, and counting it marked correct deployments `-dirty` — the deploy job's
+// own `pnpm drift` step then failed them.
 //
 // `ATV_BUILD_ID` in the environment wins over git, so a test, or a rebuild from a
 // tarball with no `.git`, can say what it is. A deploy and a drift check agree
@@ -19,6 +23,10 @@ import { pathToFileURL } from "node:url";
 // Twelve hex characters: the same length the deploy workflow would get from a
 // commit sha, so the two sources cannot disagree about the shape of the value.
 export const ID_LENGTH = 12;
+
+// The one tracked file a deploy rewrites. It names which KV namespaces the Worker
+// reads, not which commit was built, so it is a deploy input rather than source.
+const DEPLOY_REWRITES = "wrangler.toml";
 
 function git(args, cwd) {
   return execFileSync("git", args, {
@@ -33,9 +41,13 @@ export function gitBuildId(cwd = process.cwd()) {
   try {
     const head = git(["rev-parse", `--short=${ID_LENGTH}`, "HEAD"], cwd);
     if (!/^[0-9a-f]{7,40}$/.test(head)) return null;
-    // Tracked changes only: an untracked artifact says nothing about the sources
-    // that were built, and reporting it as dirty would make every CI run fail.
-    const changed = git(["status", "--porcelain", "--untracked-files=no"], cwd);
+    // Tracked changes only, and not the file the deploy step itself rewrites: an
+    // untracked artifact says nothing about the sources that were built, and a
+    // patched namespace id says nothing about which commit was.
+    const changed = git(
+      ["status", "--porcelain", "--untracked-files=no", "--", `:(top,exclude)${DEPLOY_REWRITES}`],
+      cwd,
+    );
     return changed.length > 0 ? `${head}-dirty` : head;
   } catch {
     return null;

@@ -514,3 +514,26 @@ wrapper means deploy and drift can never compute different ids.
   per-device L5 measurement. `pnpm streams --probe` now tallies formats so the lineup half is measurable.
 - **`profile: "1080p_hevc"` is a hardcoded string in `resolver.ts`**, not a provider report — do not read it
   as a codec fact (it fooled the first pass at this document).
+
+## Session 2026-11-24 (the drift step that would have failed every deploy)
+
+The build id's own dirtiness rule (`--untracked-files=no`) was not enough. The deploy job's new drift step asks
+whether this tree matches a commit, and `pnpm kv:staging` rewrites `wrangler.toml`'s namespace ids before every
+sandbox deploy — so the answer was always `-dirty` and the step would have failed a deploy that was correct, on
+every run. `buildId()` now excludes that one file
+(`git status --porcelain --untracked-files=no -- ':(top,exclude)wrangler.toml'`); every other tracked file still
+counts. The local `pnpm deploy` → `pnpm drift` path had the same defect and would have stamped `<sha>-dirty`, so
+one rule fixes both.
+
+- **Proved with a mutation, not a green run.** With the pathspec removed, exactly the two new tests fail:
+  `build-id.test.ts`'s deploy-config case, and `drift.test.ts`'s new case that builds a real git checkout
+  whose `wrangler.toml` is rewritten — the deploy job's tree end to end — and passes 8/8 with the fix.
+- **`scripts/deploy-worker.mjs` had no test**; its `--var` came from `wrangler deploy --help`. Now
+  `scripts/test/deploy-worker.test.ts` (5) writes a `wrangler` shell stub first on PATH that records argv, so the
+  exact `deploy --config … --var ATV_BUILD_ID:…` shape, the git-derived id, exit-status propagation (7 stays 7)
+  and the refusal without an id (wrangler never invoked) are exercised. Windows is skipped on purpose: the wrapper
+  picks `wrangler.cmd` there, and a `.cmd` stub cannot record split arguments.
+- **The separator is the file, not the change.** An uncommitted edit to `wrangler.toml` now deploys with a clean
+  id. Accepted deliberately: a script in this repo rewrites the file by design, and the alternative — a dirty id
+  on every deploy — makes the check useless. If that gets abused, the escape is a generated config file rather
+  than a wider exclusion.

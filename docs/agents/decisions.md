@@ -75,6 +75,13 @@ when it next works, which is why an entry records who is absent rather than trea
   `deploy:prod` and the workflow), not a secret, so it needs no write path into the secrets store and no
   entry in the settled-secrets list — the inventory names it only because `pnpm continuity` checks every
   `ATV_*` string the Worker reads.
+- amended 2026-11-24, same day: the dirtiness rule also ignores `wrangler.toml`. `pnpm kv:staging` rewrites its
+  KV ids before every sandbox deploy (`pnpm deploy` and the deploy job's own step), so from the first deploy on
+  every working tree differs from its commit in that file. Counting it stamped every correct deployment
+  `-dirty` and would have failed the deploy job's own `pnpm drift` step on every run; it is a deploy input that
+  names namespaces, not the commit that was built, so it is excluded and every other tracked file still
+  counts. `scripts/test/deploy-worker.test.ts` now runs the deploy wrapper against a stand-in `wrangler` on
+  PATH, so the `--var` path is exercised rather than read from wrangler's help text.
 
 ### 2026-11-24 — The player cannot tell you the TV cannot play this format
 

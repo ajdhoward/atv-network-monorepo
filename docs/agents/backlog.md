@@ -331,7 +331,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   on the URL it just deployed, after smoke, so a deploy that did not take effect is a red job rather than a
   paragraph someone has to remember to read. The Worker-only blind spot is closed too: `/api/health` reports
   `build.id` (accepted 2026-11-24) and drift compares it with the checkout's `HEAD`, so a deployment whose
-  Worker is older fails even when every asset matches.
+  Worker is older fails even when every asset matches. One correction to that deploy half: the dirty-tree rule
+  had to stop counting `wrangler.toml`, because `pnpm kv:staging` rewrites its namespace ids before every
+  sandbox deploy. Left as it was, the step would have failed every correct deployment, in CI and locally.
 
 ## Production cutover
 
