@@ -67,6 +67,47 @@ describe("continuity check", () => {
     expect(result.stdout).toContain("ATV_OLD_TOKEN");
   });
 
+  // The inventory used to be checked in one direction only, so a secret could be
+  // added to the Worker and never be writable down: green check, unrecoverable
+  // account. This is the case the review found.
+  it("catches a secret the Worker reads but the inventory omits", () => {
+    const dir = fixture();
+    // A git repository, so the other direction has a corpus to read and this test
+    // fails only for the reason it is named after.
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.mkdirSync(path.join(dir, "services", "atv-core", "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "services", "atv-core", "src", "env.ts"),
+      "export interface Env {\n  ATV_NEW_SECRET?: string;\n}\n",
+    );
+    git(["add", "-A"]);
+    const result = run(dir);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("missing from the inventory: ATV_NEW_SECRET");
+    expect(result.stdout).toContain("PASS  every inventoried secret name still exists");
+  });
+
+  // Bindings are infrastructure: nothing to rebuild, so nothing to inventory.
+  it("does not demand an inventory entry for a binding", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.mkdirSync(path.join(dir, "services", "atv-core", "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "services", "atv-core", "src", "env.ts"),
+      "export interface Env {\n  ATV_CACHE: KVNamespace;\n  ATV_LIMITER?: DurableObjectNamespace;\n}\n",
+    );
+    git(["add", "-A"]);
+    const result = run(dir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("every secret the Worker reads is inventoried");
+  });
+
   it("catches an active agent whose row links no context file", () => {
     const dir = fixture();
     fs.mkdirSync(path.join(dir, "docs", "agents"), { recursive: true });
@@ -110,6 +151,40 @@ describe("continuity check", () => {
     expect(result.stdout).not.toContain(".env.example");
     expect(result.stdout).not.toContain(".dev.vars.example");
     expect(result.status).toBe(0);
+  });
+
+  // Two sessions noticed the five-change trigger late, because "five changes" was
+  // a judgement about whether enough had happened. With the last record's commit
+  // in the file, the count is arithmetic — and still only a warning, because
+  // starting a review is the operator's call.
+  it("warns when the review cadence has come due", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.mkdirSync(path.join(dir, "docs", "agents"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "docs", "agents", "reviews.md"),
+      "# reviews\n\nLast review: `0000000`\n",
+    );
+    // Indexed, or the fixture fails the unindexed-doc rule instead of testing
+    // the cadence.
+    fs.appendFileSync(path.join(dir, "docs", "README.md"), "- [reviews](agents/reviews.md)\n");
+    git(["add", "-A"]);
+    git(["commit", "-qm", "fixture"]);
+    const head = git(["rev-parse", "--short", "HEAD"]).stdout.trim();
+    fs.writeFileSync(
+      path.join(dir, "docs", "agents", "reviews.md"),
+      `# reviews\n\nLast review: \`${head}\`\n`,
+    );
+    git(["commit", "-qam", "record the review"]);
+    for (let i = 0; i < 5; i += 1) git(["commit", "-q", "--allow-empty", "-m", `change ${i}`]);
+
+    const result = run(dir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("change(s) since the last review");
+    expect(result.stdout).toContain("WARN");
   });
 
   it("catches a line-up or keystore that got tracked", () => {

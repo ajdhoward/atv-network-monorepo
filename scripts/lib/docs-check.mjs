@@ -63,6 +63,23 @@ export function inventoryNames(text) {
   ];
 }
 
+// The other direction of the inventory rule, and the one that matters after an
+// account is gone: a secret the Worker reads but the inventory does not name
+// cannot be rebuilt from the repository, however green the first direction is.
+//
+// Secrets are the `ATV_*` entries typed `string` in `Env`. A KV namespace, a
+// Fetcher, a Durable Object namespace or an Analytics Engine dataset is
+// infrastructure with nothing to recover, and every plain `wrangler.toml` var
+// this Worker reads is a non-`ATV_` name, so this rule does not have to parse
+// the config as well.
+export function envSecretNames(envText) {
+  const names = new Set();
+  for (const match of envText.matchAll(/(ATV_[A-Z0-9_]+)\??:\s*string\s*;/g)) {
+    names.add(match[1]);
+  }
+  return [...names];
+}
+
 // Everything a repository file can plausibly hold a secret name in, excluding
 // the docs themselves: a name that only the docs mention is drift.
 export function repositoryNames(files, root = ".") {
@@ -84,6 +101,13 @@ export function activeRowsWithoutContext(rosterText) {
     .slice(2) // header and separator
     .filter((row) => !row.includes("context/"))
     .map((row) => (row.split("|")[1] ?? "?").trim());
+}
+
+// The review window has to start somewhere, and "five changes" only counts if the
+// commit the last record read is written down. Two sessions in a row noticed the
+// trigger late because it was a judgement about whether enough had happened.
+export function lastReviewSha(text) {
+  return text.match(/Last review: `([0-9a-f]{7,40})`/)?.[1] ?? null;
 }
 
 const FORBIDDEN = [
