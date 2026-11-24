@@ -109,6 +109,12 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- R8's Step 2 is now "prove every TV is running this Worker's client" rather than "install it everywhere". The
+  check it had — the guide renders — passes on a TV pointed at production, which is exactly the TV Step 3
+  strands, and it also asks for a reinstall an already-installed app does not need. The step now says why a
+  reinstall is unnecessary (nothing is bundled; assets revalidate), and proves the origin per TV: the
+  unseeded sandbox answers an empty guide while production shows channels, and `wrangler tail` shows the TV's
+  `/api/guide` arriving.
 - L4's done-when is `pnpm streams --probe`, not a plain run. A 200 from `/api/resolve` says a link is stored,
   and P1 exists because a stored Drive link is not playable: with no `ATV_STREAM_SIGNING_KEY` the channel
   resolves to its share page, which the probe fails as HTML. The audit that decides whether L4 is finished had
@@ -200,6 +206,10 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- Q3 (alert when the Worker is down) has a recommendation instead of an open question: a free UptimeRobot
+  **keyword** monitor on `/api/health` for `"status": "ok"`, because health answers `200` while reporting
+  `degraded`. The keyword needs the space — the body is pretty-printed — or it would alert forever. Still
+  `proposed`, because a new service is the operator's call; nothing has been signed up for.
 - Two proposals are open for the operator beside the Drive proxy they belong to: a keyless Drive resolve should
   answer `503 stream_unconfigured` rather than a share page it cannot play (which makes the batch shape a
   fourth list), and a ticket that lives 15 minutes can be outlived by a paused TV, so either the TTL or the

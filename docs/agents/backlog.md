@@ -172,10 +172,27 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 
 - **Why:** health is only checked when a person runs smoke, so a dead guide is found by someone sitting in
   front of the TV.
-- **Done when:** a free external monitor hits `/api/health` on a schedule and alerts the operator.
-- **Paths:** none in this repo
+- **Done when:** a free external monitor hits `/api/health` on a schedule and alerts the operator when the
+  body stops reporting `"status": "ok"`. A status code alone is not enough: health answers `200` while
+  reporting `degraded` — unseeded, or a schema mismatch that makes every guide request a 503 — and a
+  status-code monitor would call that healthy.
+- **Recommendation (researched 2026-11-24; no account created):** UptimeRobot's free plan. $0 with no card,
+  50 monitors, a 5-minute interval, **keyword monitors included on Free** (its pricing page lists them), and
+  email plus mobile-app push alerts. Create one **keyword** monitor on
+  `https://atv-core-v2.acidwurx.workers.dev/api/health`, keyword `"status": "ok"` — **with the space** —
+  alerting when it is _not_ found. The space is the trap: the Worker serialises with
+  `JSON.stringify(data, null, 2)` (`json()` in `services/atv-core/src/index.ts`), so the body is pretty-printed
+  and `"status":"ok"` would match nothing and alert forever. Health stays public after R8 — the token guards
+  `/api/resolve` only — so no credential goes to the monitor. At cutover, repoint the monitor at the
+  production host.
+- **Alternatives:** Better Stack (10 monitors, 3-minute checks, keyword included) and Checkly (checks as code)
+  both work. Healthchecks.io is heartbeat-only and would need a cron job to ping it, which is a second thing to
+  break. A GitHub Actions schedule plus an issue avoids a new account, but needs a workflow edit and GitHub
+  disables scheduled workflows in a public repository after 60 days without activity.
+- **Paths:** none in this repo; the monitor lives in the operator's account
 - **Size:** S
-- **State:** proposed — needs a decision, because a new service needs approval even when it is free
+- **State:** proposed — a new service needs the operator's approval even when it is free, and nothing has been
+  signed up for. The two facts a decision needs are above: the exact URL, and the exact keyword.
 
 ### Q6 · `@atv/ui-shared`'s runtime half is dead, and the schema version lives three times
 

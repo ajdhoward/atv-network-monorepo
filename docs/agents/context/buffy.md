@@ -224,6 +224,24 @@ presses Enter, which mints a fresh ticket and starts at 0. So option (b) is thre
 `currentTime`, re-resolve once, restore on `loadedmetadata`, with a second failure still showing the notice)
 while option (a) is cheaper than it looked. Both are recorded in `decisions.md` under the entry; neither is built.
 
+**R8's Step 2 was checking the wrong thing.** It asked for a reinstall on every TV and accepted "the guide
+renders" as proof. But the app bundles nothing — it loads `BuildConfig.ATV_BASE_URL` on every launch and the
+Worker's assets revalidate — so an installed app needs no reinstall, while a TV whose APK was built against
+`atv.acidwurx.org` renders a perfect production guide and never gets the R5 prompt: the exact TV Step 3
+strands, passing the check. Step 2 now proves the origin per TV — while the sandbox is unseeded an empty guide
+is the signature of the right Worker, and once it is seeded `wrangler tail atv-core-v2` shows that TV's
+`/api/guide` arriving — and the troubleshooting row that blamed a "pre-R5 client" now says "another Worker",
+because with live assets that is the only way a TV can miss this build.
+
+**Q3 has a recommendation instead of an open question.** The service index's recommendation engine returned
+nothing for uptime monitoring, but its catalog lists real options (UptimeRobot, Better Stack, Checkly, Cronitor,
+StatusCake). UptimeRobot's free plan fits the household exactly: $0, no card, 50 monitors, a 5-minute interval,
+keyword monitors included on Free, email plus app-push alerts. The keyword must be `"status": "ok"` **with the
+space**: `json()` serialises with `JSON.stringify(data, null, 2)`, so health is pretty-printed, and a monitor
+searching for `"status":"ok"` would match nothing and alert forever — a false alarm is worse than no monitor.
+Health stays public after R8 (the token guards `/api/resolve` only), so no credential goes to the monitor. It
+stays `proposed` because a new service is the operator's yes, and nothing has been signed up for.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it
