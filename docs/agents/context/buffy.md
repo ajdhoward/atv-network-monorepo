@@ -24,14 +24,18 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 
 ## What I am doing
 
-**R5 is claimed** (my roster row now holds `apps/tv-client/`), the first code step of option C. Landed so
-far: `apps/tv-client/src/token.ts`, the `localStorage` store the prompt and both resolve call sites will
-share — key, trim, refused-write case and the `Authorization` header in one place. Next inside R5: send it
-from `resolve.ts` and `playerManager.js`, map 401 to "this TV needs its token", then the D-pad prompt (the
-`main.ts` keydown handler has to be suspended while it is open). Then R6 (enforce in the Worker), R7 (admin,
-smoke, streams, `ci:worker`), and R8 is the operator's. L1 (deploy) and L2 (branch protection) stay the
-operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed
-channels.
+**R5 is done** (`61831d3`). The client sends the token from `resolve.ts` and from the player's hover prefetch;
+a 401 opens `tokenPrompt.ts`, which distinguishes missing from refused and retries the channel on save. The
+store is injectable (`createTokenPrompt({ store })`), which is what made the prompt testable here: this Node
+build has no global `localStorage` even under happy-dom. Unverified: whether a Fire TV's on-screen keyboard
+and Back key reach a focused `<input>` as themselves — L5 hardware only.
+
+**Next is R6** (enforce in the Worker): `ATV_DEVICE_TOKEN` compared as a digest, 401 before a limiter token or
+a TorBox call, `Authorization` in `Access-Control-Allow-Headers`, its own counter, health says whether the
+secret is set, and `docs/continuity.md`'s inventory plus `AGENTS.md` take the name in the same change. Then
+R7 (admin, smoke, streams, `ci:worker`), and R8 is the operator's. L1 (deploy) and L2 (branch protection)
+stay the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for
+Drive-backed channels.
 
 ## What I learnt that cost time
 

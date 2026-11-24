@@ -10,6 +10,12 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- The TV client carries the household token. `resolve.ts` and the player's hover prefetch send
+  `Authorization: Bearer …` when one is stored, read per call so a token entered from the prompt is used by
+  the next attempt. A 401 opens `tokenPrompt.ts` instead of reading as an unavailable channel, and the prompt
+  says whether the token is missing or was refused; while it is open it takes the keyboard from `main.ts`'s
+  handler, so Backspace corrects the field and Back cancels, and saving it retries the channel that failed.
+  The guide still renders without a token, because it never asked for one. (R5)
 - `GET /a` — 302 to the release APK, so the download step on a TV is four characters in Downloader instead
   of a release URL typed with a remote. Worker-routed via `run_worker_first`, `no-store`, no KV read. The
   `/install` page now names that address next to the QR and the sideload steps. (P3)

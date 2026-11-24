@@ -228,9 +228,12 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   while it is open, and a way back in after a rotation. Untested on a remote until L5.
 - **Paths:** `apps/tv-client/src/`, `apps/tv-client/test/`
 - **Size:** S
-- **State:** claimed — Buffy's roster row now holds `apps/tv-client/`. Started with the store
-  (`apps/tv-client/src/token.ts`): one place for the key, the trim, the refused-write case and the
-  `Authorization` header, so the prompt and both resolve call sites share it instead of three copies.
+- **State:** done — `61831d3`. `resolve.ts` and the player's hover prefetch send the header; a 401 becomes
+  `unauthorized` and opens `tokenPrompt.ts`, which says "missing" or "refused" rather than letting a wrong
+  token look like a broken channel, and saving it retries the channel that hit the 401. The guide still
+  renders without a token because it never asked for one. The prompt's D-pad behaviour is exercised in
+  happy-dom only: whether a Fire TV's on-screen keyboard and Back key reach a focused `<input>` as
+  themselves is unverified until L5.
 
 ### R6 · Enforce the token on `/api/resolve`
 
