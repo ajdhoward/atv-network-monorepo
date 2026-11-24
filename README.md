@@ -273,7 +273,11 @@ name; health adds a second, independent signal, because the fields this build ad
 `streamSigningKeySet`, `config.schemaMatches`, `config.checksumMatches`, `resolve`, `guideSnapshot`) are
 absent on an older Worker, which catches a copied bundle over an old one. It cannot see a Worker-only
 change that leaves the client bundle byte-identical — that needs a build id in `/api/health`, a public
-shape, so it starts with a `decisions.md` entry.
+shape, so it is proposed in `decisions.md` (2026-11-24) and not built yet.
+
+The deploy job ends with the same command against the URL it just deployed (three attempts, ten seconds
+apart, because an edge can serve the previous version for a few seconds), so a deploy that reported
+success but left the old build serving fails the job instead of waiting for someone to read health.
 
 The sandbox is `https://atv-core-v2.acidwurx.workers.dev`: the account's workers.dev subdomain is
 `acidwurx`, the Worker does not exist until the first deploy, and that host is not behind Access.
@@ -306,7 +310,8 @@ Deployment is a manual `workflow_dispatch` with a target choice. A `v2` run firs
 the idempotent `pnpm kv:staging` (so the guard and `wrangler deploy` see staging namespace ids instead
 of the committed production placeholders), seeds from `ATV_SEED_CONFIG` when that secret is set, then
 smokes the deployment URL with `--allow-empty`, which is safe because that host is not behind Access
-and a new namespace starts unseeded.
+and a new namespace starts unseeded, and finally runs `pnpm drift` against that URL: smoke asks whether
+the routes answer, drift asks whether the build that answers is this one.
 
 Requires an authenticated wrangler (`npx wrangler login`) or a `CLOUDFLARE_API_TOKEN` with
 Account → Workers Scripts → Edit, Account → Workers KV Storage → Edit and Account → Account Settings

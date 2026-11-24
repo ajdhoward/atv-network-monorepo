@@ -163,3 +163,31 @@ jobs:
             exit 0
           fi
           pnpm smoke https://atv.acidwurx.org
+      # Smoke asks whether the routes answer; it does not ask which build answered.
+      # A deploy that reported success and left the previous version serving passes
+      # every check above, so the origin's build is compared with the one built
+      # earlier in this job. Q13.
+      - name: Check the origin serves this build
+        if: ${{ inputs.target == 'production' || steps.deploy.outputs.deployment-url != '' }}
+        env:
+          # check-drift.mjs reads this when it is given no positional origin.
+          ATV_BASE_URL: ${{ inputs.target == 'production' && 'https://atv.acidwurx.org' || steps.deploy.outputs.deployment-url }}
+          # Production is behind Access; check-drift.mjs sends these when both are set.
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          # Production can only be reached with a service token, and secrets cannot
+          # appear in an `if:`; skip rather than report a redirect as a stale build.
+          if [ "${{ inputs.target }}" = "production" ] && { [ -z "$CF_ACCESS_CLIENT_ID" ] || [ -z "$CF_ACCESS_CLIENT_SECRET" ]; }; then
+            echo "No CF_ACCESS_CLIENT_ID/CF_ACCESS_CLIENT_SECRET secret; skipping."
+            exit 0
+          fi
+          # An edge can answer with the previous version for a few seconds after a
+          # deploy, so a first-pass mismatch is retried before it is called a deploy
+          # that did not take effect. Thirty seconds is not enough to hide one.
+          for attempt in 1 2 3; do
+            if pnpm drift "$ATV_BASE_URL"; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          echo "::error::$ATV_BASE_URL is not serving this checkout's build — the deploy did not take effect"
+          exit 1

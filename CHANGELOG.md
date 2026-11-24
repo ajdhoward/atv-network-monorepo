@@ -10,6 +10,12 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- A deploy now has to prove it took effect: the deploy job runs `pnpm drift` against the URL it just deployed,
+  after the smoke test, retrying three times ten seconds apart because an edge can answer with the previous
+  version for a few seconds. Smoke asks whether the routes answer; drift asks whether the build that answers is
+  the one this job built. The remaining blind spot — a Worker-only change, where every asset hash is unchanged
+  — is proposed as a build id in `/api/health` in `decisions.md` (2026-11-24): a public field, so it waits for
+  the operator rather than being slipped into this change.
 - `pnpm drift` (Q13) — a read-only comparison of a deployed origin's build with this checkout, so a stale
   sandbox is a failing command instead of a backlog paragraph. It matches the client and admin entry assets
   (their names carry Vite's content hash, so identical sources produce identical names), checks that the asset

@@ -314,7 +314,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   gap between "we know it is stale" and "it is stale and nobody has re-checked" is not visible in prose.
 - **Done when:** one read-only command fetches an origin and fails when its client, its admin bundle or the
   Worker's health shape is older than this checkout, and a document says how to run it.
-- **Paths:** `scripts/check-drift.mjs`, `scripts/test/drift.test.ts`, `package.json`, `README.md`
+- **Paths:** `scripts/check-drift.mjs`, `scripts/test/drift.test.ts`, `package.json`, `README.md`,
+  `.github/workflows/deploy.yml`
 - **Size:** S
 - **State:** done — `pnpm drift`, measured rather than assumed: against the sandbox on 2026-11-24 it reports
   2/5, serving `/assets/index-ZN5Kcyr4.js` where this checkout builds `/assets/index-D8Do0dvy.js`, admin
@@ -323,7 +324,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   identical names and a different name is a different bundle; the health fields are the second signal, which is
   what catches a copied bundle over an old Worker. It cannot see a Worker-only change with an unchanged client
   bundle — that needs a build id in `/api/health`, which is a public shape and so starts with a
-  `decisions.md` entry.
+  `decisions.md` entry; that entry is proposed (2026-11-24) and unbuilt. The deploy job now runs `pnpm drift`
+  on the URL it just deployed, after smoke, so a deploy that did not take effect is a red job rather than a
+  paragraph someone has to remember to read.
 
 ## Production cutover
 

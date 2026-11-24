@@ -20,7 +20,11 @@
 // sources for `apps/` means the same asset hashes, so a deployment serving an old
 // `services/atv-core` over a current client passes the asset check. Closing that
 // needs a build id in `/api/health`, which is a public shape and therefore a
-// proposal in `decisions.md`, not something this script can invent.
+// proposal in `decisions.md` (2026-11-24), not something this script can invent.
+//
+// The deploy job runs this against the URL it just deployed, so a deploy that did
+// not take effect is a red job rather than a note; the step retries briefly first,
+// because an edge can answer with the previous version for a few seconds.
 //
 // Behind Cloudflare Access, supply a service token:
 //   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... pnpm drift https://atv.acidwurx.org

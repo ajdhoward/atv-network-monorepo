@@ -470,3 +470,21 @@ against `index-D8Do0dvy`, admin `index-7V4mIGVB` against `index-BqxNKxS8`, and a
 - **The blind spot is real and written down in three places:** a Worker-only change leaves both asset hashes
   identical, so the check passes. Closing it needs a build id in `/api/health` — a public shape, so a
   `decisions.md` entry before any code.
+
+## Session 2026-11-24 (drift in the deploy job, and the build id proposed)
+
+The deploy job now ends with `pnpm drift` against the URL it just deployed, so "the deploy did not take
+effect" is a red job. Two details worth keeping: the step is one step for both targets (v2 takes
+`steps.deploy.outputs.deployment-url`, production takes `https://atv.acidwurx.org` and exits early without
+`CF_ACCESS_*`, because a secret cannot appear in an `if:`); and it retries 3 × 10s, because an edge can serve
+the previous version for a few seconds after a deploy and a spurious red teaches people to ignore red. The loop
+is `if pnpm drift ...; then exit 0; fi` rather than `pnpm drift ... && exit 0`, which under the runner's
+`bash -e` is the form whose behaviour nobody has to reason about.
+
+The build id is proposed, not built: `decisions.md` 2026-11-24 proposes `build.id` on `/api/health`, supplied
+at deploy time as `ATV_BUILD_ID` (a Worker cannot read its own deployment id), compared by `pnpm drift` with
+the checkout's `HEAD`. If accepted it needs `ATV_BUILD_ID` in `docs/continuity.md`'s inventory or
+`pnpm continuity` fails.
+
+- **Not exercised:** the new workflow step has not run — no `CF_API_TOKEN`, so no deploy and no `workflow_dispatch`.
+  `pnpm drift` itself is unchanged; only its header comment moved.

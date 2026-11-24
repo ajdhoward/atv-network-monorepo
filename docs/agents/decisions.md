@@ -33,6 +33,40 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ## Log
 
+### 2026-11-24 — A build id in `/api/health`, so `pnpm drift` can see a Worker-only change
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/index.ts` (`/api/health`), `services/atv-core/src/env.ts` (`ATV_BUILD_ID`),
+  `packages/ui-shared` (`HealthPayload`), `docs/continuity.md` (secret name inventory),
+  `wrangler.toml`/`wrangler.production.toml`, `package.json` (`deploy`, `deploy:prod`),
+  `.github/workflows/deploy.yml`, `scripts/build-id.mjs`, `scripts/check-drift.mjs` — a public shape, so
+  nothing is built before this entry is decided
+- why: `pnpm drift` compares the client and admin entry assets, whose names carry Vite's content hash, plus the
+  presence of health fields. Both are properties of the bundle. A change confined to `services/atv-core` — a
+  route fix, a new error code, a resolver rule — leaves every asset hash identical, so a deployment still
+  running last week's Worker passes, and the reader is told the origin matches this checkout when it does not.
+  The deploy job now runs the check, so that blind spot is in CI too: a half-applied Worker deploy ends green.
+- change: `/api/health` gains one string, `build.id` — the commit the running Worker was built from
+  (`git rev-parse --short HEAD`, with `-dirty` appended when the tree had uncommitted changes), supplied at
+  deploy time as the `ATV_BUILD_ID` var and `null` when a deploy supplied none. `pnpm drift` compares it with
+  this checkout's `HEAD`: a different id is a failure naming both, `null` is a failure naming the missing var,
+  and a dirty local tree is a failure saying so, because the built bytes then match no commit.
+  `scripts/build-id.mjs` produces the value for `pnpm deploy`, `deploy:prod` and the workflow, so the three
+  paths cannot disagree, and none of them needs shell substitution in `package.json`, which does not port to a
+  Windows shell.
+- why a var and not something Cloudflare knows: a Worker has no read-only way to learn its own deployment or
+  version id — there is no binding for it, and asking the Cloudflare API would put a token in the request
+  path. The id has to be pushed with the deploy, which is also what makes it a fingerprint of the deploy rather
+  than of the source tree.
+- risk: every deploy path has to pass the var, or health reports `null` and drift fails on a deployment that is
+  current. That failure is loud and names its own fix (`deploy with pnpm deploy`), which is the acceptable
+  direction of wrong. It is one more public field: a short commit hash of a public repository, nothing more.
+  `ATV_BUILD_ID` must join `docs/continuity.md`'s inventory, which `pnpm continuity` enforces.
+- cost: none — no dependency, no service, no spend.
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: open — the operator marks it.
+
 ### 2026-11-24 — A Drive channel with no signing key should say so, not hand out a link that cannot play
 
 - state: proposed
