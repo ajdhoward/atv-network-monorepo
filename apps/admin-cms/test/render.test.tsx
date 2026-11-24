@@ -143,6 +143,20 @@ describe("the panel's decorations", () => {
     expect(crumbs.map((crumb) => crumb.disabled)).toEqual([false, false, true]);
   });
 
+  it("says whether the Drive proxy is live, and explains the off state", async () => {
+    stubFetch((url) => (url === "/api/health" ? { ...HEALTH, streamSigningKeySet: false } : GUIDE));
+    await render();
+
+    const line =
+      Array.from(container.querySelectorAll("p")).find((element) =>
+        shown(element).startsWith("Drive proxy:"),
+      ) ?? null;
+    // `LIVE`/`OFF` is the whole point: a deployment with no key still answers
+    // `ok`, so the channel counts alone cannot show a dead proxy.
+    expect(spoken(line)).toBe("Drive proxy: OFF");
+    expect(spoken(container)).toContain("Drive proxy is off");
+  });
+
   it("keeps the link-state icon on screen and out of the announcement", async () => {
     stubFetch((url) => {
       if (url === "/api/health") return HEALTH;

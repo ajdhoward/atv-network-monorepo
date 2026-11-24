@@ -16,6 +16,15 @@ import {
   visuallyHidden,
 } from "./styles";
 
+// A proxy with no signing key is deployed but dead, and the worker still says
+// `ok`; this line is the one place the panel can show the difference.
+const PROXY_LABEL = { live: "LIVE", off: "OFF", unknown: "UNKNOWN" } as const;
+const PROXY_COLOUR = {
+  live: colour.status.ok,
+  off: colour.warn,
+  unknown: colour.muted,
+} as const;
+
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
     <div style={panel}>
@@ -101,6 +110,12 @@ export default function App() {
         Worker{" "}
         <strong style={{ color: pending ? colour.muted : colour.status[summary.status] }}>
           {pending ? "CHECKING…" : summary.status.toUpperCase()}
+        </strong>
+      </p>
+      <p style={{ marginTop: 0 }}>
+        Drive proxy:{" "}
+        <strong style={{ color: pending ? colour.muted : PROXY_COLOUR[summary.driveProxy] }}>
+          {pending ? "CHECKING…" : PROXY_LABEL[summary.driveProxy]}
         </strong>
       </p>
       <div style={grid}>

@@ -5,6 +5,10 @@ export type HealthSummary = {
   status: "ok" | "degraded" | "unreachable";
   channels: number;
   links: ResolveCoverage;
+  // Whether the Drive proxy has its signing key. `unknown` is an older
+  // deployment that does not report the field, never an assumption that the
+  // proxy is off: the panel must not blame a key it cannot see.
+  driveProxy: "live" | "off" | "unknown";
   problems: string[];
 };
 
@@ -20,12 +24,19 @@ export function summariseHealth(health: HealthPayload | null): HealthSummary {
       status: "unreachable",
       channels: 0,
       links: { ...NO_LINKS },
+      driveProxy: "unknown",
       problems: ["Health check did not answer"],
     };
   }
   // A deployment older than the coverage field simply reports zero counts
   // rather than crashing the panel.
   const links: ResolveCoverage = { ...NO_LINKS, ...health.resolve };
+  const driveProxy =
+    typeof health.streamSigningKeySet === "boolean"
+      ? health.streamSigningKeySet
+        ? "live"
+        : "off"
+      : "unknown";
   const problems: string[] = [];
   if (!health.config.seeded) problems.push("Lineup is not seeded");
   if (health.config.schemaMatches === false) {
@@ -40,11 +51,19 @@ export function summariseHealth(health: HealthPayload | null): HealthSummary {
   if (links.missing > 0) {
     problems.push(`${links.missing} channel(s) have no stream link`);
   }
+  // Deployed but dead is the failure a channel count hides: each Drive channel
+  // still resolves, just to the stored link instead of the proxy.
+  if (driveProxy === "off") {
+    problems.push(
+      "Drive proxy is off: the worker has no signing key, so Drive channels resolve to their stored link",
+    );
+  }
   return {
     reachable: true,
     status: health.status,
     channels: health.config.channels,
     links,
+    driveProxy,
     problems,
   };
 }

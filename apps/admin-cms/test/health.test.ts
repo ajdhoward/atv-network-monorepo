@@ -104,6 +104,26 @@ describe("summariseHealth", () => {
     });
   });
 
+  it("reports the Drive proxy live when the signing key is set", () => {
+    const summary = summariseHealth(health({ streamSigningKeySet: true }));
+    expect(summary.driveProxy).toBe("live");
+    expect(summary.problems).toEqual([]);
+  });
+
+  it("calls out a proxy that is deployed with no signing key", () => {
+    const summary = summariseHealth(health({ streamSigningKeySet: false }));
+    expect(summary.driveProxy).toBe("off");
+    expect(summary.problems).toContain(
+      "Drive proxy is off: the worker has no signing key, so Drive channels resolve to their stored link",
+    );
+  });
+
+  it("does not guess about a deployment that never reports the flag", () => {
+    const summary = summariseHealth(health());
+    expect(summary.driveProxy).toBe("unknown");
+    expect(summary.problems).toEqual([]);
+  });
+
   it("tolerates a deployment without link counts", () => {
     const old = health();
     delete (old as { resolve?: unknown }).resolve;
