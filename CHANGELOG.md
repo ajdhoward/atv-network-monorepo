@@ -109,6 +109,12 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- `docs/agents/reviews.md` records the commit the last review read, and `pnpm continuity` counts changes from
+  it, warning at five. The trigger had been missed twice because it was a judgement about whether enough had
+  happened; with the commit in the file it is arithmetic. It stays a warning: starting a review is the
+  operator's call, and a failing check must not block a correctness fix.
+- `docs/reviews/2026-11-24-p2.md` is this window's record (7 commits) — the continuity direction below, the
+  budget model and the runbook correction, with the scorecard's first coverage number.
 - R8's Step 2 is now "prove every TV is running this Worker's client" rather than "install it everywhere". The
   check it had — the guide renders — passes on a TV pointed at production, which is exactly the TV Step 3
   strands, and it also asks for a reinstall an already-installed app does not need. The step now says why a
@@ -138,6 +144,12 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- `pnpm continuity` checked the secret inventory in one direction only: every inventoried name still existed,
+  and never that a secret the Worker reads is inventoried. A name added to `env.ts` and written down nowhere —
+  the case that matters after the account is gone — left the check printing "the repository is
+  self-sufficient". It now reads the `ATV_*` entries typed `string` from `env.ts` (bindings are infrastructure,
+  with nothing to rebuild) and fails on one the inventory does not name. All four real secrets are recorded
+  today, and adding a fifth makes it fail with the name.
 - `pnpm streams --probe` follows the link P1's resolve answers for a Drive channel. The ticket is a path,
   `/api/stream/<id>?exp&sig`, because the TV resolves it against the page and only the minting host can verify
   the signature; Node's `fetch` has no page and threw on it, so the audit called every Drive channel an

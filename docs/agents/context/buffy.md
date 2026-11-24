@@ -242,6 +242,23 @@ searching for `"status":"ok"` would match nothing and alert forever — a false 
 Health stays public after R8 (the token guards `/api/resolve` only), so no credential goes to the monitor. It
 stays `proposed` because a new service is the operator's yes, and nothing has been signed up for.
 
+**The third review of 2026-11-24 (`docs/reviews/2026-11-24-p2.md`) found the checks' blind side.**
+`pnpm continuity` verified that every inventoried secret still exists in the repository and never that a secret
+the Worker reads is inventoried — so `env.ts` could gain a name that nothing records and the check would still
+print "the repository is self-sufficient", which is the exact failure `docs/continuity.md` exists to prevent.
+It now reads the `ATV_*` entries typed `string` in `env.ts` and fails on an unrecorded one; bindings are
+excluded because nothing about a KV namespace needs rebuilding. The mutation check was adding
+`ATV_TMP_SECRET?: string;` and watching it fail by name. Scorecard: 295 tests/32 files, coverage 90.05%, and
+`ci:worker` 30/30.
+
+The pattern across three findings is worth keeping: the probe (a URL shape it could not follow), the budget (a
+traffic class it never counted) and the inventory (a direction it never read) all asked _"is what I know still
+true?"_ and none asked _"what am I not looking at?"_. Before trusting the next check, ask the second question.
+
+The review trigger is no longer a memory. `docs/agents/reviews.md` carries `Last review: <sha>` and
+`pnpm continuity` counts from it, warning at five and never failing — a due review is information, and starting
+one is the operator's call. This window reached seven changes before anyone counted, twice now.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

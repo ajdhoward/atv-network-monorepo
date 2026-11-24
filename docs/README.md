@@ -22,6 +22,7 @@ continuity` fails when a document here is not listed below.
 | [reviews/2026-11-23-evaluation.md](reviews/2026-11-23-evaluation.md) | The first full evaluation of the repository                           |
 | [reviews/2026-11-24.md](reviews/2026-11-24.md)                       | Review of the option C branch: scorecard, findings, what changed      |
 | [reviews/2026-11-24-p1.md](reviews/2026-11-24-p1.md)                 | Review of the Drive proxy layer: the probe that could not follow it   |
+| [reviews/2026-11-24-p2.md](reviews/2026-11-24-p2.md)                 | Review of the checks and the cost model: the inventory's blind side   |
 
 `README.md` and `AGENTS.md` sit at the root: the first is what the project is, the second how work on it
 is done.

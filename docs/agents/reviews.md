@@ -15,6 +15,15 @@ A review runs at whichever of these comes first:
 
 The operator starts it by saying "review". Anyone may ask for one sooner.
 
+## Where the last review ended
+
+A window has to start somewhere, and "every five changes" only counts if the commit the last record read is
+written down. Keep the line below current in the same change that adds a record; `pnpm continuity` counts from
+it and warns at five, so the trigger is arithmetic instead of a judgement about whether enough has happened.
+
+Last review: `a8c6235`, 2026-11-24 ([`reviews/2026-11-24-p2.md`](../reviews/2026-11-24-p2.md)) — the next
+window starts there.
+
 ## Who
 
 The Scribe runs it and writes the record. The Reviewer takes the code half, the Verifier re-runs the
