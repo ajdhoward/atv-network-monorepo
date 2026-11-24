@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { HealthPayload } from "@atv/ui-shared";
 import { fetchHealth, summariseHealth } from "./health";
-import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck } from "./links";
-import { colour, font, grid, muted, panel, sectionHeading } from "./styles";
+import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck, type LinkProgress } from "./links";
+import { colour, crumb, font, grid, muted, panel, sectionHeading } from "./styles";
 
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
@@ -20,8 +20,13 @@ export default function App() {
   const [settled, setSettled] = useState(false);
   const [checks, setChecks] = useState<LinkCheck[] | null>(null);
   const [checking, setChecking] = useState(false);
+  const [progress, setProgress] = useState<LinkProgress | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
-  const [path, setPath] = useState("/ATV Network");
+  // A folder tree needs a way back. This used to append to one string, so a
+  // second click on the same folder produced `/ATV Network/Idents/Idents` and
+  // nothing could return to the root.
+  const [crumbs, setCrumbs] = useState<string[]>([]);
+  const path = ["/ATV Network", ...crumbs].join("/");
   const [pin] = useState(() => Math.floor(100000 + Math.random() * 900000));
   const folders = ["Idents", "News", "Lineup", "Backups"];
 
@@ -39,9 +44,10 @@ export default function App() {
 
   async function runCheck() {
     setChecking(true);
+    setProgress(null);
     setCheckError(null);
     try {
-      setChecks(await checkLinks());
+      setChecks(await checkLinks(fetch, setProgress));
     } catch (err) {
       setCheckError(err instanceof Error ? err.message : "Link check failed");
       setChecks(null);
@@ -90,7 +96,9 @@ export default function App() {
       </button>
       {checking && (
         <p style={muted} role="status">
-          Asking the guide and the batched resolve endpoint; this walks every channel once.
+          {progress
+            ? `Asked ${progress.done} of ${progress.total} batch(es)…`
+            : "Reading the guide for the channel list…"}
         </p>
       )}
       {checkError && <p style={{ color: colour.danger }}>{checkError}</p>}
@@ -112,13 +120,34 @@ export default function App() {
 
       <h2 style={sectionHeading}>Google Drive Folder Tree</h2>
       <div style={panel}>
+        <nav style={{ marginBottom: 8, fontSize: 13 }} aria-label="Folder path">
+          <button
+            type="button"
+            style={crumb}
+            onClick={() => setCrumbs([])}
+            disabled={!crumbs.length}
+          >
+            /ATV Network
+          </button>
+          {crumbs.map((segment, index) => (
+            <button
+              key={`${index}-${segment}`}
+              type="button"
+              style={crumb}
+              disabled={index === crumbs.length - 1}
+              onClick={() => setCrumbs(crumbs.slice(0, index + 1))}
+            >
+              /{segment}
+            </button>
+          ))}
+        </nav>
         <div>
           <code>{path}</code>
         </div>
         {folders.map((f) => (
           <div
             key={f}
-            onClick={() => setPath(`${path}/${f}`)}
+            onClick={() => setCrumbs([...crumbs, f])}
             style={{ cursor: "pointer", padding: 6 }}
           >
             📁 {f} <button disabled>Bind to gdrive.identsFolder</button>

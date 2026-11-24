@@ -33,6 +33,17 @@ export const muted: CSSProperties = { color: colour.muted };
 
 export const sectionHeading: CSSProperties = { marginTop: 32 };
 
+// A breadcrumb segment: looks like text, behaves like a button.
+export const crumb: CSSProperties = {
+  background: "none",
+  border: 0,
+  padding: 0,
+  marginRight: 6,
+  font: "inherit",
+  color: colour.muted,
+  cursor: "pointer",
+};
+
 export const grid: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",

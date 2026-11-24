@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { BATCH_SIZE, checkLinks, chunk, classifyBatch } from "../src/links";
+import {
+  BATCH_SIZE,
+  checkLinks,
+  chunk,
+  classifyBatch,
+  loadChannels,
+  type LinkProgress,
+} from "../src/links";
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -41,6 +48,28 @@ describe("classifyBatch", () => {
   it("survives an empty or malformed body", () => {
     expect(classifyBatch(["a"], {})).toEqual({ a: "missing" });
     expect(classifyBatch(["a"], { resolved: [{ id: 42 } as never] })).toEqual({ a: "missing" });
+  });
+});
+
+describe("loadChannels", () => {
+  // The guide is the one payload the panel does not control: without narrowing,
+  // a channel with no id became an `?ids=undefined` batch and a nameless row.
+  it("drops a channel it could not address or name", async () => {
+    const fetchImpl = vi.fn(async () =>
+      json(200, {
+        channels: [
+          { id: "a", name: "A", country: "US", category: "news", genres: [] },
+          { id: 7, name: "not-a-string-id" },
+          { id: "c" },
+          { nope: true },
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    const channels = await loadChannels(fetchImpl as unknown as typeof fetch);
+
+    expect(channels.map((c) => c.id)).toEqual(["a"]);
   });
 });
 
@@ -122,5 +151,26 @@ describe("checkLinks", () => {
 
     const checks = await checkLinks(fetchImpl as unknown as typeof fetch);
     expect(JSON.stringify(checks)).not.toContain("secret");
+  });
+
+  // The panel shows this instead of a blank button while the walk runs.
+  it("reports how far the walk has got", async () => {
+    const ids = Array.from({ length: BATCH_SIZE + 2 }, (_, i) => `c${i}`);
+    const seen: LinkProgress[] = [];
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.startsWith("/api/guide")
+        ? json(200, {
+            channels: ids.map((id) => ({ id, name: id })),
+            nextCursor: null,
+          })
+        : json(200, { resolved: [], missing: [] }),
+    );
+
+    await checkLinks(fetchImpl as unknown as typeof fetch, (progress) => seen.push(progress));
+
+    expect(seen).toEqual([
+      { done: 1, total: 2 },
+      { done: 2, total: 2 },
+    ]);
   });
 });
