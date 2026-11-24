@@ -1,12 +1,17 @@
 // Client for /api/resolve.
 //
-// The Worker rate limits resolves per client IP. A 429 there is the server
-// asking this browser to slow down, not a channel that is broken, so it is
-// reported as "retry" with the delay to wait rather than "unavailable".
+// Two answers are about the client rather than the channel, and both get their own
+// kind: a 429 is the Worker asking this browser to slow down, so it becomes
+// "retry" with the delay to wait; a 401 is the Worker asking for the household
+// token (option C), so it becomes "unauthorized" and the prompt opens. Reporting
+// either as "unavailable" would blame a channel that is fine.
+
+import { authorizationHeader, readToken } from "./token";
 
 export type ResolveResult =
   | { kind: "ok"; url: string }
   | { kind: "retry"; afterMs: number }
+  | { kind: "unauthorized" }
   | { kind: "missing" }
   | { kind: "unavailable" };
 
@@ -32,10 +37,16 @@ export function retryAfterMs(response: Response): number {
 export async function resolveChannel(
   id: string,
   fetchImpl: typeof fetch = fetch,
+  token: string | null = readToken(),
 ): Promise<ResolveResult> {
   const response = await fetchImpl(`/api/resolve?id=${encodeURIComponent(id)}`, {
-    headers: { accept: "application/json" },
+    // Read per call, not once at start-up: a token entered from the prompt has to
+    // be used by the very next attempt, and the guide is public either way.
+    headers: { accept: "application/json", ...authorizationHeader(token) },
   });
+  // Before the limiter answers, and before the id is even looked at: no token, or
+  // one the Worker does not accept.
+  if (response.status === 401) return { kind: "unauthorized" };
   if (response.status === 429) return { kind: "retry", afterMs: retryAfterMs(response) };
   if (!response.ok) return { kind: "unavailable" };
   const body = (await response.json()) as { url?: unknown } | null;

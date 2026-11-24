@@ -46,6 +46,36 @@ describe("resolveChannel", () => {
     });
   });
 
+  // Option C: the client carries the household token. A 401 is about the token, not
+  // the channel, so it must not read as "unavailable".
+  it("sends the household token when there is one", async () => {
+    const fetchImpl = stubFetch(response(200, { url: "https://cdn.example/x.m3u8" }));
+
+    await resolveChannel("news-us", asFetch(fetchImpl), "household-secret");
+
+    expect(fetchImpl).toHaveBeenCalledWith("/api/resolve?id=news-us", {
+      headers: { accept: "application/json", Authorization: "Bearer household-secret" },
+    });
+  });
+
+  it("sends no Authorization header without a token", async () => {
+    const fetchImpl = stubFetch(response(200, { url: "https://cdn.example/x.m3u8" }));
+
+    await resolveChannel("news-us", asFetch(fetchImpl), null);
+
+    expect(fetchImpl).toHaveBeenCalledWith("/api/resolve?id=news-us", {
+      headers: { accept: "application/json" },
+    });
+  });
+
+  it("reports a 401 as unauthorized", async () => {
+    const fetchImpl = stubFetch(response(401, { code: "unauthorized" }));
+
+    expect(await resolveChannel("news-us", asFetch(fetchImpl), null)).toEqual({
+      kind: "unauthorized",
+    });
+  });
+
   it("reports a 429 as retry rather than unavailable", async () => {
     const fetchImpl = stubFetch(response(429, { code: "rate_limited" }, { "Retry-After": "7" }));
 
@@ -115,6 +145,17 @@ describe("resolveWithRetry", () => {
     expect(result).toEqual({ kind: "retry", afterMs: DEFAULT_RETRY_MS });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(wait).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a 401: only a new token fixes it", async () => {
+    const fetchImpl = stubFetch(response(401, {}));
+    const wait = vi.fn(async () => {});
+
+    const result = await resolveWithRetry("news-us", { fetchImpl: asFetch(fetchImpl), wait });
+
+    expect(result).toEqual({ kind: "unauthorized" });
+    expect(wait).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("does not wait on a failure that a retry cannot fix", async () => {

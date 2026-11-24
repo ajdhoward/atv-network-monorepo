@@ -3,6 +3,8 @@ import { initOverlays } from "./overlay.js";
 import { loadGuide, type Channel } from "./guide.js";
 import { createGrid } from "./grid.js";
 import { DEFAULT_RETRY_MS, resolveWithRetry } from "./resolve.js";
+import { readToken } from "./token.js";
+import { createTokenPrompt } from "./tokenPrompt.js";
 
 const root = document.getElementById("root")!;
 const pm = new PlayerManager({
@@ -21,6 +23,19 @@ const grid = createGrid({
   onPlay: (channel) => void play(channel),
 });
 root.appendChild(grid.el);
+
+// Which channel hit the 401, so saving a token can finish that tune instead of
+// leaving the viewer to find the channel again.
+let pendingChannel: Channel | null = null;
+const prompt = createTokenPrompt({
+  onSaved: () => {
+    const channel = pendingChannel;
+    pendingChannel = null;
+    if (channel) void play(channel);
+  },
+});
+root.appendChild(prompt.el);
+
 // The grid paints before the guide answers, so say what the empty screen is
 // waiting for instead of looking like a lineup with nothing in it.
 grid.notice("Loading guide…");
@@ -47,6 +62,15 @@ async function play(channel: Channel) {
       // not, so keep the grid up and let Enter try again rather than saying it
       // is unavailable.
       grid.notice(`${channel.name} is busy — press Enter to try again`);
+      return;
+    }
+    if (result.kind === "unauthorized") {
+      pendingChannel = channel;
+      // A token is stored and still refused, so the token is wrong; nothing stored
+      // means this TV has never been set up. Saying the first one as "needs a
+      // token" would send a household to retype a token that was already right.
+      prompt.open(readToken() ? "rejected" : "missing");
+      grid.notice(`${channel.name} needs the household token`);
       return;
     }
     if (result.kind === "unavailable") {
@@ -79,6 +103,12 @@ loadGuide()
 
 // D-pad / remote handling: the grid owns focus while it is on screen.
 document.addEventListener("keydown", (e) => {
+  // The token prompt owns the keyboard while it is open: its field needs Backspace
+  // and the arrows, and Enter has to submit rather than play the focused tile.
+  if (prompt.visible) {
+    if (prompt.handleKey(e)) e.preventDefault();
+    return;
+  }
   switch (e.key) {
     case "ArrowRight":
     case "ArrowLeft":

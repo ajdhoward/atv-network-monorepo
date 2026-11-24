@@ -3,6 +3,8 @@
  * current stream ends, so a channel change does not blank the screen; `play()`
  * replaces the visible one when a tile is picked.
  */
+import { authorizationHeader, readToken } from "./token";
+
 export class PlayerManager {
   /**
    * @param {{ onError?: (name: string | null) => void }} [options]
@@ -51,10 +53,18 @@ export class PlayerManager {
   onTileHover(id) {
     clearTimeout(this.hoverTimer);
     this.hoverTimer = setTimeout(async () => {
-      const r = await fetch(`/api/resolve?id=${encodeURIComponent(id)}`);
-      if (r.ok) {
+      // The same token the player sends: /api/resolve answers 401 without it, and a
+      // prefetch is best effort, so a failure here stays silent and Enter resolves
+      // the channel again with the prompt behind it.
+      try {
+        const r = await fetch(`/api/resolve?id=${encodeURIComponent(id)}`, {
+          headers: { accept: "application/json", ...authorizationHeader(readToken()) },
+        });
+        if (!r.ok) return;
         const { url } = await r.json();
-        this.prebuffer(url);
+        if (typeof url === "string" && url) this.prebuffer(url);
+      } catch {
+        /* prefetch is optional; a real failure will show when the viewer picks it */
       }
     }, 350);
   }

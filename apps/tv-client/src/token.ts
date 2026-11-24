@@ -29,6 +29,13 @@ function browserStore(): TokenStore | null {
   }
 }
 
+// `undefined` means "whatever this WebView provides"; `null` means "it has none".
+// Kept apart so a caller can pass a stand-in, or state that storage is off,
+// without either being read as "use localStorage after all".
+function resolveStore(store?: TokenStore | null): TokenStore | null {
+  return store === undefined ? browserStore() : store;
+}
+
 // Every access below fails the same two ways: no storage at all, or storage that
 // throws. One wrapper keeps the three callers from growing three slightly
 // different guards, and hands each the value it should be left with.
@@ -50,14 +57,14 @@ export function normaliseToken(value: unknown): string | null {
   return token ? token : null;
 }
 
-export function readToken(store: TokenStore | null = browserStore()): string | null {
-  return attempt((s) => normaliseToken(s.getItem(TOKEN_KEY)), null, store);
+export function readToken(store?: TokenStore | null): string | null {
+  return attempt((s) => normaliseToken(s.getItem(TOKEN_KEY)), null, resolveStore(store));
 }
 
 // False means the token was blank or storage refused it, so the caller can say
 // it was not saved instead of showing a prompt that will reappear on the next
 // launch after the household believes it is done.
-export function saveToken(token: string, store: TokenStore | null = browserStore()): boolean {
+export function saveToken(token: string, store?: TokenStore | null): boolean {
   const value = normaliseToken(token);
   if (!value) return false;
   return attempt(
@@ -66,13 +73,13 @@ export function saveToken(token: string, store: TokenStore | null = browserStore
       return true;
     },
     false,
-    store,
+    resolveStore(store),
   );
 }
 
-export function clearToken(store: TokenStore | null = browserStore()): void {
+export function clearToken(store?: TokenStore | null): void {
   // A token that cannot be removed is still replaced by the next save.
-  attempt((s) => s.removeItem(TOKEN_KEY), undefined, store);
+  attempt((s) => s.removeItem(TOKEN_KEY), undefined, resolveStore(store));
 }
 
 // The header itself, in one place so the resolve call sites cannot disagree about
