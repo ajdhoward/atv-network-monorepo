@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { checksum } from "../src/config-meta";
 import type { Env } from "../src/env";
 import { apkUrl } from "../src/install";
+import { signStreamUrl } from "../src/stream-sign";
 
 type Seed = Record<string, unknown>;
 
@@ -744,6 +745,251 @@ describe("GET /api/resolve", () => {
     await call(worker, env, "/api/resolve?id=news-us");
 
     expect(points.map((p) => p.blobs[0])).toEqual(["resolve_unauthorized"]);
+  });
+});
+
+describe("GET /api/stream (P1 Drive proxy)", () => {
+  // A real-shaped Drive id: the parser refuses anything shorter than 10.
+  const FILE_ID = "1AbCdEfGhIjKlMnOpQrStUvWx";
+  const DRIVE_LINK = `https://drive.google.com/file/d/${FILE_ID}/view?usp=sharing`;
+  const SECRET = "stream-signing-secret-p1";
+
+  function streamEnv({ secret = SECRET }: { secret?: string } = {}) {
+    const { env } = makeEnv({
+      gdrive_map: { "drive-news": DRIVE_LINK, "cdn-news": "https://cdn.example/news.m3u8" },
+    });
+    if (secret) (env as any).ATV_STREAM_SIGNING_KEY = secret;
+    return env;
+  }
+
+  // The origin, stubbed: a fresh Response per call, so a test that reads the body
+  // cannot eat the next test's.
+  function upstream(make: () => Response) {
+    const calls: { url: string; headers: Headers }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: any, init?: RequestInit) => {
+        calls.push({ url: String(input), headers: new Headers(init?.headers) });
+        return make();
+      }),
+    );
+    return calls;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // The seek case, which is the one a Range bug breaks: the player asks for a
+  // middle offset and must get 206 plus the origin's Content-Range, not a 200 of
+  // the whole file and not a proxy that swallows the header.
+  it("proxies a mid-file range as a 206 and passes Content-Range through", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    const calls = upstream(
+      () =>
+        new Response("0123456789abcdef", {
+          status: 206,
+          headers: {
+            "content-type": "video/mp4",
+            "content-length": "16",
+            "content-range": "bytes 1048576-1048591/8388608",
+            "accept-ranges": "bytes",
+            // The origin's own caching belongs to the origin; a ticket in the URL
+            // must not end up in a shared cache.
+            "cache-control": "private, max-age=3600",
+          },
+        }),
+    );
+
+    const ticket = await signStreamUrl("drive-news", SECRET);
+    const { res } = await call(worker, env, ticket, { headers: { Range: "bytes=1048576-" } });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url.startsWith("https://drive.usercontent.google.com/download?")).toBe(true);
+    expect(calls[0].url).toContain(`id=${FILE_ID}`);
+    // Forwarded untouched: rewriting a range is how a seek lands on the wrong bytes.
+    expect(calls[0].headers.get("range")).toBe("bytes=1048576-");
+
+    expect(res.status).toBe(206);
+    expect(res.headers.get("content-range")).toBe("bytes 1048576-1048591/8388608");
+    expect(res.headers.get("content-length")).toBe("16");
+    expect(res.headers.get("accept-ranges")).toBe("bytes");
+    expect(res.headers.get("content-type")).toBe("video/mp4");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-request-id")).toBeTruthy();
+    // The TV's <video crossOrigin="anonymous"> needs a CORS answer, and a header
+    // it cannot read is a header it does not have.
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(res.headers.get("access-control-expose-headers")).toContain("Content-Range");
+  });
+
+  it("answers the whole-file request as a 200 without inventing a Range", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    const calls = upstream(
+      () =>
+        new Response("whole", {
+          status: 200,
+          headers: { "content-type": "video/mp4", "content-length": "5" },
+        }),
+    );
+
+    const { res } = await call(worker, env, await signStreamUrl("drive-news", SECRET));
+
+    expect(calls[0].headers.has("range")).toBe(false);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-range")).toBeNull();
+  });
+
+  it("claims Accept-Ranges on a 206 even when the origin omits it", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    upstream(
+      () =>
+        new Response("x", {
+          status: 206,
+          headers: { "content-type": "video/mp4", "content-range": "bytes 0-0/100" },
+        }),
+    );
+
+    const { res } = await call(worker, env, await signStreamUrl("drive-news", SECRET), {
+      headers: { Range: "bytes=0-0" },
+    });
+
+    expect(res.status).toBe(206);
+    expect(res.headers.get("accept-ranges")).toBe("bytes");
+  });
+
+  // A player that seeks past the end asks for something unsatisfiable; the 416 and
+  // its `bytes */<size>` are how it learns the real length.
+  it("passes an unsatisfiable range through as a 416", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    upstream(
+      () =>
+        new Response(null, {
+          status: 416,
+          headers: { "content-range": "bytes */8388608" },
+        }),
+    );
+
+    const { res } = await call(worker, env, await signStreamUrl("drive-news", SECRET), {
+      headers: { Range: "bytes=99999999-" },
+    });
+
+    expect(res.status).toBe(416);
+    expect(res.headers.get("content-range")).toBe("bytes */8388608");
+  });
+
+  it("refuses an expired, forged or ticketless request without touching Drive", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    const calls = upstream(() => new Response("should not be fetched"));
+
+    const ticket = await signStreamUrl("drive-news", SECRET);
+    const stale = await signStreamUrl("drive-news", SECRET, { now: Date.now() - 20 * 60 * 1000 });
+    const forged = ticket.replace(
+      /sig=(.)/,
+      (_all, first: string) => `sig=${first === "0" ? "1" : "0"}`,
+    );
+    const ticketless = ticket.replace(/&sig=[0-9a-f]+/, "");
+
+    const expired = await call(worker, env, stale);
+    const bad = await call(worker, env, forged);
+    const missing = await call(worker, env, ticketless);
+
+    expect([expired.res.status, bad.res.status, missing.res.status]).toEqual([403, 403, 403]);
+    expect([expired.body.code, bad.body.code, missing.body.code]).toEqual([
+      "expired",
+      "bad-signature",
+      "missing",
+    ]);
+    expect(calls).toHaveLength(0);
+  });
+
+  // A deployment without the key is misconfigured, and saying so is the difference
+  // between "set the secret" and "this link is wrong".
+  it("answers 503 when the signing key is not set", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv({ secret: "" });
+    const calls = upstream(() => new Response("nope"));
+
+    const { res, body } = await call(worker, env, await signStreamUrl("drive-news", SECRET));
+
+    expect(res.status).toBe(503);
+    expect(body.code).toBe("stream_unconfigured");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("404s a ticket for an id with no Drive file behind it", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    const calls = upstream(() => new Response("nope"));
+
+    const unknown = await call(worker, env, await signStreamUrl("nope", SECRET));
+    // A ticket is not a licence to proxy anything: a CDN playlist behind one is
+    // still not a Drive file.
+    const cdn = await call(worker, env, await signStreamUrl("cdn-news", SECRET));
+
+    expect(unknown.res.status).toBe(404);
+    expect(unknown.body.code).toBe("not_found");
+    expect(cdn.res.status).toBe(404);
+    expect(calls).toHaveLength(0);
+  });
+
+  // The whole point, end to end: resolve hands the TV a URL on this origin, the
+  // TV plays it, and the Drive link never reaches the device.
+  it("resolves a Drive channel to a same-origin ticket that the proxy serves", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    upstream(
+      () =>
+        new Response("bytes", {
+          status: 200,
+          headers: { "content-type": "video/mp4", "content-length": "5" },
+        }),
+    );
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=drive-news");
+
+    expect(res.status).toBe(200);
+    expect(body.url).toMatch(/^\/api\/stream\/drive-news\?exp=\d+&sig=[0-9a-f]{64}$/);
+    expect(JSON.stringify(body)).not.toContain("drive.google.com");
+
+    const served = await call(worker, env, body.url);
+    expect(served.res.status).toBe(200);
+    expect(served.res.headers.get("content-type")).toBe("video/mp4");
+  });
+
+  it("leaves a non-Drive link exactly as it was", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+
+    const { body } = await call(worker, env, "/api/resolve?id=cdn-news");
+
+    expect(body.url).toBe("https://cdn.example/news.m3u8");
+  });
+
+  it("answers 502 for a refused upstream and keeps the Drive URL out of it", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const worker = await freshWorker();
+      const env = streamEnv();
+      upstream(() => new Response("denied", { status: 403 }));
+
+      const { res, body } = await call(worker, env, await signStreamUrl("drive-news", SECRET));
+
+      expect(res.status).toBe(502);
+      expect(body.code).toBe("upstream_error");
+      expect(JSON.stringify(body)).not.toContain("drive");
+      // The log names the path and Drive's status, never the link or the id.
+      const logged = JSON.stringify(spy.mock.calls);
+      expect(logged).toContain("drive responded 403");
+      expect(logged).not.toContain(FILE_ID);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

@@ -24,3 +24,9 @@ ATV_TORBOX_API_KEY=
 # {"atv-1": "https://…"}. Without it, a channel with no KV `gdrive_map` entry
 # answers 404. Values are stream links, so they never enter git.
 ATV_GDRIVE_MAP=
+
+# Key that signs the Drive proxy's tickets (P1). Without it a Drive-backed channel
+# resolves to its stored link (which cannot play) and `/api/stream` answers 503;
+# with it, resolve mints `/api/stream/<id>?exp&sig` valid for 15 minutes. Any long
+# random string; rotating it invalidates every URL already handed out.
+ATV_STREAM_SIGNING_KEY=

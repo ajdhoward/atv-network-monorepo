@@ -1,4 +1,5 @@
 import { kvJson, type Env } from "./env";
+import { proxyTicket } from "./stream";
 import { parseTorboxRef, resolveTorbox, torboxToken } from "./torbox";
 
 export type ResolvedLink = { url: string; headers?: Record<string, string>; profile: string };
@@ -77,19 +78,29 @@ export async function streamCoverage(env: Env, ids: string[]): Promise<StreamCov
   return { configured, invalid, missing: ids.length - configured - invalid };
 }
 
+// The link the maps hold for an id, with no provider call: the operator secret
+// first, then KV `gdrive_map`. `/api/stream` serves bytes from one of these two
+// and must never spend a TorBox resolve on a media request — a TorBox link is
+// already short-lived media, not a Drive file to proxy.
+export async function mappedLink(id: string, env: Env): Promise<string | null> {
+  const operator = operatorMap(env)?.[id];
+  if (typeof operator === "string" && operator) return operator;
+  const stored = (await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map"))?.[id];
+  return typeof stored === "string" && stored ? stored : null;
+}
+
 export async function resolveStream(id: string, env: Env): Promise<ResolvedLink> {
   // Precedence: the operator secret is the newest instruction, then the TorBox
   // map (which asks TorBox at resolve time), then a link seeded into KV.
   const operator = operatorMap(env)?.[id];
-  if (typeof operator === "string" && operator) {
-    if (!operator.startsWith("https://"))
-      throw new Error("insecure url blocked - TLS 1.3 required");
-    return { url: operator, profile: "1080p_hevc" };
-  }
-  const torbox = await resolveTorbox(id, env);
-  if (torbox) return { url: torbox, profile: "1080p_hevc" };
-  const direct = (await kvJson<Record<string, string>>(env.ATV_CONFIG, "gdrive_map"))?.[id];
-  if (!direct) throw new Error("not found");
-  if (!direct.startsWith("https://")) throw new Error("insecure url blocked - TLS 1.3 required");
-  return { url: direct, profile: "1080p_hevc" };
+  const link =
+    (typeof operator === "string" && operator ? operator : null) ??
+    (await resolveTorbox(id, env)) ??
+    (await mappedLink(id, env));
+  if (!link) throw new Error("not found");
+  if (!link.startsWith("https://")) throw new Error("insecure url blocked - TLS 1.3 required");
+  // P1: a Drive link is replaced by a same-origin ticket, because Drive has no
+  // playable URL. Anything else (a CDN file, a TorBox link) is handed over as it
+  // was: proxying a playlist without rewriting its segments would break it.
+  return { url: await proxyTicket(id, link, env), profile: "1080p_hevc" };
 }

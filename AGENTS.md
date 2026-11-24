@@ -93,8 +93,9 @@ Rationale for each is in `decisions.md`; do not re-open them without new informa
 - **Resolve needs the household token.** `/api/resolve` requires `Authorization: Bearer <ATV_DEVICE_TOKEN>`
   once that secret is set, and answers any caller while it is not — enforcement must never land before every
   TV has taken the token (R8).
-- **Google Drive has no direct-play URL.** The agreed approach is a Worker proxy with signed URLs and
-  Range passthrough; it is not built, and "just use the Drive link" is not a shortcut.
+- **Google Drive has no direct-play URL.** The Worker proxies it at `/api/stream/<id>`: `/api/resolve` mints
+  a signed 15-minute ticket because a `<video>` cannot send a header, and `Range` is forwarded so seeking
+  works. `ATV_STREAM_SIGNING_KEY` is required, and "just use the Drive link" is not a shortcut.
 - **Sandbox first.** `pnpm deploy` targets `atv-core-v2`; the live `atv-core-orchestrator` is not built
   from this repo, and `docs/production-cutover.md` governs any replacement.
 - **The APK is a release asset**, not repo content: the Android workflow publishes `atv-launcher.apk` on

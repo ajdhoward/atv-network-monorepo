@@ -6,8 +6,10 @@ import { kvJson, readJson, type Env } from "./env";
 import { apkUrl, handleInstall, handleInstallQr } from "./install";
 import { handleJoin } from "./join";
 import { handleOnboard } from "./onboard";
-import { resolveStream, streamCoverage } from "./resolver";
+import { mappedLink, resolveStream, streamCoverage } from "./resolver";
 import { runRulesIndex } from "./rules";
+import { driveFileId, driveMediaUrl, mediaHeaders } from "./stream";
+import { checkStreamTicket } from "./stream-sign";
 
 export type { Env };
 // The Durable Object class has to be exported from the Worker's main module.
@@ -457,6 +459,84 @@ async function handleIdent(env: Env, requestId: string): Promise<Response> {
   });
 }
 
+// P1: the Drive proxy. A TV cannot send `Authorization` on a `<video>`, so the
+// resolve call (already token-protected) mints `/api/stream/<id>?exp&sig` and this
+// route spends that ticket. The signature is over the id, so one ticket cannot be
+// pointed at another channel, and `exp` is signed with it, so it cannot be
+// extended. `Range` is forwarded untouched: seeking is the feature, and a proxy
+// that ignores it gets a player that plays but cannot skip.
+async function handleStream(
+  request: Request,
+  env: Env,
+  url: URL,
+  id: string,
+  requestId: string,
+): Promise<Response> {
+  const verdict = await checkStreamTicket({
+    id,
+    exp: url.searchParams.get("exp"),
+    sig: url.searchParams.get("sig"),
+    secret: env.ATV_STREAM_SIGNING_KEY,
+  });
+  if (verdict === "unconfigured") {
+    // The deployment's fault, not the caller's: its own code and counter, so an
+    // operator who has not set the key does not read as a forge attempt.
+    count(env, "stream_unconfigured");
+    return failure(
+      "stream_unconfigured",
+      "stream signing is not configured on this deployment",
+      requestId,
+      503,
+    );
+  }
+  if (verdict !== "ok") {
+    count(env, verdict === "expired" ? "stream_expired" : "stream_forbidden");
+    return failure(
+      verdict,
+      verdict === "expired" ? "stream ticket has expired" : "stream ticket is missing or invalid",
+      requestId,
+      403,
+    );
+  }
+
+  // The map is re-read rather than carried in the ticket: a ticket outlives a
+  // rotation of the link, and a link the operator has replaced must not keep
+  // serving from the old file.
+  const link = await mappedLink(id, env);
+  const fileId = link ? driveFileId(link) : null;
+  if (!fileId) {
+    count(env, "stream_miss", id);
+    return failure("not_found", "not found", requestId, 404);
+  }
+
+  const range = request.headers.get("Range");
+  let upstream: Response;
+  try {
+    upstream = await fetch(driveMediaUrl(fileId), {
+      method: request.method === "HEAD" ? "HEAD" : "GET",
+      headers: range ? { Range: range } : {},
+    });
+  } catch (err) {
+    // No URL, no id and no body in the log: the failing request is a stream link.
+    logFailure(requestId, "/api/stream", err);
+    return failure("upstream_unavailable", "stream source is unreachable", requestId, 502);
+  }
+  // 416 is the answer to an unsatisfiable Range and carries the `Content-Range:
+  // bytes */<size>` a player needs, so it passes through. Drive's own errors do
+  // not: their body is not media, and relaying it would report Drive's status as
+  // this Worker's.
+  if (!upstream.ok && upstream.status !== 416) {
+    logFailure(requestId, "/api/stream", new Error(`drive responded ${upstream.status}`));
+    return failure("upstream_error", "stream source refused the request", requestId, 502);
+  }
+
+  count(env, "stream_served", id);
+  return new Response(request.method === "HEAD" ? null : upstream.body, {
+    status: upstream.status,
+    headers: mediaHeaders(upstream),
+  });
+}
+
 async function handleHealth(env: Env): Promise<Response> {
   const [meta, lineup, snapshot] = await Promise.all([
     readJson<ConfigMeta>(env.ATV_CONFIG, "config_meta"),
@@ -538,6 +618,19 @@ async function route(
     const isFile = /\.[a-z0-9]+$/i.test(path);
     const target = isFile ? request : new URL("/admin/", url).toString();
     return env.ASSETS.fetch(target);
+  }
+  // P1's media route has an id in its path, so it is matched before the switch.
+  // An id is one segment on the wire (a slash in it travels as %2F) and the
+  // ticket is signed over the decoded value, which is what the route reads back.
+  if (path.startsWith("/api/stream/")) {
+    let id: string;
+    try {
+      id = decodeURIComponent(path.slice("/api/stream/".length));
+    } catch {
+      return failure("bad_id", "malformed channel id", requestId, 400);
+    }
+    if (!id) return failure("missing_id", "missing id", requestId, 400);
+    return guard(requestId, "/api/stream", () => handleStream(request, env, url, id, requestId));
   }
   switch (path) {
     case "/":

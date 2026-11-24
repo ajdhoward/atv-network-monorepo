@@ -130,6 +130,18 @@ not at the root, so version checks have to `cd` there first. `package.json` also
 The mutation check is worth repeating on any aria-hidden work: replacing every `aria-hidden="true"` in
 `App.tsx` failed all four tests, which is what shows the test has teeth rather than just green.
 
+**P1 is built** after the operator accepted the 2026-11-24 entry. `stream.ts` holds `driveFileId` (the three
+share-URL shapes, refusing anything shorter than a 10-character id), `driveMediaUrl` (Drive's
+`usercontent/download` origin — the one that honours `Range` without a credential), `proxyTicket` (Drive link →
+signed path, but only when `ATV_STREAM_SIGNING_KEY` is set, otherwise the stored link, so nothing regresses
+before the operator acts) and `mediaHeaders`. The route is in `index.ts` because that is where the failure
+shape and the counters live; `resolver.ts` grew `mappedLink` so a media request never spends a TorBox
+resolve, and `resolveStream` ends in `proxyTicket`. Tests: 9 route tests (mid-file 206 with `Content-Range`
+asserted, whole-file 200, synthesised `Accept-Ranges`, 416, expired/forged/ticketless 403s that never reach
+Drive, 503 unconfigured, 404 for unknown and non-Drive ids, the resolve→stream round trip, and a 502 whose
+log carries no id and no link) plus 8 unit tests. Unverified against Drive itself: no file, no credential, and
+P2 is still blocked. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
+
 ## What I tried that failed
 
 - `read_files` and shell calls are sometimes refused once with the project brief injected; retrying the same

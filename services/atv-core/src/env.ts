@@ -30,6 +30,11 @@ export interface Env {
   // answers any caller, which is what keeps a deploy ahead of the TVs safe; once
   // it is set every resolve needs `Authorization: Bearer <this>`.
   ATV_DEVICE_TOKEN?: string;
+  // Optional key that signs the Drive proxy's tickets (P1). While it is unset a
+  // Drive-linked channel resolves to its stored link instead of a ticket, and
+  // `/api/stream` answers 503 rather than pretending a ticket is wrong. Set as a
+  // Worker secret; rotating it invalidates every URL already handed out.
+  ATV_STREAM_SIGNING_KEY?: string;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

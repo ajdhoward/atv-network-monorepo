@@ -35,9 +35,9 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ### 2026-11-24 — Drive proxy: a signed stream URL per resolve
 
-- state: proposed
+- state: accepted
 - proposed by: Buffy (Freebuff)
-- touches: `services/atv-core/src/` (new `stream-sign.ts`, later `stream.ts`), `services/atv-core/src/index.ts`
+- touches: `services/atv-core/src/` (`stream-sign.ts`, `stream.ts`, `resolver.ts`), `services/atv-core/src/index.ts`
   (a new `/api/stream/<id>` route), `wrangler.toml` (`run_worker_first`), Worker secret
   `ATV_STREAM_SIGNING_KEY`, `services/atv-core/test/`
 - why: Drive has no direct-play URL, so a Drive-backed channel cannot play at all today — it resolves to 404
@@ -62,8 +62,11 @@ when it next works, which is why an entry records who is absent rather than trea
 - cost: none — WebCrypto only, no dependency, no service. Size L, so the first file (`stream-sign.ts`) lands
   on its own, nothing calls it, and the route waits for this entry to be accepted.
 - acks: no other agent active (`roster.md`), recorded as absence rather than consent.
-- outcome: open — the operator accepts, rejects or narrows it. P2 (the service-account secret) only matters
-  after it is accepted.
+- outcome: accepted — operator, 2026-11-24, unchanged. Built as written: `/api/stream/<id>` checks the
+  ticket, re-reads the link, forwards `Range` and passes 206 headers through, and `/api/resolve` mints the
+  ticket for a Drive link while leaving every other link alone. The design did not settle what resolve should
+  do before the secret exists; it keeps answering the stored link (P1 changes nothing until
+  `ATV_STREAM_SIGNING_KEY` is set), which P2 and R8's rollout order both depend on.
 
 ### 2026-11-23 — Agent coordination files
 

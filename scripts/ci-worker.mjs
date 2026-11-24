@@ -160,6 +160,20 @@ async function checkResolve() {
   );
 }
 
+// P1's media route is Worker-routed, and a route the asset layer answers instead
+// is exactly what `/a` hit: the SPA fallback said 200 and the Worker never saw
+// it. This Worker boots without `ATV_STREAM_SIGNING_KEY`, so the honest answer is
+// the unconfigured one — which still proves the request reached the handler.
+async function checkStream() {
+  const res = await fetch(`${base}/api/stream/ci-atv-one?exp=1&sig=abc`);
+  const text = await res.text();
+  record(
+    "GET /api/stream without the signing key → 503 stream_unconfigured",
+    res.status === 503 && text.includes("stream_unconfigured"),
+    `HTTP ${res.status}`,
+  );
+}
+
 // /install is Worker-routed (it is in run_worker_first) and its QR comes from a
 // bundled dependency, so this checks the route and the bundle in workerd before
 // a deploy. The page must name the asset the Android workflow publishes, or the
@@ -318,6 +332,7 @@ async function main() {
 
   await checkAdmin();
   await checkResolve();
+  await checkStream();
   await checkInstall();
   await checkJoin();
   await checkOnboard();

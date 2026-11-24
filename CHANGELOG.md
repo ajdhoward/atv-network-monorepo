@@ -10,6 +10,16 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- The Drive proxy (P1), after the operator accepted its `decisions.md` entry: `/api/stream/<id>?exp&sig`
+  verifies a signed ticket, re-reads the link for the id and streams the file with `Range` forwarded, so a
+  Drive-backed channel can seek instead of resolving to an HTML page it cannot play. `/api/resolve` mints
+  the ticket (HMAC-SHA256 over `<id>\n<exp>`, 15 minutes, bound to one id) under the new secret
+  `ATV_STREAM_SIGNING_KEY` and leaves every non-Drive link exactly as it was — proxying a playlist without
+  rewriting its segments would break it. With no secret, resolve keeps answering the stored link and the
+  route says `503 stream_unconfigured` rather than calling a valid ticket a forgery. Two gaps that the route
+  cannot close on its own: the secret is the operator's to set, and a file not shared link-wide still needs
+  P2's service-account credential. Everything outside `driveFileId`/`mediaHeaders` is exercised against a
+  stubbed origin, not against Drive.
 - `apps/admin-cms/test/render.test.tsx` — the first test in the panel that renders JSX, because decoration no logic
   test could see was quietly load-bearing: a folder emoji, four breadcrumb slashes, three link-state
   icons and the pending dash are all hidden with `aria-hidden`, and a wrapper deleted by accident changes what

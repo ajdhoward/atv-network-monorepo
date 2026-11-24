@@ -84,10 +84,12 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   covered by tests, including expiry and a bad signature.
 - **Paths:** `services/atv-core/src/`, `services/atv-core/test/`
 - **Size:** L
-- **State:** proposed, design written — `decisions.md` entry of 2026-11-24: a signed ticket per resolve
-  (HMAC-SHA256 over `<id>\n<exp>`, 15-minute TTL), `Range` passed through, and distinct status codes for
-  unconfigured, bad signature and expiry. `services/atv-core/src/stream-sign.ts` and its tests landed as the
-  first file; nothing calls it, and the route plus the `/api/resolve` change wait for the operator's accept.
+- **State:** done — operator accepted the 2026-11-24 entry. `stream.ts` holds the Drive id parsing, the
+  media URL and the response headers; `/api/stream/<id>` verifies the ticket, re-reads the link and forwards
+  `Range`; `/api/resolve` mints a ticket for a Drive link and leaves every other link alone. Route tests
+  cover a mid-file 206, a whole-file 200, a 416, each refusal and a resolve→stream round trip. Not exercised
+  against Drive itself, and two gaps stay open: with no `ATV_STREAM_SIGNING_KEY` a Drive channel still
+  resolves to its unusable link, and a file not shared link-wide needs P2's service-account credential.
 
 ### P2 · Drive service-account secret for P1
 
