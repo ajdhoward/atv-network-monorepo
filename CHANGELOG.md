@@ -25,6 +25,15 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- A route that threw was a bare platform 500 with no request id to search for: `/a`, `/install`, `/join`,
+  `/onboard` and the asset fetch sat outside every handler guard. The whole dispatch now falls through one
+  catch that logs the id and answers 503 JSON, and `apkUrl` raises a named error when `GITHUB_USERNAME` is
+  missing or blank instead of a `TypeError` from inside a template string.
+- Seeded input was trusted exactly as it came out of KV: a blank or repeated channel id counted twice and
+  addressed nothing, a non-string genre rendered as `[object Object]` in the tile, and an ident of `https://`
+  on its own redirected the TV to an address that cannot load. Each is validated at the boundary now.
+- A stream that failed after the grid hid itself left a black screen with no explanation. The player reports
+  the media error and the TV brings the guide back naming the channel, so Enter on it is an obvious retry.
 - Two races that spent duplicate work: a cold isolate issued one KV read per channel in a grid sweep, and a
   hover prefetch plus the Enter that followed it minted two TorBox links for one file. Both now share one
   in-flight call, dropped when it settles so a failure is retried rather than remembered.

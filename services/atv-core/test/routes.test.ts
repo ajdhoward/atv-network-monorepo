@@ -178,6 +178,26 @@ describe("GET /api/guide", () => {
     expect(res.headers.get("access-control-allow-headers")).toContain("If-None-Match");
   });
 
+  // The lineup is external input: a hand-edited seed, an older generator or a typo
+  // reaches loadLineup unchanged. Served as-is it produced a blank tile, a channel
+  // counted twice and `[object Object]` among the genres.
+  it("drops an unusable id, keeps one entry per id and coerces genres to strings", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({
+      channels: [
+        { id: "news-us", name: "News 24", genre: ["news", 42, null] },
+        { id: "news-us", name: "Duplicate" },
+        { id: "   ", name: "Blank id" },
+        { name: "No id at all" },
+      ],
+    });
+    const { res, body } = await call(worker, env, "/api/guide");
+    expect(res.status).toBe(200);
+    expect(body.total).toBe(1);
+    expect(body.channels).toHaveLength(1);
+    expect(body.channels[0]).toMatchObject({ id: "news-us", name: "News 24", genres: ["news"] });
+  });
+
   it("pages deterministically with limit and cursor", async () => {
     const worker = await freshWorker();
     const lineup = ["alpha", "bravo", "charlie"].map((id) => ({
@@ -661,6 +681,30 @@ describe("GET /api/idents/random", () => {
     expect(res.status).toBe(503);
     expect(body.code).toBe("no_idents");
   });
+
+  it("only redirects to an absolute https url that parses and has a host", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({
+      idents: [
+        "https://",
+        "http://insecure.example/i.svg",
+        { url: 42 },
+        42,
+        "https://ok.example/i.svg",
+      ],
+    });
+    const { res } = await call(worker, env, "/api/idents/random");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://ok.example/i.svg");
+  });
+
+  it("503s when every seeded ident is unusable", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ idents: ["https://", "not a url"] });
+    const { res, body } = await call(worker, env, "/api/idents/random");
+    expect(res.status).toBe(503);
+    expect(body.code).toBe("no_idents");
+  });
 });
 
 describe("routing", () => {
@@ -733,6 +777,25 @@ describe("routing", () => {
     const { res } = await call(worker, env, "/a/");
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(apkUrl("test"));
+  });
+
+  // The page routes sit outside the per-handler guard, so a missing var used to be
+  // a bare platform 500 with no request id and no CORS headers to read it from.
+  it("answers a request id and a JSON 503 when GITHUB_USERNAME is missing", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv();
+    delete (env as unknown as { GITHUB_USERNAME?: string }).GITHUB_USERNAME;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      for (const path of ["/a", "/install", "/install/qr.svg"]) {
+        const { res, body } = await call(worker, env, path);
+        expect(res.status).toBe(503);
+        expect(body.code).toBe("internal_error");
+        expect(res.headers.get("x-request-id")).toBeTruthy();
+      }
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

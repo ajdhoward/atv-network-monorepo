@@ -50,6 +50,31 @@ describe("PlayerManager", () => {
     expect(play).toHaveBeenCalled();
   });
 
+  // A stream that 403s or hits a codec the TV cannot decode fires `error` on the
+  // element. The grid is hidden by then, so without this the TV is a black screen.
+  it("reports a media error with the channel that failed", () => {
+    const onError = vi.fn();
+    const pm = new PlayerManager({ onError });
+    pm.attach(document.createElement("div"));
+    pm.play("https://cdn.example/live.m3u8", "News 24");
+
+    pm.active.dispatchEvent(new Event("error"));
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith("News 24");
+  });
+
+  it("still swaps when no error handler was given", () => {
+    const pm = new PlayerManager();
+    pm.attach(document.createElement("div"));
+    const swap = vi.spyOn(pm, "swap");
+
+    pm.active.dispatchEvent(new Event("error"));
+    pm.active.dispatchEvent(new Event("ended"));
+
+    expect(swap).toHaveBeenCalledTimes(1);
+  });
+
   // The overlay banner reads this; without it the paused banner named the first
   // channel in the lineup whatever was on screen.
   it("remembers the channel it was asked to play", () => {

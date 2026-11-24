@@ -100,3 +100,8 @@ channels.
 2. Claim and build R5 (the client), then R6/R7, and hand R8 to the operator; L4 seeds real links only after it.
 3. P1: the Drive proxy.
 4. Keep this file and the roster row honest, or the next session starts blind.
+
+- **The router guarded its API handlers and nothing else.** `/a`, `/install`, `/join`, `/onboard` and the
+  asset fetch answered a bare platform 500 when they threw, with no request id, which is the one failure
+  `wrangler tail` cannot help with. They now go through one `route()` call inside a single catch: add a new
+  page route to that case switch, not beside it.

@@ -105,15 +105,31 @@ async function loadLineup(env: Env): Promise<Lineup> {
     : await readJson<{ channels?: unknown }>(env.ATV_CONFIG, "system_config");
   const raw = Array.isArray(direct) ? direct : system?.channels;
   if (!Array.isArray(raw)) return { raw: [], channels: [] };
-  const channels = raw
-    .filter((c: any) => c && typeof c.id === "string")
-    .map((c: any) => ({
-      id: c.id,
-      name: typeof c.name === "string" ? c.name : c.id,
-      country: typeof c.country === "string" ? c.country : "XX",
-      category: typeof c.category === "string" ? c.category : "general",
-      genres: Array.isArray(c.genre) ? c.genre : Array.isArray(c.genres) ? c.genres : [],
-    }));
+  // KV is external input: a hand-edited seed, an older generator or a typo reaches
+  // here unchanged. A blank id addresses no channel, and a repeated one would
+  // double the counts and make which link answers ambiguous, so the first entry
+  // for an id wins and the rest are dropped rather than served.
+  const channels: ChannelDef[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw as any[]) {
+    if (!entry || typeof entry.id !== "string") continue;
+    const id = entry.id.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const genres = Array.isArray(entry.genre)
+      ? entry.genre
+      : Array.isArray(entry.genres)
+        ? entry.genres
+        : [];
+    channels.push({
+      id,
+      name: typeof entry.name === "string" && entry.name.trim() ? entry.name : id,
+      country: typeof entry.country === "string" ? entry.country : "XX",
+      category: typeof entry.category === "string" ? entry.category : "general",
+      // A non-string genre rendered as `[object Object]` in the tile.
+      genres: genres.filter((genre: unknown): genre is string => typeof genre === "string"),
+    });
+  }
   return { raw, channels };
 }
 
@@ -367,13 +383,25 @@ async function handleResolve(
   }
 }
 
+// A seeded ident is external input too: "https://" on its own, a typo or a
+// non-string entry would 302 the TV to an address that cannot load, so only an
+// absolute https URL that parses and has a host survives.
+function isHttpsMediaUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.startsWith("https://")) return false;
+  try {
+    return new URL(value).hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function handleIdent(env: Env, requestId: string): Promise<Response> {
   const stored = await kvJson<unknown>(env.ATV_CONFIG, "idents");
   const urls = (Array.isArray(stored) ? stored : [])
     .map((entry: unknown) =>
       typeof entry === "string" ? entry : (entry as { url?: unknown } | null)?.url,
     )
-    .filter((u: unknown): u is string => typeof u === "string" && u.startsWith("https://"));
+    .filter(isHttpsMediaUrl);
   if (urls.length === 0) {
     count(env, "ident_empty");
     return json(
@@ -451,6 +479,61 @@ async function snapshotGuide(env: Env): Promise<void> {
   await backupConfig(env, payload);
 }
 
+// One place maps a path to a handler, so `fetch` can wrap the whole dispatch in a
+// single catch. The per-handler `guard` stays: it turns a config-schema mismatch
+// into its own code instead of a generic 503.
+async function route(
+  request: Request,
+  env: Env,
+  url: URL,
+  path: string,
+  requestId: string,
+): Promise<Response> {
+  // Compare the raw pathname here: `path` is slash-normalised, so /admin/
+  // would otherwise redirect to itself.
+  if (url.pathname === "/admin") {
+    return new Response(null, { status: 308, headers: { Location: "/admin/" } });
+  }
+  if (path === "/admin" || path.startsWith("/admin/")) {
+    // Asset paths (a file extension) are served as-is; anything else under
+    // /admin falls back to the admin shell rather than the TV client's SPA.
+    const isFile = /\.[a-z0-9]+$/i.test(path);
+    const target = isFile ? request : new URL("/admin/", url).toString();
+    return env.ASSETS.fetch(target);
+  }
+  switch (path) {
+    case "/":
+    case "/api/status":
+      return json(statusBody(env));
+    case "/api/health":
+      return guard(requestId, path, () => handleHealth(env));
+    case "/api/guide":
+      return guard(requestId, path, () => handleGuide(env, url, request));
+    case "/api/resolve":
+      return guard(requestId, path, () => handleResolve(url, env, requestId, request));
+    case "/api/idents/random":
+      return guard(requestId, path, () => handleIdent(env, requestId));
+    case "/a":
+      // The short install address: a TV remote types /a instead of the whole
+      // release URL. A redirect, not a proxy, so the APK stays GitHub's
+      // bandwidth and the Worker never holds a large asset in a request.
+      return new Response(null, {
+        status: 302,
+        headers: { Location: apkUrl(env.GITHUB_USERNAME), "Cache-Control": "no-store" },
+      });
+    case "/install":
+      return handleInstall(env, url);
+    case "/install/qr.svg":
+      return handleInstallQr(env);
+    case "/join":
+      return handleJoin(env);
+    case "/onboard":
+      return handleOnboard(env);
+    default:
+      return failure("not_found", "not found", requestId, 404);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const requestId = crypto.randomUUID().slice(0, 8);
@@ -468,61 +551,15 @@ export default {
 
     const path = url.pathname.replace(/\/+$/, "") || "/";
     let response: Response;
-
-    // Compare the raw pathname here: `path` is slash-normalised, so /admin/
-    // would otherwise redirect to itself.
-    if (url.pathname === "/admin") {
-      response = new Response(null, { status: 308, headers: { Location: "/admin/" } });
-    } else if (path === "/admin" || path.startsWith("/admin/")) {
-      // Asset paths (a file extension) are served as-is; anything else under
-      // /admin falls back to the admin shell rather than the TV client's SPA.
-      const isFile = /\.[a-z0-9]+$/i.test(path);
-      const target = isFile ? request : new URL("/admin/", url).toString();
-      response = await env.ASSETS.fetch(target);
-    } else {
-      switch (path) {
-        case "/":
-        case "/api/status":
-          response = json(statusBody(env));
-          break;
-        case "/api/health":
-          response = await guard(requestId, path, () => handleHealth(env));
-          break;
-        case "/api/guide":
-          response = await guard(requestId, path, () => handleGuide(env, url, request));
-          break;
-        case "/api/resolve":
-          response = await guard(requestId, path, () =>
-            handleResolve(url, env, requestId, request),
-          );
-          break;
-        case "/api/idents/random":
-          response = await guard(requestId, path, () => handleIdent(env, requestId));
-          break;
-        case "/a":
-          // The short install address: a TV remote types /a instead of the whole
-          // release URL. A redirect, not a proxy, so the APK stays GitHub's
-          // bandwidth and the Worker never holds a large asset in a request.
-          response = new Response(null, {
-            status: 302,
-            headers: { Location: apkUrl(env.GITHUB_USERNAME), "Cache-Control": "no-store" },
-          });
-          break;
-        case "/install":
-          response = handleInstall(env, url);
-          break;
-        case "/install/qr.svg":
-          response = handleInstallQr(env);
-          break;
-        case "/join":
-          response = handleJoin(env);
-          break;
-        case "/onboard":
-          response = handleOnboard(env);
-          break;
-        default:
-          response = failure("not_found", "not found", requestId, 404);
-      }
+    try {
+      response = await route(request, env, url, path, requestId);
+    } catch (err) {
+      // Last resort. The page routes, the redirect and the asset fetch have no
+      // per-handler guard, and a platform 500 carries no request id and no CORS
+      // headers, so neither `wrangler tail` nor a browser can find it. This one
+      // can: the id is in the log line and on the response.
+      logFailure(requestId, path, err);
+      response = failure("internal_error", "service unavailable", requestId, 503);
     }
 
     return withRequestId(response, requestId);

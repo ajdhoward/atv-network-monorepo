@@ -5,7 +5,15 @@ import { createGrid } from "./grid.js";
 import { DEFAULT_RETRY_MS, resolveWithRetry } from "./resolve.js";
 
 const root = document.getElementById("root")!;
-const pm = new PlayerManager();
+const pm = new PlayerManager({
+  // A stream that fails after the grid hid itself leaves a black screen: the
+  // viewer's only way back was Back, with no hint why. Bring the guide back and
+  // say which channel failed, so Enter on it is an obvious retry.
+  onError: (name) => {
+    grid.show();
+    grid.notice(`${name ?? "That channel"} would not play — press Enter to try again`);
+  },
+});
 pm.attach(root);
 
 const grid = createGrid({

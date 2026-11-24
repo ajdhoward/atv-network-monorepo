@@ -16,7 +16,15 @@ export const QR_CELL = 4;
 export const QR_MARGIN = QR_CELL * 4;
 
 export function apkUrl(username: string): string {
-  return `https://github.com/${encodeURIComponent(username.trim())}/${REPO_NAME}/releases/latest/download/${APK_ASSET}`;
+  // `GITHUB_USERNAME` is a plain var, so a local `wrangler dev` or a misconfigured
+  // deployment can reach here without it. Reading through a missing value used to
+  // throw a TypeError from inside the template string, which the platform answered
+  // as a bare 500 with no request id; a named error reaches the log instead, and
+  // the router's catch turns it into an ordinary 503. A blank value would send the
+  // TV to github.com//releases, so it counts as missing too.
+  const owner = typeof username === "string" ? username.trim() : "";
+  if (!owner) throw new Error("GITHUB_USERNAME is not configured");
+  return `https://github.com/${encodeURIComponent(owner)}/${REPO_NAME}/releases/latest/download/${APK_ASSET}`;
 }
 
 // Server-side rather than in the page: no CDN, no client script, and the same

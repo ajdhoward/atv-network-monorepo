@@ -4,7 +4,14 @@
  * replaces the visible one when a tile is picked.
  */
 export class PlayerManager {
-  constructor() {
+  /**
+   * @param {{ onError?: (name: string | null) => void }} [options]
+   *   `onError` fires when the element the viewer is watching fails to load or
+   *   play: an expired link, a 403, a codec the TV cannot decode. The player owns
+   *   no UI, so the caller decides what to show; without it the screen stays black.
+   */
+  constructor({ onError } = {}) {
+    this.onError = onError ?? null;
     this.active = document.createElement("video");
     this.buffer = document.createElement("video");
     [this.active, this.buffer].forEach((v) => {
@@ -31,6 +38,9 @@ export class PlayerManager {
     if (video.dataset.atvEnded) return;
     video.dataset.atvEnded = "1";
     video.addEventListener("ended", () => this.swap());
+    // The grid is hidden while a stream plays, so a media error would otherwise
+    // leave a black screen with nothing on it but the Back key.
+    video.addEventListener("error", () => this.onError?.(this.nowPlaying));
   }
   detectProfile() {
     const is4K = window.screen.width >= 3840 || window.devicePixelRatio >= 2;
