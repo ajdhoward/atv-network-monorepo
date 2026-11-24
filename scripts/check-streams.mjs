@@ -22,8 +22,10 @@
 // an HTML sign-in page all look resolved otherwise. The link itself is still
 // never printed: only its status and content type are.
 //
-// Behind Cloudflare Access, supply a service token:
-//   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... node scripts/check-streams.mjs
+// Behind Cloudflare Access, supply a service token, and once the worker enforces
+// the household token (R6), supply that too — otherwise every channel reads as a
+// failure the audit cannot distinguish from a broken link:
+//   CF_ACCESS_CLIENT_ID=... CF_ACCESS_CLIENT_SECRET=... ATV_DEVICE_TOKEN=... node scripts/check-streams.mjs
 import fs from "fs";
 
 const VALUE_FLAGS = new Set(["--config", "--ids", "--base"]);
@@ -89,6 +91,14 @@ if (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) {
   headers["CF-Access-Client-Id"] = process.env.CF_ACCESS_CLIENT_ID;
   headers["CF-Access-Client-Secret"] = process.env.CF_ACCESS_CLIENT_SECRET;
 }
+if (process.env.ATV_DEVICE_TOKEN) {
+  headers.Authorization = `Bearer ${process.env.ATV_DEVICE_TOKEN}`;
+}
+// One message for both passes: the audit stops on the first 401 rather than
+// reporting every channel as a failure, because nothing downstream can tell a
+// missing token from a dead link.
+const UNAUTHORIZED =
+  "401 unauthorized — the worker is enforcing the household token: set ATV_DEVICE_TOKEN";
 
 function parseJson(text) {
   try {
@@ -146,6 +156,10 @@ async function fetchBatch(batch) {
     const retryAfter = res.headers.get("retry-after") ?? "?";
     return { kind: "limited", detail: `rate limited (Retry-After ${retryAfter}s)` };
   }
+  if (res.status === 401) {
+    await res.arrayBuffer();
+    return { kind: "unauthorized" };
+  }
   if (res.status !== 200) {
     // An older deployment answers 404 for an unknown query shape.
     await res.arrayBuffer();
@@ -168,6 +182,10 @@ for (let i = 0; i < ids.length && !stopped; i += MAX_BATCH) {
   const result = await fetchBatch(ids.slice(i, i + MAX_BATCH));
   if (result.kind === "limited") {
     stopped = result.detail;
+    break;
+  }
+  if (result.kind === "unauthorized") {
+    stopped = UNAUTHORIZED;
     break;
   }
   if (result.kind !== "ok") {
@@ -205,6 +223,11 @@ for (const id of ids) {
     await res.arrayBuffer();
     const retryAfter = res.headers.get("retry-after") ?? "?";
     stopped = `rate limited (Retry-After ${retryAfter}s)`;
+    break;
+  }
+  if (res.status === 401) {
+    await res.arrayBuffer();
+    stopped = UNAUTHORIZED;
     break;
   }
   if (res.status === 200) {

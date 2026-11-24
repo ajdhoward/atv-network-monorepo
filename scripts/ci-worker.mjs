@@ -30,6 +30,12 @@ const FIXTURE = path.join("scripts", "fixtures", "ci-lineup.json");
 const LOG = path.join(".wrangler", "ci-dev.log");
 // Mirrored from services/atv-core/src/index.ts (RATE_LIMIT_MAX / window).
 const RATE_LIMIT_MAX = 300;
+// The local run's own household token (R6). It never leaves this process, so it is
+// not a secret, and setting it is the only way to exercise both halves of the
+// contract: 401 without it and 200 with it. Leaving it unset would pass this check
+// while the enforced path stayed untested.
+const CI_TOKEN = "ci-household-token";
+const AUTH = { Authorization: `Bearer ${CI_TOKEN}` };
 
 const binName = process.platform === "win32" ? "wrangler.cmd" : "wrangler";
 const localBin = path.join("node_modules", ".bin", binName);
@@ -59,7 +65,17 @@ fs.mkdirSync(path.dirname(LOG), { recursive: true });
 const logFd = fs.openSync(LOG, "w");
 const dev = spawn(
   WRANGLER,
-  ["dev", "--local", "--config", "wrangler.toml", "--port", port, "--test-scheduled"],
+  [
+    "dev",
+    "--local",
+    "--config",
+    "wrangler.toml",
+    "--port",
+    port,
+    "--test-scheduled",
+    "--var",
+    `ATV_DEVICE_TOKEN:${CI_TOKEN}`,
+  ],
   { stdio: ["ignore", logFd, logFd] },
 );
 let spawnError = null;
@@ -92,7 +108,9 @@ async function stopDev() {
 }
 
 async function getJson(pathname) {
-  const res = await fetch(base + pathname, { headers: { accept: "application/json" } });
+  const res = await fetch(base + pathname, {
+    headers: { accept: "application/json", ...AUTH },
+  });
   const body = await res.json().catch(() => null);
   return { res, body };
 }
@@ -123,10 +141,20 @@ async function checkAdmin() {
 }
 
 async function checkResolve() {
+  // Both directions, because only one of them is visible by accident: a Worker
+  // that ignores the header would pass the allow case alone.
+  const headerless = await fetch(`${base}/api/resolve?id=ci-atv-one`);
+  await headerless.arrayBuffer();
+  record(
+    "GET /api/resolve without the token → 401",
+    headerless.status === 401,
+    `HTTP ${headerless.status}`,
+  );
+
   const { res, body } = await getJson("/api/resolve?id=ci-atv-one");
   const url = body && typeof body.url === "string" ? body.url : "";
   record(
-    "GET /api/resolve?id=ci-atv-one",
+    "GET /api/resolve?id=ci-atv-one (with the token)",
     res.status === 200 && url.startsWith("https://"),
     `HTTP ${res.status}`,
   );
@@ -238,6 +266,7 @@ async function checkLimiter() {
   const headers = {
     "CF-Connecting-IP": `198.18.${octet()}.${octet()}`,
     accept: "application/json",
+    ...AUTH,
   };
   let allowed = 0;
   for (let i = 0; i < RATE_LIMIT_MAX; i++) {
@@ -279,7 +308,12 @@ async function main() {
 
   // Route/shell/asset/ETag/404 coverage already exists; reuse it rather than
   // keeping a second copy of those assertions here.
-  const smoke = spawnSync(process.execPath, ["scripts/smoke.mjs", base], { stdio: "inherit" });
+  // The same token the worker was given, so smoke checks the route rather than
+  // reporting a 401 it cannot explain.
+  const smoke = spawnSync(process.execPath, ["scripts/smoke.mjs", base], {
+    stdio: "inherit",
+    env: { ...process.env, ATV_DEVICE_TOKEN: CI_TOKEN },
+  });
   record("smoke against the local Worker", smoke.status === 0, `exit ${smoke.status}`);
 
   await checkAdmin();

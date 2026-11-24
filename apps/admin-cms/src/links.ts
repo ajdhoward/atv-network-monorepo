@@ -1,9 +1,12 @@
 import type { ChannelDef, GuidePayload } from "@atv/ui-shared";
+import { authHeader } from "./linkToken";
 
 // On-demand coverage check for the admin panel. It reads the public guide for the
-// channel list and asks the batched resolve endpoint for each channel, so it needs
-// no secret. The response does carry a link per resolved id, in `resolved[].url`;
-// this module reads only the ids, so nothing here can show, keep or log a URL.
+// channel list and asks the batched resolve endpoint for each channel; the guide
+// needs no credential, so only the resolve calls carry the household token the
+// panel stores. The response does carry a link per resolved id, in
+// `resolved[].url`; this module reads only the ids, so nothing here can show,
+// keep or log a URL.
 export type LinkState = "configured" | "missing" | "invalid";
 
 export type LinkCheck = { id: string; name: string; state: LinkState };
@@ -73,7 +76,12 @@ export type LinkProgress = { done: number; total: number };
 export async function checkLinks(
   fetchImpl: typeof fetch = fetch,
   onProgress?: (progress: LinkProgress) => void,
+  token: string | null = null,
 ): Promise<LinkCheck[]> {
+  // R6: once the worker enforces the household token, a headerless batch answers
+  // 401 for every request, and "0 of 12 have a usable link" would read as twelve
+  // broken streams.
+  const auth = authHeader(token);
   const channels = await loadChannels(fetchImpl);
   const states: Record<string, LinkState> = {};
   // One batch at a time, so a failure names the batch it came from and the
@@ -86,8 +94,13 @@ export async function checkLinks(
   for (const ids of batches) {
     const query = ids.map((id) => encodeURIComponent(id)).join(",");
     const res = await fetchImpl(`/api/resolve?ids=${query}`, {
-      headers: { accept: "application/json" },
+      headers: { accept: "application/json", ...auth },
     });
+    if (res.status === 401) {
+      throw new Error(
+        "The worker needs the household token — paste it above and run the check again.",
+      );
+    }
     if (!res.ok) throw new Error(`resolve responded ${res.status}`);
     Object.assign(states, classifyBatch(ids, (await res.json()) as BatchPayload));
     done += 1;

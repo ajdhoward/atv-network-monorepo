@@ -20,6 +20,11 @@ if (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) {
   headers["CF-Access-Client-Id"] = process.env.CF_ACCESS_CLIENT_ID;
   headers["CF-Access-Client-Secret"] = process.env.CF_ACCESS_CLIENT_SECRET;
 }
+// R6: once the deployment has ATV_DEVICE_TOKEN, /api/resolve wants it. Sent only
+// when present, so a sandbox without the secret is checked exactly as before.
+if (process.env.ATV_DEVICE_TOKEN) {
+  headers.Authorization = `Bearer ${process.env.ATV_DEVICE_TOKEN}`;
+}
 
 let failures = 0;
 const results = [];
@@ -165,7 +170,11 @@ try {
   record(
     "GET /api/resolve (unknown id → 404)",
     resolve.res.status === 404,
-    `HTTP ${resolve.res.status}`,
+    // A 401 here is the token, not the route. Saying so is the difference between
+    // a five-minute fix and an afternoon spent on a route that is fine.
+    resolve.res.status === 401
+      ? "HTTP 401 — the worker is enforcing the household token: set ATV_DEVICE_TOKEN (if it is already set, it is the wrong one)"
+      : `HTTP ${resolve.res.status}`,
   );
 
   const ident = await get("/api/idents/random");

@@ -10,6 +10,12 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- Every non-TV caller can carry the token (R7). The admin panel takes it once per browser and keeps it in
+  `localStorage` (`linkToken.ts`), sends it only on resolve batches — the guide stays public — and reads a 401
+  as "the worker needs the household token" instead of scoring every channel as broken. `pnpm smoke`,
+  `pnpm streams` and `ci:worker` send `ATV_DEVICE_TOKEN` from the environment when it is set and name the
+  token on a 401, because "HTTP 401" in a check with eight other lines in it reads as a broken deployment.
+  `ci:worker` boots the local Worker with its own token and asserts both halves: 401 without it, 200 with it.
 - `/api/resolve` enforces the household token (R6): a missing or wrong `Authorization: Bearer …` gets a 401
   `{error,code,requestId}` **before** the limiter or any provider call, so a stranger's id sweep spends none of
   the household's allowance and mints no TorBox links. Unauthorised attempts have their own counter,

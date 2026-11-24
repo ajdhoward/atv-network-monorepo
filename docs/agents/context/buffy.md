@@ -36,12 +36,15 @@ the 401 carries `{error,code,requestId}` and a Bearer challenge, unauthorised at
 changes without the secret, so it is inert until R8. Verified in workerd: `ci:worker`'s resolve still 200s
 because no `.dev.vars` token is set there, which is the unenforced path doing its job.
 
-**Next is R7** (teach every non-TV caller): `apps/admin-cms/src/links.ts`, `scripts/smoke.mjs`,
-`scripts/check-streams.mjs` and `scripts/ci-worker.mjs` must send the header when the token is in the
-environment and say plainly when it is not, so the day R8 sets the secret no check turns red for the wrong
-reason. Then R8 is the operator's (secret, then the TVs, then enforcement). L1 (deploy) and L2 (branch
-protection) stay the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays"
-for Drive-backed channels.
+**R7 is done.** The admin panel takes the token per browser and sends it on resolve batches only; smoke,
+streams and `ci:worker` read `ATV_DEVICE_TOKEN` from the environment and name the token on a 401. `ci:worker`
+is the useful one: it starts the Worker with `--var ATV_DEVICE_TOKEN:…` and asserts 401 headerless and 200
+with the header, so enforcement is exercised in workerd on every run rather than only in the route suite.
+
+**Next: R8, which is the operator's** — set `ATV_DEVICE_TOKEN` on `atv-core-v2`, deploy the R5 client, get the
+token onto each TV, confirm headerless resolves have stopped, then enforcement is already live (there is no
+second switch: the secret _is_ the switch). Then L1 (deploy), L2 (branch protection), L4 (seed real links).
+P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed channels.
 
 ## What I learnt that cost time
 

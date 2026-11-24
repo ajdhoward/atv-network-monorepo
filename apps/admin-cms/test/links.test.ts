@@ -173,4 +173,35 @@ describe("checkLinks", () => {
       { done: 2, total: 2 },
     ]);
   });
+
+  // R6: the guide stays public, the resolve batch does not. Only the resolve
+  // calls may carry the token, and only the panel's own copy of it.
+  it("sends the household token with the resolve batches and not the guide", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, headers: (init?.headers ?? {}) as Record<string, string> });
+      return url.startsWith("/api/guide")
+        ? json(200, { channels: [{ id: "a", name: "A" }], nextCursor: null })
+        : json(200, { resolved: [{ id: "a" }], missing: [], invalid: [] });
+    });
+
+    await checkLinks(fetchImpl as unknown as typeof fetch, undefined, "household-secret");
+
+    const guide = calls.find((call) => call.url.startsWith("/api/guide"));
+    const resolve = calls.find((call) => call.url.startsWith("/api/resolve"));
+    expect(guide?.headers.Authorization).toBeUndefined();
+    expect(resolve?.headers.Authorization).toBe("Bearer household-secret");
+  });
+
+  it("names the token on a 401 instead of calling every channel broken", async () => {
+    const fetchImpl = vi.fn(async (url: string) =>
+      url.startsWith("/api/guide")
+        ? json(200, { channels: [{ id: "a", name: "A" }], nextCursor: null })
+        : json(401, { code: "unauthorized" }),
+    );
+
+    await expect(checkLinks(fetchImpl as unknown as typeof fetch, undefined, null)).rejects.toThrow(
+      "household token",
+    );
+  });
 });

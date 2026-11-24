@@ -264,7 +264,11 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   the operator's environment.
 - **Paths:** `apps/admin-cms/src/links.ts`, `scripts/`, `docs/`
 - **Size:** S
-- **State:** accepted — split from R1. Lands with R6 or immediately after it.
+- **State:** done — the admin panel takes the token once per browser (`apps/admin-cms/src/linkToken.ts`),
+  sends it on resolve batches only, and reports "the worker needs the household token" on a 401 instead of
+  scoring every channel broken. `pnpm smoke`, `pnpm streams` and `ci:worker` send `ATV_DEVICE_TOKEN` from the
+  environment and name the token on a 401; `ci:worker` boots the Worker with a local token and asserts both
+  halves (401 without it, 200 with it), so enforcement is exercised in workerd before R8 turns it on.
 
 ### R8 · Roll C out in the enforced order, with the operator
 

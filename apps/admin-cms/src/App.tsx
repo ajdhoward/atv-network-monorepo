@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { HealthPayload } from "@atv/ui-shared";
 import { fetchHealth, summariseHealth } from "./health";
 import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck, type LinkProgress } from "./links";
+import { readLinkToken, saveLinkToken } from "./linkToken";
 import { colour, crumb, font, grid, muted, panel, sectionHeading } from "./styles";
 
 function Card({ label, value }: { label: string; value: number | string }) {
@@ -22,6 +23,11 @@ export default function App() {
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState<LinkProgress | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
+  // The panel's copy of the household token (R6): typed once per browser, never
+  // compiled into the bundle. Empty means "not set here", which the check reports
+  // as a missing token instead of blaming the channels.
+  const [linkToken, setLinkToken] = useState(() => readLinkToken() ?? "");
+  const [tokenNote, setTokenNote] = useState<string | null>(null);
   // A folder tree needs a way back. This used to append to one string, so a
   // second click on the same folder produced `/ATV Network/Idents/Idents` and
   // nothing could return to the root.
@@ -47,7 +53,7 @@ export default function App() {
     setProgress(null);
     setCheckError(null);
     try {
-      setChecks(await checkLinks(fetch, setProgress));
+      setChecks(await checkLinks(fetch, setProgress, linkToken || null));
     } catch (err) {
       setCheckError(err instanceof Error ? err.message : "Link check failed");
       setChecks(null);
@@ -91,6 +97,35 @@ export default function App() {
       )}
 
       <h2 style={sectionHeading}>Stream links</h2>
+      <label htmlFor="link-token" style={{ ...muted, display: "block", marginBottom: 4 }}>
+        Household token — kept in this browser, needed once the worker enforces it
+      </label>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <input
+          id="link-token"
+          type="password"
+          value={linkToken}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(event) => setLinkToken(event.target.value)}
+          style={{ font: "inherit", padding: "6px 8px", minWidth: 280 }}
+        />
+        <button
+          type="button"
+          disabled={!linkToken.trim()}
+          onClick={() => {
+            const saved = saveLinkToken(linkToken);
+            setTokenNote(
+              saved
+                ? "Token saved in this browser."
+                : "This browser refused to store it; it applies to the next check only.",
+            );
+          }}
+        >
+          Save token
+        </button>
+      </div>
+      {tokenNote && <p style={muted}>{tokenNote}</p>}
       <button onClick={runCheck} disabled={checking}>
         {checking ? "Checking…" : "Check stream links"}
       </button>
