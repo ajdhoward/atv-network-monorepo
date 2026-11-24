@@ -17,7 +17,7 @@
 // `Env` and to the inventory in `docs/continuity.md` happens in the wiring
 // change — the one that actually uses the name.
 
-export type DeviceTokenVerdict = "allow" | "reject" | "unenforced";
+export type DeviceTokenVerdict = "allow" | "reject" | "unenforced" | "unpresentable";
 
 // Reads the credential out of an `Authorization` header. The scheme is
 // case-insensitive (RFC 6750 §2.1) and a header may carry stray whitespace; a
@@ -46,13 +46,25 @@ function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
 // `unenforced` is a distinct answer, not a lenient `allow`: it is what a
 // deployment with no secret configured does, and what makes shipping this check
 // before every TV has a token safe. R8 sets the secret; from then on the same
-// request path answers allow or reject and nothing else.
+// request path answers allow or reject — or `unpresentable`, which is not the
+// caller's fault at all (Q10).
+
+// `bearerToken` matches one token (`(\S+)`), so a secret with whitespace inside
+// it can never arrive: every TV holding the right value would be told it is
+// wrong. That is a deployment misconfiguration and gets its own answer, so a
+// 503 can say so instead of a 401 blaming the household for a typo that is not
+// theirs. Whitespace at the ends is trimmed above and is harmless.
+function unpresentable(secret: string): boolean {
+  return /\s/.test(secret);
+}
+
 export async function checkDeviceToken(
   header: string | null,
   expected: string | null | undefined,
 ): Promise<DeviceTokenVerdict> {
   const wanted = typeof expected === "string" ? expected.trim() : "";
   if (!wanted) return "unenforced";
+  if (unpresentable(wanted)) return "unpresentable";
   const presented = bearerToken(header);
   if (!presented) return "reject";
   const [given, mine] = await Promise.all([digest(presented), digest(wanted)]);

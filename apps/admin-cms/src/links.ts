@@ -7,7 +7,9 @@ import { authHeader } from "./linkToken";
 // panel stores. The response does carry a link per resolved id, in
 // `resolved[].url`; this module reads only the ids, so nothing here can show,
 // keep or log a URL.
-export type LinkState = "configured" | "missing" | "invalid";
+// "unconfigured" is the deployment, not the channel: its Drive links exist but
+// this Worker has no `ATV_STREAM_SIGNING_KEY`, so it cannot proxy them (P5).
+export type LinkState = "configured" | "missing" | "invalid" | "unconfigured";
 
 export type LinkCheck = { id: string; name: string; state: LinkState };
 
@@ -18,6 +20,8 @@ export type BatchPayload = {
   resolved?: { id?: string; url?: string }[];
   missing?: string[];
   invalid?: string[];
+  // Optional on the wire: a deployment older than P5 omits the list entirely.
+  unconfigured?: string[];
 };
 
 // Matches the worker's cap on ?ids=.
@@ -40,6 +44,9 @@ export function classifyBatch(ids: string[], body: BatchPayload): Record<string,
   }
   for (const id of body.invalid ?? []) {
     if (typeof id === "string") states[id] = "invalid";
+  }
+  for (const id of body.unconfigured ?? []) {
+    if (typeof id === "string") states[id] = "unconfigured";
   }
   return states;
 }
@@ -101,6 +108,13 @@ export async function checkLinks(
         "The worker needs the household token — paste it above and run the check again.",
       );
     }
+    if (res.status === 503) {
+      // A batch answers 200 with the ids in `unconfigured`; a 503 here is about
+      // the deployment as a whole, so name the likelier cause rather than the code.
+      throw new Error(
+        "This deployment cannot resolve streams right now (503) — its token or stream signing key is misconfigured.",
+      );
+    }
     if (!res.ok) throw new Error(`resolve responded ${res.status}`);
     Object.assign(states, classifyBatch(ids, (await res.json()) as BatchPayload));
     done += 1;
@@ -117,10 +131,12 @@ export const LINK_LABEL: Record<LinkState, string> = {
   configured: "link ready",
   missing: "no link",
   invalid: "link is not a usable https URL",
+  unconfigured: "Drive link, but this deployment has no stream signing key",
 };
 
 export const LINK_ICON: Record<LinkState, string> = {
   configured: "✅",
   missing: "❌",
   invalid: "⚠️",
+  unconfigured: "🔑",
 };

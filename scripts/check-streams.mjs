@@ -156,7 +156,8 @@ async function probeLink(url) {
   return { ok: true, detail: `${kind}, HTTP ${res.status}` };
 }
 
-// id -> { kind: "ok", url? } | { kind: "missing" } | { kind: "insecure" } | { kind: "error", detail }
+// id -> { kind: "ok", url? } | { kind: "missing" } | { kind: "insecure" } |
+// { kind: "unconfigured" } | { kind: "error", detail }
 const outcomes = new Map();
 let stopped = null;
 
@@ -221,6 +222,9 @@ for (let i = 0; i < ids.length && !stopped; i += MAX_BATCH) {
   }
   for (const id of result.body.missing) outcomes.set(id, { kind: "missing" });
   for (const id of result.body.invalid) outcomes.set(id, { kind: "insecure" });
+  // P5: optional on the wire, so a deployment older than the change simply
+  // leaves these ids unclassified and the per-id pass below asks again.
+  for (const id of result.body.unconfigured ?? []) outcomes.set(id, { kind: "unconfigured" });
 }
 
 // 2) Per-id pass for anything the batch did not classify.
@@ -265,6 +269,7 @@ for (const id of ids) {
   await res.arrayBuffer();
   if (res.status === 404) outcomes.set(id, { kind: "missing" });
   else if (res.status === 502) outcomes.set(id, { kind: "insecure" });
+  else if (res.status === 503) outcomes.set(id, { kind: "unconfigured" });
   else outcomes.set(id, { kind: "error", detail: `HTTP ${res.status}` });
 }
 
@@ -300,6 +305,13 @@ for (const id of ids) {
   } else if (outcome.kind === "insecure") {
     failed++;
     console.log(`FAIL  ${id} — 502 insecure_url (the link is not https://)`);
+  } else if (outcome.kind === "unconfigured") {
+    // The channel is seeded and is a Drive link; the deployment cannot proxy it.
+    // Naming the secret is the whole point: the fix is not in the lineup.
+    failed++;
+    console.log(
+      `FAIL  ${id} — 503 stream_unconfigured (this deployment has no ATV_STREAM_SIGNING_KEY)`,
+    );
   } else {
     failed++;
     console.log(`FAIL  ${id} — ${outcome.detail}`);

@@ -53,11 +53,18 @@ describe("proxyTicket", () => {
     ).toBe("https://cdn.example/news.m3u8");
   });
 
-  // Before the operator sets the key, resolve keeps answering what it answered
-  // before P1 rather than turning every Drive channel into a 503.
-  it("falls back to the stored link when there is no key", async () => {
-    expect(await proxyTicket("news", DRIVE, {})).toBe(DRIVE);
-    expect(await proxyTicket("news", DRIVE, { ATV_STREAM_SIGNING_KEY: "  " })).toBe(DRIVE);
+  // P5: with no key this used to hand over the stored link, so resolve answered
+  // 200 with a share page a `<video>` cannot play — a configured channel that
+  // looked broken. It is now the deployment's own failure.
+  it("refuses a Drive link when there is no signing key", async () => {
+    await expect(proxyTicket("news", DRIVE, {})).rejects.toThrow("stream unconfigured");
+    await expect(proxyTicket("news", DRIVE, { ATV_STREAM_SIGNING_KEY: "  " })).rejects.toThrow(
+      "stream unconfigured",
+    );
+    // Only Drive needs the proxy, so a CDN link still resolves without a key.
+    expect(await proxyTicket("news", "https://cdn.example/x.mp4", {})).toBe(
+      "https://cdn.example/x.mp4",
+    );
   });
 });
 

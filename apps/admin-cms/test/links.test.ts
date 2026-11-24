@@ -38,6 +38,12 @@ describe("classifyBatch", () => {
     expect(states).toEqual({ a: "configured", b: "missing", c: "invalid" });
   });
 
+  // P5: the link exists and the deployment cannot proxy it. Reporting that as
+  // "no link" would send the operator to seed a map they already seeded.
+  it("names a Drive link the deployment cannot proxy", () => {
+    expect(classifyBatch(["a"], { unconfigured: ["a"] })).toEqual({ a: "unconfigured" });
+  });
+
   it("treats an id the worker did not account for as missing", () => {
     expect(classifyBatch(["a", "b"], { resolved: [{ id: "a" }] })).toEqual({
       a: "configured",
@@ -127,8 +133,10 @@ describe("checkLinks", () => {
         : json(503, { error: "unavailable" }),
     );
 
+    // A 503 is the deployment's own fault (its token or signing key), so the
+    // message names that rather than a status the operator cannot act on.
     await expect(checkLinks(fetchImpl as unknown as typeof fetch)).rejects.toThrow(
-      "resolve responded 503",
+      "cannot resolve streams right now (503)",
     );
   });
 

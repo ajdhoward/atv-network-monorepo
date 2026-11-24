@@ -316,17 +316,23 @@ type BatchResolve = {
   resolved: { id: string; url: string; profile: string }[];
   missing: string[];
   invalid: string[];
+  // P5: the ids that are Drive links while this deployment has no
+  // `ATV_STREAM_SIGNING_KEY`. Their own list, because "no link" would send the
+  // operator to seed a map they already seeded.
+  unconfigured: string[];
 };
 
 // `resolveStream` signals both expected failures by throwing a message, and the
 // single and batch paths have to read the same two. One mapping means a new
 // message cannot be taught to only one of them.
-type ResolveFault = "missing" | "insecure" | "fault";
+type ResolveFault = "missing" | "insecure" | "unconfigured" | "fault";
 
 function classifyResolveFault(err: unknown): ResolveFault {
   const message = err instanceof Error ? err.message : "";
   if (message === "not found") return "missing";
   if (message.startsWith("insecure url")) return "insecure";
+  // P5: a Drive link with no signing key is the deployment's gap, not this id's.
+  if (message === "stream unconfigured") return "unconfigured";
   return "fault";
 }
 
@@ -348,7 +354,7 @@ async function resolveMany(raw: string, env: Env, requestId: string): Promise<Re
     return failure("too_many_ids", `at most ${MAX_BATCH_IDS} ids per request`, requestId, 400);
   }
 
-  const out: BatchResolve = { resolved: [], missing: [], invalid: [] };
+  const out: BatchResolve = { resolved: [], missing: [], invalid: [], unconfigured: [] };
   for (const id of ids) {
     try {
       const link = await resolveStream(id, env);
@@ -357,6 +363,7 @@ async function resolveMany(raw: string, env: Env, requestId: string): Promise<Re
       const fault = classifyResolveFault(err);
       if (fault === "missing") out.missing.push(id);
       else if (fault === "insecure") out.invalid.push(id);
+      else if (fault === "unconfigured") out.unconfigured.push(id);
       // Anything else is a real fault: let the guard turn it into a 503 rather
       // than reporting a partial batch as if it were complete.
       else throw err;
@@ -380,6 +387,18 @@ async function handleResolve(
     request.headers.get("Authorization"),
     env.ATV_DEVICE_TOKEN,
   );
+  if (verdict === "unpresentable") {
+    // Q10: the secret contains whitespace, so no client can ever send it. A 401
+    // here would send the household to retype a value that cannot work; 503 says
+    // the deployment is what needs fixing, and the body never carries the secret.
+    count(env, "resolve_token_unpresentable");
+    return failure(
+      "device_token_invalid",
+      "the deployment's household token cannot be sent in a header",
+      requestId,
+      503,
+    );
+  }
   if (verdict === "reject") {
     count(env, "resolve_unauthorized");
     return failure("unauthorized", "household token required", requestId, 401, {
@@ -413,6 +432,16 @@ async function handleResolve(
       case "insecure":
         count(env, "resolve_insecure", id);
         return failure("insecure_url", message, requestId, 502);
+      case "unconfigured":
+        // The same code `/api/stream` answers, so the two routes agree about what
+        // is wrong; 503 because charging the caller would be a lie (P5).
+        count(env, "resolve_unconfigured", id);
+        return failure(
+          "stream_unconfigured",
+          "stream signing is not configured on this deployment",
+          requestId,
+          503,
+        );
       default:
         logFailure(requestId, "/api/resolve", err);
         return failure("resolve_failed", "resolve failed", requestId, 502);

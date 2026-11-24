@@ -64,10 +64,15 @@ export function driveMediaUrl(fileId: string): string {
 }
 
 // The link `/api/resolve` should hand out for a channel. A Drive URL becomes a
-// same-origin ticket only when the signing key exists: without it this route
-// cannot serve the file, so the stored link is returned unchanged — exactly what
-// the Worker answered before P1 — rather than turning every Drive channel into a
-// 503 before the operator has set the secret.
+// same-origin ticket, and nothing else is touched: a CDN file or a TorBox link is
+// handed over as stored.
+//
+// P5: a Drive link with no signing key throws instead of returning the stored
+// link. Returning it answered `200` with a share page no `<video>` can play, so a
+// configured channel read as "no stream configured" — a silent failure the
+// operator could only find by playing it. `stream unconfigured` is caught by the
+// route and answered `503 stream_unconfigured`, the same code `/api/stream` uses,
+// so resolve and the media route agree about what is wrong.
 export async function proxyTicket(
   id: string,
   link: string,
@@ -75,7 +80,7 @@ export async function proxyTicket(
 ) {
   if (!driveFileId(link)) return link;
   const secret = env.ATV_STREAM_SIGNING_KEY?.trim();
-  if (!secret) return link;
+  if (!secret) throw new Error("stream unconfigured");
   return signStreamUrl(id, secret);
 }
 

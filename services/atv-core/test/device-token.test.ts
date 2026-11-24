@@ -27,15 +27,21 @@ describe("bearerToken", () => {
 });
 
 describe("checkDeviceToken", () => {
-  // The trap the runbook warns about, and the reason it now recommends a token with
-  // no whitespace: `Bearer` carries one token, so a secret with a space in it can
-  // never be presented. Today that is a plain `reject`, which the TV can only report
-  // as "that token was not accepted" even though the value is right; Q10 proposes
-  // the deployment's own answer for it.
-  it("rejects a secret that cannot be presented as one token", async () => {
+  // Q10: `Bearer` carries one token, so a secret with a space inside it can never
+  // be presented. Answering `reject` told every TV with the right value that it was
+  // wrong; the deployment is what needs fixing, so it has its own verdict.
+  it("names a secret that cannot be presented as one token", async () => {
     expect(await checkDeviceToken("Bearer correct horse battery", "correct horse battery")).toBe(
-      "reject",
+      "unpresentable",
     );
+    // Even with no header at all: the fault is the secret, not the caller.
+    expect(await checkDeviceToken(null, "correct horse battery")).toBe("unpresentable");
+  });
+
+  // Whitespace at the ends is what a copy-paste produces and the trim already
+  // handles it, so it must stay an ordinary token rather than a 503.
+  it("still accepts a secret whose only whitespace is at the ends", async () => {
+    expect(await checkDeviceToken(`Bearer ${TOKEN}`, `  ${TOKEN}\n`)).toBe("allow");
   });
 
   it("does not enforce while the deployment has no token", async () => {
