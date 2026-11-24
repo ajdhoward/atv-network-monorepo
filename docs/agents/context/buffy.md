@@ -55,7 +55,9 @@ so keyboard and mouse share one rule. Checked with real Tab presses in the brows
 Check stream links → the four folders, Enter descends, a second Enter is a no-op, and the root crumb becomes
 tabbable once inside a folder and takes you back. The row emoji is inside an `aria-hidden` span, because an
 emoji in button text is part of the accessible name (a row used to announce "file folder Idents"); the
-button's text content still reads `📁 Idents`, so mouse and keyboard behaviour did not move.
+button's text content still reads `📁 Idents`, so mouse and keyboard behaviour did not move. The breadcrumb uses
+the same idiom for its `/` for the same reason: a separator in button text is spoken, so a crumb announced
+"slash News". Both keep the visible text and the Tab order and hide only the decoration from the name.
 
 **The grid now has tests** (`apps/tv-client/test/grid.test.ts`, 8), including the click path — which taught me the
 one thing a test can: a tile click focuses and plays but does not re-fire `onFocus`, because the hover prefetch

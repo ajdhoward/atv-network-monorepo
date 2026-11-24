@@ -164,7 +164,10 @@ export default function App() {
             onClick={() => setCrumbs([])}
             disabled={!crumbs.length}
           >
-            /{ROOT}
+            {/* The separator is decoration: part of the text, none of the name,
+                or a screen reader reads the button as "slash ATV Network". */}
+            <span aria-hidden="true">/</span>
+            {ROOT}
           </button>
           {crumbs.map((segment, index) => (
             <button
@@ -174,7 +177,8 @@ export default function App() {
               disabled={index === crumbs.length - 1}
               onClick={() => setCrumbs(crumbs.slice(0, index + 1))}
             >
-              /{segment}
+              <span aria-hidden="true">/</span>
+              {segment}
             </button>
           ))}
         </nav>

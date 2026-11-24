@@ -55,6 +55,10 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- The breadcrumb steps announced their separator along with the folder — "slash ATV Network", "slash News" —
+  because the `/` was inside the button's text. It is an `aria-hidden` span now and each crumb's name is the
+  folder alone. The slashes still show, and the Tab order is the one the tree pass checked: root crumb once
+  inside a folder, then the steps up to but not including the level you are on.
 - A Drive tree row announced itself as "file folder Idents" before the folder name, because an emoji in
   button text is part of its accessible name. The 📁 now sits in an `aria-hidden="true"` span, so a screen
   reader reads the folder name alone; the visible label and the click semantics are unchanged.
