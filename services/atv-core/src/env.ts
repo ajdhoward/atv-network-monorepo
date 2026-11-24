@@ -37,6 +37,10 @@ export async function readJson<T>(kv: KVNamespace, key: string): Promise<T | nul
 // Per-isolate memo for keys that only change when someone re-seeds
 // (gdrive_map, idents). KV reads are cheap but not free, and these are read on
 // every resolve/hover. The guide has its own request-path memo.
+//
+// Keyed by the KV key alone, not by namespace: safe because the keys this Worker
+// reads are named apart across ATV_CONFIG and ATV_CACHE. A name used in both would
+// serve one namespace's value for the other.
 const memo = new Map<string, { at: number; value: unknown }>();
 // Reads already in the air, per key. A grid sweep resolves many channels in
 // parallel, so without this a cold isolate starts one KV read per caller for the
@@ -62,6 +66,9 @@ function sharedRead<T>(kv: KVNamespace, key: string): Promise<T | null> {
   return mine;
 }
 
+// Reads a JSON key through the memo, sharing a read already in the air with every
+// concurrent caller. `ttlMs` is the memo window: a caller that needs a fresher
+// answer can pass a smaller one, and the TTL decides nothing else.
 export async function kvJson<T>(kv: KVNamespace, key: string, ttlMs = 60_000): Promise<T | null> {
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.value as T | null;

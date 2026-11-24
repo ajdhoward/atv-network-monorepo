@@ -1,12 +1,15 @@
 // The household token: one secret for every TV, kept where a client change can
 // reach an already-installed APK without re-sideloading it.
 //
-// `decisions.md` (2026-11-23, option C) makes `/api/resolve` require
+// `decisions.md` (2026-11-23, option C) has `/api/resolve` require
 // `Authorization: Bearer <ATV_DEVICE_TOKEN>` once enforcement lands. The token
-// lives in localStorage rather than in the shell, so the one TV that is already
-// installed takes it on its next load. The guide stays public: a TV with no
-// token is a normal state, not an error, and the player asks for one the first
-// time resolve answers 401.
+// lives in localStorage rather than in the shell, so an installed TV takes it on
+// its next load instead of waiting for a new APK. The guide stays public: a TV
+// with no token is a normal state, not an error.
+//
+// Only the storage half exists so far. R5 still has to read this token in
+// `resolve.ts` and `playerManager.js` and turn a 401 into the prompt that fills
+// it in; until then nothing sends the header, and the Worker does not ask for one.
 //
 // The Fire OS shell enables DOM storage, but a write can still be refused (a
 // full quota, a WebView with storage off), so every access here is allowed to
@@ -65,9 +68,9 @@ export function clearToken(store: TokenStore | null = browserStore()): void {
   }
 }
 
-// The header itself, in one place so the two resolve call sites cannot disagree
-// about its spelling. It is never put in a query string, where it would land in
-// logs, analytics and referrers.
+// The header itself, in one place so the resolve call sites cannot disagree about
+// its spelling once R5 sends it. It is never put in a query string, where it would
+// land in logs, analytics and referrers.
 export function authorizationHeader(token: string | null): Record<string, string> {
   const value = normaliseToken(token);
   return value ? { Authorization: `Bearer ${value}` } : {};

@@ -1,9 +1,9 @@
 import type { ChannelDef, GuidePayload } from "@atv/ui-shared";
 
-// On-demand coverage check for the admin panel. It reads the public guide for
-// the channel list and asks the batched resolve endpoint for each channel, so
-// it never needs a secret and never receives a stream link: only which ids came
-// back resolved, missing or invalid.
+// On-demand coverage check for the admin panel. It reads the public guide for the
+// channel list and asks the batched resolve endpoint for each channel, so it needs
+// no secret. The response does carry a link per resolved id, in `resolved[].url`;
+// this module reads only the ids, so nothing here can show, keep or log a URL.
 export type LinkState = "configured" | "missing" | "invalid";
 
 export type LinkCheck = { id: string; name: string; state: LinkState };

@@ -1,7 +1,8 @@
 # Local Worker secrets for `wrangler dev`.
 #
 # `wrangler dev` loads `.dev.vars` from the repository root, so that is where a
-# developer's own values go — copy this file to `.dev.vars` and fill them in.
+# developer's own values go: copy this file to `.dev.vars` and fill them in. While
+# it exists, wrangler does not load a `.env` at all, so put every local value here.
 # `.gitignore` covers `.dev.vars` and `.dev.vars.*`, and `pnpm continuity` fails if
 # one of them ever gets tracked; this template is the only one allowed in the tree.
 #

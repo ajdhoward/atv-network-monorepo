@@ -89,7 +89,8 @@ adb install -r ${APK_ASSET}</pre>
   <h2>What the app does</h2>
   <ul>
     <li>Loads this Worker's guide and player full-screen; no channel list is bundled.</li>
-    <li>Stream links are resolved by the Worker and played over HTTPS; the TV never holds a token.</li>
+    <li>Stream links are resolved by the Worker and played over HTTPS; the provider token never
+      reaches the TV.</li>
     <li>No account, no local storage, no background service.</li>
     <li>If the Worker is unreachable it shows a retry screen instead of a blank TV.</li>
   </ul>
