@@ -29,6 +29,7 @@ self-review is weaker than review by someone who did not write it.
 | Agent | Tool / model                            | Roles                                      | Joined     | Paths owned                                            | Current work                                                                                                | Branch / PR | Context                              |
 | ----- | --------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------ |
 | Buffy | Freebuff (Codebuff), cloud chat 0feea3c | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `scripts/`, `docs/`, root briefs | Full evaluation; `/onboard`, the handoff intake and the continuity inventory. Next: L1/L2 with the operator | `main`      | [context/buffy.md](context/buffy.md) |
+| Z     | z.ai Code (web)                         | Reviewer, Verifier                         | 2026-11-23 | _(none — review/verify only)_                        | Announcing; then reviewing open PRs and acking proposed backlog items                                       | `z-join`    | [context/z.md](context/z.md)         |
 
 ## Done
 
