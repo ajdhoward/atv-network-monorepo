@@ -35,13 +35,21 @@ and the R1 record in `decisions.md` both summarise it as _client first, secret s
 - [ ] You can reach the Cloudflare dashboard for account `d9491f1ab703e0a99b69919230410f2a`, Workers →
       `atv-core-v2`, and GitHub Actions on this repository.
 - [ ] You have a list of the TVs to set up, and physical access to each one this session.
-- [ ] The token exists and is in your password manager: any long random string, one shared by every TV.
-      Generate one now if it does not exist, and never paste it into chat, a commit, or a command line that
-      lands in shell history:
+- [ ] The token exists and is in your password manager: one shared by every TV, and **no whitespace anywhere
+      in it**. You will type it by remote on every TV, so length costs real minutes and the threat is a guess
+      over HTTPS: 16 hex characters is 64 bits, far past that, and typable. Generate it now if it does not
+      exist, and never paste it into chat, a commit, or a command line that lands in shell history:
 
   ```bash
-  openssl rand -hex 32          # paste the output into the password manager
+  openssl rand -hex 8           # 16 hex characters — the recommended size for typing on a remote
+  openssl rand -hex 32          # 64 characters, if you would rather have the longer value
   ```
+
+  **A token containing a space can never be accepted.** `Bearer` carries one token at a time
+  (`bearerToken` in `services/atv-core/src/device-token.ts` matches `\S+` against the header), so a secret like
+  `correct horse battery` is rejected however carefully it is typed, and the prompt can only say _that token
+  was not accepted_ — which blames the household for the deployment's mistake. Q10 in
+  [`agents/backlog.md`](agents/backlog.md) proposes making the Worker answer that case as its own error.
 
 - [ ] You know how to reach each TV: Apps2Fire/Bugjaeger from a phone, Downloader on the TV, or `adb`.
 

@@ -14,7 +14,8 @@
 # Household token for /api/resolve (option C). While it is empty nothing is
 # enforced, which is how the sandbox behaves until R8 sets the real secret; once
 # it is set, every resolve needs `Authorization: Bearer <this>` and a TV gets it
-# from the prompt on the guide screen.
+# from the prompt on the guide screen. No whitespace anywhere in the value: it is
+# sent as a single Bearer token, so a space makes it impossible to present.
 ATV_DEVICE_TOKEN=
 
 # TorBox API token. Without it, a channel mapped in `torbox_map` answers 502.
