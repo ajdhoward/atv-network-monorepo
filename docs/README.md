@@ -7,12 +7,12 @@ continuity` fails when a document here is not listed below.
 | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | [continuity.md](continuity.md)                                       | What must survive a lost session, and where every secret's name lives |
 | [production-cutover.md](production-cutover.md)                       | The only authority for replacing production                           |
-| [r8-rollout.md](r8-rollout.md)                                       | The operator's runbook for turning on the household token (R8)        |
 | [agents/onboarding.md](agents/onboarding.md)                         | Where a new agent starts                                              |
 | [agents/roles.md](agents/roles.md)                                   | The seven roles and their coverage                                    |
 | [agents/roster.md](agents/roster.md)                                 | Who is here, their roles, and the paths they own                      |
 | [agents/context/README.md](agents/context/README.md)                 | One context file per agent: the memory a session resumes from         |
 | [agents/context/buffy.md](agents/context/buffy.md)                   | The active agent's working memory                                     |
+| [agents/context/z.md](agents/context/z.md)                           | Z (Reviewer/Verifier) working memory                                  |
 | [agents/backlog.md](agents/backlog.md)                               | The work list, and the debate around it                               |
 | [agents/decisions.md](agents/decisions.md)                           | What is proposed, acked and settled, and why                          |
 | [agents/reviews.md](agents/reviews.md)                               | The review cadence and scorecard                                      |
