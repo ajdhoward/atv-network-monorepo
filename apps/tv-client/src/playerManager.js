@@ -50,12 +50,6 @@ export class PlayerManager {
       this.onError?.(this.nowPlaying);
     });
   }
-  detectProfile() {
-    const is4K = window.screen.width >= 3840 || window.devicePixelRatio >= 2;
-    return is4K
-      ? { res: 2160, codec: "hevc", audio: "dd51" }
-      : { res: 1080, codec: "hevc", audio: "stereo" };
-  }
   onTileHover(id) {
     clearTimeout(this.hoverTimer);
     this.hoverTimer = setTimeout(async () => {

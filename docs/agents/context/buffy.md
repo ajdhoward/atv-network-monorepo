@@ -41,6 +41,10 @@ streams and `ci:worker` read `ATV_DEVICE_TOKEN` from the environment and name th
 is the useful one: it starts the Worker with `--var ATV_DEVICE_TOKEN:…` and asserts 401 headerless and 200
 with the header, so enforcement is exercised in workerd on every run rather than only in the route suite.
 
+**The grid now has tests** (`apps/tv-client/test/grid.test.ts`, 8), including the click path — which taught me the
+one thing a test can: a tile click focuses and plays but does not re-fire `onFocus`, because the hover prefetch
+belongs to `mouseenter`. `PlayerManager.detectProfile()` is gone; the review had flagged it as dead.
+
 **P1 has a design and its first file.** `decisions.md` (2026-11-24) proposes `/api/stream/<id>?exp&sig`: the
 resolve call (already token-protected) mints a 15-minute HMAC ticket, because a `<video src>` cannot send a
 header; the proxy verifies the ticket then passes `Range` through to Drive. `stream-sign.ts` implements the

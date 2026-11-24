@@ -10,6 +10,9 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- The grid's first tests (`apps/tv-client/test/grid.test.ts`, 8): wrap-around focus, play-focused, an empty
+  and a non-array lineup, notice, show/hide, and a click. It was the last client module with real behaviour
+  and no coverage, which is how the click-vs-hover distinction went unrecorded until a test assumed wrong.
 - `services/atv-core/src/stream-sign.ts` — the P1 ticket, before the route exists: `/api/resolve` will mint
   `/api/stream/<id>?exp&sig`, signed with HMAC-SHA256 over `<id>\n<exp>`, and the proxy will check for a
   configured secret, a valid signature, the id it was minted for and a 15-minute expiry. Each failure has its
@@ -85,6 +88,8 @@ Nothing here is merged or deployed.
 
 ### Removed
 
+- `PlayerManager.detectProfile()` from `@atv/tv-client` — dead since the player started swapping `<video>`
+  elements: nothing called it and no response carried its answer. Flagged by the 2026-11-24 review.
 - `video.js` from `@atv/tv-client`: declared, never imported — the player is a plain `<video>` element that
   the manager swaps. Its 175 lines of lockfile and its Node-version peer range go with it.
 
