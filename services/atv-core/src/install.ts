@@ -29,9 +29,13 @@ export function qrSvg(text: string): string {
 }
 
 // Fire OS has no Chrome, so there is no Trusted Web Activity here: the APK is a
-// WebView shell that is sideloaded once. The page exists because a TV remote is
-// a poor way to type a release URL, which is also why it names the Worker's
-// /a short path: two characters on the remote instead of the whole release URL.
+// WebView shell that is sideloaded once. The page exists because a TV remote is a
+// poor way to type a release URL, which is also why it names the Worker's /a short
+// path: the host, then two characters, instead of the whole release URL.
+//
+// `host` is the request's own host, used only to print that address as an absolute
+// one. Without it the step reads "this address, then /a", because the Worker has no
+// other way to learn its hostname.
 export function installPage(env: Env, host?: string): string {
   const apk = escapeHtml(apkUrl(env.GITHUB_USERNAME));
   const short = host ? `${escapeHtml(host)}/a` : "this address, then /a";

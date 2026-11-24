@@ -1,3 +1,8 @@
+/**
+ * Two <video> elements, one visible. `swap()` promotes the hidden one when the
+ * current stream ends, so a channel change does not blank the screen; `play()`
+ * replaces the visible one when a tile is picked.
+ */
 export class PlayerManager {
   constructor() {
     this.active = document.createElement("video");
@@ -47,6 +52,14 @@ export class PlayerManager {
     this.buffer.src = url;
     this.buffer.load();
   }
+  /**
+   * Plays a resolved URL and remembers which channel it is for.
+   *
+   * @param {string} url the resolved stream URL; kept only in the element, never
+   *   stored or logged
+   * @param {string} [name] channel name for the overlays. Omitted leaves the
+   *   previous name in place, which is what a swap between segments wants
+   */
   play(url, name) {
     if (name) this.nowPlaying = name;
     this.bind(this.active);
@@ -55,6 +68,11 @@ export class PlayerManager {
     this.active.addEventListener("loadedmetadata", () => this.setupForcedSubs(), { once: true });
     this.active.play();
   }
+  /**
+   * Promotes the hidden element and plays what it holds: normally nothing, or the
+   * last thing `prebuffer` loaded, which is a tile hover and not necessarily the
+   * channel that just ended.
+   */
   swap() {
     const tmp = this.active;
     this.active = this.buffer;
