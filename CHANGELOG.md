@@ -20,6 +20,9 @@ Nothing here is merged or deployed.
   refused write reported instead of swallowed, and the `Authorization` header in one place so the prompt
   and both resolve call sites cannot disagree. The first file of R5; the guide still renders without it.
 
+- `.env.example` — every environment variable the scripts read, plus the ones deliberately absent because
+  they are `wrangler.toml` vars or Worker secrets, so a secret is not added to a file nothing loads.
+
 ### Fixed
 
 - Two races that spent duplicate work: a cold isolate issued one KV read per channel in a grid sweep, and a
@@ -38,6 +41,11 @@ Nothing here is merged or deployed.
   until nothing could return to the root.
 - The TV client's colours lived per file — `#d3e429` in the grid, `#9a9a9a` and `#666` both meaning muted, two
   different blacks behind video. Unchanged in value, named once in `theme.ts`.
+
+### Removed
+
+- `video.js` from `@atv/tv-client`: declared, never imported — the player is a plain `<video>` element that
+  the manager swaps. Its 175 lines of lockfile and its Node-version peer range go with it.
 
 ### Decided
 

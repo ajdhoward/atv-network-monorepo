@@ -92,6 +92,9 @@ pnpm run build:deploy                # client + admin + pack admin under dist/ad
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
 
+Every environment variable these scripts read — and the ones deliberately absent because they are
+`wrangler.toml` vars or Worker secrets — is listed in [`.env.example`](.env.example).
+
 `pnpm dev` does the last step for you: when `atv-config.json` exists it seeds the local KV store
 first, then starts `wrangler dev --local` on port 8788. Flags pass through after `--`, so
 `pnpm dev -- --port 9099`, `pnpm dev -- --no-seed` and `pnpm dev -- --dry-run` all work. No
