@@ -115,6 +115,12 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- `pnpm continuity` reads commands in both directions: a script named in no document fails, and now a
+  document naming a command that is not a script fails too, so a runbook cannot send someone to a command the
+  repository has dropped. It reads code spans and fences only — prose like "with pnpm 9" is not a command —
+  and covers 194 references across 22 documents, none stale today. A deliberately stale command appended to
+  the README failed the check by name and was reverted. `docs/continuity.md`'s list of enforced rules now
+  matches the check, which had grown twice without it.
 - `pnpm continuity` now fails when a `package.json` script is named in no document, in either `pnpm <name>`
   or `pnpm run <name>` form. Its first run named `build:client` and `build:admin` — both real, both
   discoverable only by reading `package.json` — and `README.md` now lists them.

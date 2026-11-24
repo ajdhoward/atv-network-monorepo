@@ -139,6 +139,44 @@ describe("continuity check", () => {
     expect(result.stdout).toContain("every package script is written down");
   });
 
+  // The other direction: a document is a promise that the command still exists.
+  it("catches a document naming a command the repository does not have", () => {
+    const dir = fixture();
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ scripts: { test: "vitest" } }),
+    );
+    fs.appendFileSync(
+      path.join(dir, "README.md"),
+      "\nTests: `pnpm test`. First run `pnpm build:gone` to prepare.\n",
+    );
+    const result = run(dir);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("named in a doc but not a script: build:gone");
+  });
+
+  // Prose says "with pnpm 9" and "pnpm and Prettier" — reading that as a command
+  // would fail on its own grammar — and `pnpm <name>` is a placeholder.
+  it("does not read prose or a placeholder as a command", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({ scripts: { test: "vitest" } }),
+    );
+    fs.appendFileSync(
+      path.join(dir, "README.md"),
+      "\nBuilt with pnpm 9, and `pnpm <name>` runs a script. Tests: `pnpm test`.\n",
+    );
+    git(["add", "-A"]);
+    const result = run(dir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("no document names a command the repository does not have");
+  });
+
   it("catches an active agent whose row links no context file", () => {
     const dir = fixture();
     fs.mkdirSync(path.join(dir, "docs", "agents"), { recursive: true });

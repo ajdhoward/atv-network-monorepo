@@ -26,6 +26,7 @@ import {
   lastReviewSha,
   markdownFiles,
   repositoryNames,
+  staleCommands,
   undocumentedScripts,
   unindexedDocs,
 } from "./lib/docs-check.mjs";
@@ -68,6 +69,12 @@ if (fs.existsSync(packagePath)) {
     "every package script is written down",
     undocumented.length === 0,
     undocumented.length ? `not named in any doc: ${undocumented.join(", ")}` : undefined,
+  );
+  const stale = staleCommands(docsText, fs.readFileSync(packagePath, "utf8"));
+  record(
+    "no document names a command the repository does not have",
+    stale.length === 0,
+    stale.length ? `named in a doc but not a script: ${stale.join(", ")}` : undefined,
   );
 }
 

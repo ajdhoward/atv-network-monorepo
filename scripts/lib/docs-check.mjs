@@ -107,6 +107,39 @@ export function activeRowsWithoutContext(rosterText) {
 // already asks for README or docs to change with a command. This is what makes
 // that true: every entry in `package.json` has to be named in some document, in
 // either `pnpm <name>` or `pnpm run <name>` form.
+const PNPM_SUBCOMMANDS = new Set(
+  (
+    "add audit bin config create dedupe deploy dlx doctor env exec fetch help i import init install " +
+    "licenses link list ls outdated pack patch patch-commit prune publish rebuild remove rm root run " +
+    "self-update server setup store uninstall unlink up update upgrade why"
+  ).split(" "),
+);
+
+// The other direction of the same contract: a document naming a command the
+// repository no longer has is a dead end that reads as current *because* it is
+// written down, which is worse than an undocumented command. `pnpm <word>` is
+// not always a script — pnpm has its own subcommands, and a flag or a placeholder
+// (`pnpm <name>`) is not a reference — so only what is left has to resolve.
+export function staleCommands(docsText, packageJsonText) {
+  const scripts = new Set(Object.keys(JSON.parse(packageJsonText).scripts ?? {}));
+  // Only code spans and fenced blocks: prose says "with pnpm 9" and "pnpm and
+  // Prettier", and reading that as a command would fail on its own grammar.
+  const snippets = [
+    ...docsText.matchAll(/```[\s\S]*?```/g),
+    ...docsText.matchAll(/`[^`\n]+`/g),
+  ].map((match) => match[0]);
+  const stale = new Set();
+  for (const snippet of snippets) {
+    for (const match of snippet.matchAll(/\bpnpm\s+(?:run\s+)?([^\s`"'()[\]]+)/g)) {
+      const name = match[1].replace(/[.,;:!?]+$/, "");
+      if (!name || name.startsWith("-") || /[<>{}]/.test(name)) continue;
+      if (PNPM_SUBCOMMANDS.has(name) || scripts.has(name)) continue;
+      stale.add(name);
+    }
+  }
+  return [...stale].sort();
+}
+
 export function undocumentedScripts(packageJsonText, docsText) {
   const scripts = Object.keys(JSON.parse(packageJsonText).scripts ?? {});
   return scripts.filter(

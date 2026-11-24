@@ -15,7 +15,10 @@ is a secret, record here **its name, where it lives, and how to rebuild it**. Ne
 - no broken relative link in `README.md`, `AGENTS.md` or anything under `docs/`;
 - every document under `docs/` listed in [`docs/README.md`](README.md), so none is invisible;
 - every name in the secret inventory below still exists in the repository's workflows or config, so a
-  rename cannot silently orphan the inventory;
+  rename cannot silently orphan the inventory — and, the other way, every secret the Worker reads is in it;
+- every `package.json` script is named in a document, and every `pnpm` command a document names is a script,
+  so a command cannot exist only in `package.json` and a runbook cannot send someone to a command that is
+  gone (code spans and fences only: prose is not a command);
 - no gitignored-but-vital file tracked by mistake (`atv-config.json`, `.env`, a keystore, an APK).
 
 ## In the repository: the source of truth
