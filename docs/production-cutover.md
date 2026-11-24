@@ -307,24 +307,26 @@ console.log(h.resolve);' < health.json
 Expected: `ok true <n> true true`, where `<n>` is the number of channels in the seeded lineup, and
 `resolve.configured` equal to the number of links you pushed.
 
-| Check             | Command / evidence                                                   | Pass condition                                                              |
-| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Guide             | `curl "$BASE/api/guide"`                                             | 200, same channels and field names as Phase 0                               |
-| Guide pages       | `?limit=1`                                                           | `channels.length == 1`, `nextCursor` non-null when more exist               |
-| Conditional GET   | send `If-None-Match` with the ETag                                   | 304, no body                                                                |
-| Resolve single    | `?id=<known>`                                                        | 200 `{id,url,profile}`, `Cache-Control: no-store`                           |
-| Resolve missing   | `?id=__nope__`                                                       | 404 `not_found`                                                             |
-| Resolve batch     | `?ids=a,b,c`                                                         | 200 grouped; 21 ids → 400 `too_many_ids`                                    |
-| Link leakage      | batch response for unknown ids                                       | no URL for any unresolved id                                                |
-| Proxy ticket      | resolve a Drive-backed id, read `.url` only                          | with the key set: a path starting `/api/stream/`, never a Drive URL         |
-| Proxy range       | ranged request at that path                                          | 206 with `Content-Range` and `Accept-Ranges`; whole-file request 200        |
-| Proxy refusals    | the same URL with one `sig` character changed, and with no ticket    | 403 `bad-signature` / 403 `missing`, and no request reaches Drive           |
-| Proxy without key | the same rows against a build whose key is unset (the sandbox today) | 503 `stream_unconfigured`, so the ticket row is proven to depend on the key |
-| Idents            | `/api/idents/random`                                                 | 302 to an `https://` URL, or 503 with no idents seeded                      |
-| Assets            | `/` and the referenced `/assets/*.js`                                | 200, HTML contains the root div, JS is `javascript`                         |
-| Admin             | `/admin` → `/admin/`                                                 | 308 to `/admin/`; 200 HTML; bundle 200                                      |
-| Unknown API       | `/api/does-not-exist`                                                | 404 JSON with a request id                                                  |
-| Smoke             | `pnpm smoke https://next.atv.acidwurx.org`                           | all checks pass (no `--allow-empty` if the lineup is seeded)                |
+| Check                | Command / evidence                                                   | Pass condition                                                                            |
+| -------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Guide                | `curl "$BASE/api/guide"`                                             | 200, same channels and field names as Phase 0                                             |
+| Guide pages          | `?limit=1`                                                           | `channels.length == 1`, `nextCursor` non-null when more exist                             |
+| Conditional GET      | send `If-None-Match` with the ETag                                   | 304, no body                                                                              |
+| Resolve single       | `?id=<known>`                                                        | 200 `{id,url,profile}`, `Cache-Control: no-store`                                         |
+| Resolve missing      | `?id=__nope__`                                                       | 404 `not_found`                                                                           |
+| Resolve batch        | `?ids=a,b,c`                                                         | 200 grouped as `resolved`/`missing`/`invalid`/`unconfigured`; 21 ids → 400 `too_many_ids` |
+| Resolve unconfigured | a Drive-backed id against a build with no `ATV_STREAM_SIGNING_KEY`   | 503 `stream_unconfigured`; the batch form names the id in `unconfigured`                  |
+| Resolve bad token    | a build whose `ATV_DEVICE_TOKEN` contains whitespace                 | 503 `device_token_invalid` (never a 401), and no secret echoed                            |
+| Link leakage         | batch response for unknown ids                                       | no URL for any unresolved id                                                              |
+| Proxy ticket         | resolve a Drive-backed id, read `.url` only                          | with the key set: a path starting `/api/stream/`, never a Drive URL                       |
+| Proxy range          | ranged request at that path                                          | 206 with `Content-Range` and `Accept-Ranges`; whole-file request 200                      |
+| Proxy refusals       | the same URL with one `sig` character changed, and with no ticket    | 403 `bad-signature` / 403 `missing`, and no request reaches Drive                         |
+| Proxy without key    | the same rows against a build whose key is unset (the sandbox today) | 503 `stream_unconfigured`, so the ticket row is proven to depend on the key               |
+| Idents               | `/api/idents/random`                                                 | 302 to an `https://` URL, or 503 with no idents seeded                                    |
+| Assets               | `/` and the referenced `/assets/*.js`                                | 200, HTML contains the root div, JS is `javascript`                                       |
+| Admin                | `/admin` → `/admin/`                                                 | 308 to `/admin/`; 200 HTML; bundle 200                                                    |
+| Unknown API          | `/api/does-not-exist`                                                | 404 JSON with a request id                                                                |
+| Smoke                | `pnpm smoke https://next.atv.acidwurx.org`                           | all checks pass (no `--allow-empty` if the lineup is seeded)                              |
 
 ### 6.2 Rate limiter and cron
 

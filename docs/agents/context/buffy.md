@@ -385,3 +385,17 @@ Lessons worth keeping:
   compact bodies; `"status": "ok"` did not, and that spacing was never a promise.
 - **Whitespace is not a token.** `Bearer` carries `\S+`, so a secret with a space can never be presented; that is
   now a 503 (`device_token_invalid`) rather than a 401 that blames the household.
+
+## Session 2026-11-24 (the 503 that was two secrets)
+
+`pnpm streams` labelled every 503 "this deployment has no ATV_STREAM_SIGNING_KEY". Since Q10 that status is also
+`device_token_invalid` — an `ATV_DEVICE_TOKEN` with whitespace — so the audit's fix pointed at a signing key while
+the secret that blocks every request stayed unnamed. It now reads the body's `code`; only `stream_unconfigured` is
+the signing-key diagnosis, `device_token_invalid` stops the audit after one request (one deployment-wide fault, not
+one per channel), and any other 503 reports its code. `pnpm smoke` gets the same treatment on `/api/resolve` and
+names the token rather than the key when a 503 carries that code.
+
+- **A status is not a diagnosis.** Two 503s with two different fixes; the body's `code` is the only thing that
+  distinguishes them, and `health.deviceTokenSet` cannot see an unpresentable value.
+- Both README's API table and the §6.1 parity matrix now list the batch `unconfigured` list and both 503 codes, so
+  an operator reading either learns that a 503 can mean the household token.

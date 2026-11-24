@@ -199,6 +199,13 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- `pnpm streams` and `pnpm smoke` read a 503's `code` before naming the fault. Both called every 503 a missing
+  `ATV_STREAM_SIGNING_KEY`, but that status now covers two unrelated secrets: since Q10 a deployment whose
+  `ATV_DEVICE_TOKEN` contains whitespace answers `503 device_token_invalid` to every resolve, so the audit sent the
+  operator to set a signing key that was already set while the token — the one blocking every request — went
+  unmentioned. The audit stops once on it, because it is deployment-wide rather than one channel's fault, and a
+  per-id 503 with any other code reports that code. The fixtures grow a `unconfigured[]` Drive id, a foreign 503
+  and a whole-deployment token failure, so the old status-only reading fails the suite.
 - `pnpm continuity` checked the secret inventory in one direction only: every inventoried name still existed,
   and never that a secret the Worker reads is inventoried. A name added to `env.ts` and written down nowhere —
   the case that matters after the account is gone — left the check printing "the repository is

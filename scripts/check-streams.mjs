@@ -99,6 +99,12 @@ if (process.env.ATV_DEVICE_TOKEN) {
 // missing token from a dead link.
 const UNAUTHORIZED =
   "401 unauthorized — the worker is enforcing the household token: set ATV_DEVICE_TOKEN";
+// Q10: a secret whose trimmed value still contains whitespace cannot be sent in a
+// header at all, so the worker answers 503 `device_token_invalid`. That is not the
+// signing key, and sending an operator to set a secret they already set is worse
+// than saying nothing.
+const TOKEN_UNPRESENTABLE =
+  "503 device_token_invalid — the deployment's ATV_DEVICE_TOKEN contains whitespace, so no client can send it: re-set it (for example `openssl rand -hex 8`)";
 
 function parseJson(text) {
   try {
@@ -106,6 +112,16 @@ function parseJson(text) {
   } catch {
     return null;
   }
+}
+
+// A 503 is two different deployment faults, and the body's `code` is the only
+// thing that tells them apart: `stream_unconfigured` is a missing signing key,
+// `device_token_invalid` is a household token no client can present. Reading the
+// status alone reported the second as the first, pointing the fix at a secret
+// that was already set.
+function failureCode(text) {
+  const body = parseJson(text);
+  return body && typeof body.code === "string" ? body.code : null;
 }
 
 // A resolved link is not always absolute. P1's Drive ticket is same-origin by
@@ -159,6 +175,8 @@ async function probeLink(url) {
 // id -> { kind: "ok", url? } | { kind: "missing" } | { kind: "insecure" } |
 // { kind: "unconfigured" } | { kind: "error", detail }
 const outcomes = new Map();
+// { detail, retryWindow } — `retryWindow` says whether waiting fixes it, because
+// a 401 or an unpresentable token is not a rate-limit window.
 let stopped = null;
 
 async function fetchBatch(batch) {
@@ -177,6 +195,14 @@ async function fetchBatch(batch) {
   if (res.status === 401) {
     await res.arrayBuffer();
     return { kind: "unauthorized" };
+  }
+  if (res.status === 503) {
+    // No id can answer `stream_unconfigured` through the batch form — those ids
+    // arrive in `unconfigured[]` — so a 503 here is the whole deployment.
+    if (failureCode(await res.text()) === "device_token_invalid") {
+      return { kind: "token-invalid" };
+    }
+    return { kind: "unsupported" };
   }
   if (res.status !== 200) {
     // An older deployment answers 404 for an unknown query shape.
@@ -199,11 +225,15 @@ async function fetchBatch(batch) {
 for (let i = 0; i < ids.length && !stopped; i += MAX_BATCH) {
   const result = await fetchBatch(ids.slice(i, i + MAX_BATCH));
   if (result.kind === "limited") {
-    stopped = result.detail;
+    stopped = { detail: result.detail, retryWindow: true };
     break;
   }
   if (result.kind === "unauthorized") {
-    stopped = UNAUTHORIZED;
+    stopped = { detail: UNAUTHORIZED };
+    break;
+  }
+  if (result.kind === "token-invalid") {
+    stopped = { detail: TOKEN_UNPRESENTABLE };
     break;
   }
   if (result.kind !== "ok") {
@@ -243,12 +273,12 @@ for (const id of ids) {
   if (res.status === 429) {
     await res.arrayBuffer();
     const retryAfter = res.headers.get("retry-after") ?? "?";
-    stopped = `rate limited (Retry-After ${retryAfter}s)`;
+    stopped = { detail: `rate limited (Retry-After ${retryAfter}s)`, retryWindow: true };
     break;
   }
   if (res.status === 401) {
     await res.arrayBuffer();
-    stopped = UNAUTHORIZED;
+    stopped = { detail: UNAUTHORIZED };
     break;
   }
   if (res.status === 200) {
@@ -266,11 +296,17 @@ for (const id of ids) {
     );
     continue;
   }
-  await res.arrayBuffer();
+  const code = failureCode(await res.text());
   if (res.status === 404) outcomes.set(id, { kind: "missing" });
   else if (res.status === 502) outcomes.set(id, { kind: "insecure" });
-  else if (res.status === 503) outcomes.set(id, { kind: "unconfigured" });
-  else outcomes.set(id, { kind: "error", detail: `HTTP ${res.status}` });
+  else if (res.status === 503 && code === "device_token_invalid") {
+    // Every id would answer this identically, so auditing the rest would blame
+    // each channel for one deployment-wide fault.
+    stopped = { detail: TOKEN_UNPRESENTABLE };
+    break;
+  } else if (res.status === 503 && code === "stream_unconfigured")
+    outcomes.set(id, { kind: "unconfigured" });
+  else outcomes.set(id, { kind: "error", detail: `HTTP ${res.status}${code ? ` ${code}` : ""}` });
 }
 
 // 3) Report in the order the channels were asked for.
@@ -306,8 +342,10 @@ for (const id of ids) {
     failed++;
     console.log(`FAIL  ${id} — 502 insecure_url (the link is not https://)`);
   } else if (outcome.kind === "unconfigured") {
-    // The channel is seeded and is a Drive link; the deployment cannot proxy it.
-    // Naming the secret is the whole point: the fix is not in the lineup.
+    // Only `stream_unconfigured` lands here, because the per-id pass reads the
+    // body's code: a different 503 is an error, not this diagnosis. The channel
+    // is seeded and is a Drive link; the deployment cannot proxy it. Naming the
+    // secret is the whole point: the fix is not in the lineup.
     failed++;
     console.log(
       `FAIL  ${id} — 503 stream_unconfigured (this deployment has no ATV_STREAM_SIGNING_KEY)`,
@@ -322,7 +360,8 @@ console.log(`\n${resolved}/${ids.length} channel(s) resolve against ${base}`);
 if (probe) console.log("Each resolved link was followed upstream; links are never printed.");
 
 if (stopped) {
-  console.error(`✗ Audit stopped early: ${stopped}. Re-run once the window resets.`);
+  console.error(`✗ Audit stopped early: ${stopped.detail}.`);
+  if (stopped.retryWindow) console.error("  Re-run once the window resets.");
   process.exit(1);
 }
 if (missing.length) {

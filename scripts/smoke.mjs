@@ -167,14 +167,19 @@ try {
   }
 
   const resolve = await get("/api/resolve?id=__smoke__");
+  const resolveCode = parse(resolve.text)?.code;
   record(
     "GET /api/resolve (unknown id → 404)",
     resolve.res.status === 404,
     // A 401 here is the token, not the route. Saying so is the difference between
-    // a five-minute fix and an afternoon spent on a route that is fine.
+    // a five-minute fix and an afternoon spent on a route that is fine. The 503 is
+    // the same secret seen from the other side (Q10): it contains whitespace, so
+    // no client could ever present it, and the fix is to re-set it.
     resolve.res.status === 401
       ? "HTTP 401 — the worker is enforcing the household token: set ATV_DEVICE_TOKEN (if it is already set, it is the wrong one)"
-      : `HTTP ${resolve.res.status}`,
+      : resolve.res.status === 503 && resolveCode === "device_token_invalid"
+        ? "HTTP 503 device_token_invalid — the worker's ATV_DEVICE_TOKEN contains whitespace and can never be sent; re-set it"
+        : `HTTP ${resolve.res.status}`,
   );
 
   // P1's media route is the one that fails silently if anything shadows it: the
@@ -185,23 +190,33 @@ try {
   const stream = await get("/api/stream/__smoke__");
   const streamBody = parse(stream.text);
   const streamCode = streamBody?.code ?? "no code";
+  // Two different 503s, one status. `stream_unconfigured` is this route's own
+  // "no signing key"; `device_token_invalid` is the household token, which
+  // contains whitespace and can never be sent. Reading the status alone reported
+  // the second as the first and sent the fix at a secret already set.
+  const tokenIssue = stream.res.status === 503 && streamCode === "device_token_invalid";
+  const streamDetail = tokenIssue
+    ? "HTTP 503 device_token_invalid — the household token contains whitespace and can never be sent; that is not the signing key"
+    : `HTTP ${stream.res.status}, ${streamCode}`;
   if (healthBody?.streamSigningKeySet === true) {
     record(
       "GET /api/stream (no ticket → 403)",
       stream.res.status === 403 && streamBody?.code === "missing",
-      `HTTP ${stream.res.status}, ${streamCode}`,
+      streamDetail,
     );
   } else if (healthBody?.streamSigningKeySet === false) {
     record(
-      "GET /api/stream (no signing key → 503)",
+      tokenIssue
+        ? "GET /api/stream (refused: household token)"
+        : "GET /api/stream (no signing key → 503)",
       stream.res.status === 503 && streamBody?.code === "stream_unconfigured",
-      `HTTP ${stream.res.status}, ${streamCode}`,
+      streamDetail,
     );
   } else {
     record(
       "GET /api/stream (refused)",
       stream.res.status === 403 || stream.res.status === 503,
-      `HTTP ${stream.res.status}, ${streamCode} — health has no streamSigningKeySet (pre-P1 deployment?)`,
+      `${streamDetail} — health has no streamSigningKeySet (pre-P1 deployment?)`,
     );
   }
 

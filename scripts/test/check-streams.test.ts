@@ -12,6 +12,9 @@ const LINK = "https://cdn.example.invalid/private/a.m3u8";
 // Requests the audit made to /api/resolve, so batching can be asserted.
 const hits: string[] = [];
 let rejectBatch = false;
+// A deployment whose household token contains whitespace answers this to every
+// resolve, batch and single alike.
+let tokenInvalid = false;
 
 let server: Server;
 let base = "";
@@ -44,6 +47,17 @@ beforeAll(async () => {
     }
     hits.push(url.search);
 
+    if (tokenInvalid) {
+      res.writeHead(503, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "the deployment's household token cannot be sent in a header",
+          code: "device_token_invalid",
+        }),
+      );
+      return;
+    }
+
     const link = (path: string, id: string) => ({ id, url: `${base}${path}` });
 
     const batch = url.searchParams.get("ids");
@@ -63,6 +77,7 @@ beforeAll(async () => {
       const resolved: unknown[] = [];
       const missing: string[] = [];
       const invalid: string[] = [];
+      const unconfigured: string[] = [];
       for (const id of ids) {
         if (id === "atv-1") resolved.push({ id, url: LINK, profile: "1080p_hevc" });
         else if (id === "atv-probe") resolved.push(link("/stream.m3u8", id));
@@ -75,10 +90,12 @@ beforeAll(async () => {
         // A 200 the Worker should never produce: resolved without a url.
         else if (id === "atv-nourl") resolved.push({ id });
         else if (id === "atv-insecure") invalid.push(id);
+        // P5: a Drive id this deployment cannot proxy, in its own list.
+        else if (id === "atv-drive") unconfigured.push(id);
         else missing.push(id);
       }
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ resolved, missing, invalid }));
+      res.end(JSON.stringify({ resolved, missing, invalid, unconfigured }));
       return;
     }
 
@@ -100,6 +117,18 @@ beforeAll(async () => {
           code: "insecure_url",
         }),
       );
+    } else if (id === "atv-drive") {
+      res.writeHead(503, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "stream signing is not configured on this deployment",
+          code: "stream_unconfigured",
+        }),
+      );
+    } else if (id === "atv-broken") {
+      // The other 503: the same status, a different fault.
+      res.writeHead(503, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "resolve failed", code: "resolve_failed" }));
     } else {
       res.writeHead(404, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: "not found", code: "not_found" }));
@@ -267,6 +296,47 @@ describe("check-streams", () => {
     const result = await runAgainst("http://127.0.0.1:1", ["--ids", "atv-1"]);
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("FAIL  atv-1");
+  });
+
+  it("reports a Drive id the deployment cannot proxy as unconfigured", async () => {
+    const result = await run(["--ids", "atv-1,atv-drive"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("PASS  atv-1");
+    expect(result.stdout).toContain("FAIL  atv-drive — 503 stream_unconfigured");
+  });
+
+  it("reads the code on a per-id 503 instead of blaming the signing key", async () => {
+    rejectBatch = true;
+    try {
+      const broken = await run(["--ids", "atv-broken"]);
+      expect(broken.status).toBe(1);
+      expect(broken.stdout).toContain("HTTP 503 resolve_failed");
+      expect(broken.stdout).not.toContain("ATV_STREAM_SIGNING_KEY");
+
+      const drive = await run(["--ids", "atv-drive"]);
+      expect(drive.status).toBe(1);
+      expect(drive.stdout).toContain("503 stream_unconfigured");
+    } finally {
+      rejectBatch = false;
+    }
+  });
+
+  it("stops on an unpresentable household token and names it, not the signing key", async () => {
+    tokenInvalid = true;
+    hits.length = 0;
+    try {
+      const result = await run(["--ids", "atv-1,atv-missing"]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("device_token_invalid");
+      expect(result.stderr).toContain("ATV_DEVICE_TOKEN");
+      expect(result.stderr).not.toContain("ATV_STREAM_SIGNING_KEY");
+      expect(result.stderr).not.toContain("window resets");
+      expect(result.stdout).not.toContain("stream_unconfigured");
+      // One deployment-wide answer, not one failure per channel.
+      expect(hits).toHaveLength(1);
+    } finally {
+      tokenInvalid = false;
+    }
   });
 
   it("never prints the probed link either", async () => {
