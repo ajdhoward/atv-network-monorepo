@@ -33,6 +33,54 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ## Log
 
+### 2026-11-24 — Does the Drive proxy break Cloudflare's video terms or plan limits?
+
+- state: accepted
+- proposed by: Buffy (Freebuff)
+- touches: `docs/agents/decisions.md` only — no route, no code, no secret, no spend
+- why: P1 makes `atv-core-v2` the origin of every video byte a TV watches. Cloudflare prohibited streaming
+  video over its network for years (the retired §2.8 of the Self-Serve Subscription Agreement), so the risk
+  is not a bug but a term: delivery limited or redirected after notice. The answer decides whether the proxy
+  is a design we can keep or a stopgap to remove before L4 seeds real links.
+- finding: §2.8 is gone — Cloudflare retired it in May 2023 and moved the substance into the CDN entry of its
+  [Service-Specific Terms](https://www.cloudflare.com/service-specific-terms-application-services/)
+  ([the blog post](https://blog.cloudflare.com/updated-tos) says so in as many words). That entry reads: the
+  CDN "can be used to cache and serve web pages and websites", and "unless you are an Enterprise customer,
+  Cloudflare offers specific Paid Services (e.g., the Developer Platform, Images, and Stream) that you must
+  use in order to serve video and other large files via the CDN", reserving the right to disable or limit
+  CDN use for video or "a disproportionate percentage of pictures, audio files, or other large files" served
+  without those services, with reasonable efforts at notice.
+- reading: the terms name the Developer Platform, and Workers is the Developer Platform's compute product
+  whose paid subscription is this account's Workers Paid plan — so the paid path the sentence requires is
+  the one we are on. The bytes also leave through the Worker rather than the CDN cache: `run_worker_first`
+  matches `/api/*`, and a Worker response is not cached by default (the only caching in this Worker is
+  `s-maxage` on `/api/guide`, which is HTML-sized JSON). Plan limits are not close either: Workers Paid has
+  no egress or bandwidth charge, no enforced response-body limit, 10M requests and 30M CPU ms a month for
+  $5, and the proxy makes one subrequest per media request while handing back `upstream.body` instead of
+  buffering it, so the CPU cost is header shaping. One player seeking through a film is tens of requests.
+- caveat: this is a reading of public documents, not legal advice and not a statement by Cloudflare. It rests
+  on two things that can change: staying on Workers Paid (the "must use a paid service" sentence has no
+  answer for the Free plan), and household scale, since the enforcement language is about video and
+  _disproportionate_ large files rather than any large file. Cloudflare has not published a sentence that
+  squarely exempts uncached Worker responses, and a 2021 community reply read the old rule as covering
+  bandwidth regardless of caching; the 2026 community thread asking this exact Google Drive proxy question
+  answers with a 403 to an unauthenticated fetch, so nothing from it is recorded here. The
+  [Delivering Videos](https://developers.cloudflare.com/fundamentals/reference/policies-compliances/delivering-videos-with-cloudflare/)
+  page still lists only Stream and Enterprise Stream Delivery as ways to deliver video, but it is written
+  about content on a zone's CDN, which is the entry the terms actually restrict.
+- change: keep the proxy as built, and do not add caching to it — a cached media response would push the
+  bytes through the CDN cache, which is the thing the terms do constrain, and the ticket is a 15-minute URL
+  that must not be reused across viewers. If the deployment ever leaves the household or the account drops to
+  Workers Free, re-read the CDN entry before scaling rather than assuming this reading still holds.
+- risk: the harm to doing nothing is knowing too late; the harm to this reading being wrong is limited
+  delivery with notice, recoverable by moving the media origin (Stream, R2, or P2's service account) rather
+  than by rewriting the route. The gap a monitor cannot see — a deployment with no signing key, where P1 is
+  silent — is now reported by `/api/health` as `streamSigningKeySet`.
+- cost: none
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: recorded at the operator's request (2026-11-24). No action follows; revisit on a plan change or if
+  this deployment grows past one household.
+
 ### 2026-11-24 — Drive proxy: a signed stream URL per resolve
 
 - state: accepted

@@ -54,6 +54,10 @@ export type HealthPayload = {
   // Whether ATV_DEVICE_TOKEN is configured, so a rollout can be watched (R8).
   // Presence only, never the value; a deployment older than this field omits it.
   deviceTokenSet?: boolean;
+  // Whether ATV_STREAM_SIGNING_KEY is configured: with it unset the Drive proxy
+  // answers 503, so this is the difference between "proxy live" and "proxy
+  // deployed but dead". Presence only; a deployment older than this field omits it.
+  streamSigningKeySet?: boolean;
   guideSnapshot: { generatedAt: number | null; total: number | null } | null;
 };
 // Single-channel wire shape of GET /api/resolve?id=.

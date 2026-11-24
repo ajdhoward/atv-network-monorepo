@@ -568,6 +568,9 @@ async function handleHealth(env: Env): Promise<Response> {
     // Presence only: this is how an operator sees that R8 is half-done, and it
     // says nothing about the value.
     deviceTokenSet: !!env.ATV_DEVICE_TOKEN?.trim(),
+    // Same presence-only rule, and the one flag that says whether P1 is live:
+    // without the key every Drive channel resolves to its stored link.
+    streamSigningKeySet: !!env.ATV_STREAM_SIGNING_KEY?.trim(),
     guideSnapshot: snapshot
       ? { generatedAt: snapshot.generatedAt ?? null, total: snapshot.total ?? null }
       : null,

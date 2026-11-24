@@ -170,6 +170,22 @@ describe("GET /api/health", () => {
     expect(body.deviceTokenSet).toBe(true);
     expect(JSON.stringify(body)).not.toContain("household-secret");
   });
+
+  // P1 ships darker than it looks: deployed without the key, every Drive channel
+  // resolves to its old link and nothing announces why. Health has to answer the
+  // question a monitor would ask — is the proxy live — without carrying the key.
+  it("says whether the stream signing key is set, without revealing it", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+
+    expect((await call(worker, env, "/api/health")).body.streamSigningKeySet).toBe(false);
+
+    (env as any).ATV_STREAM_SIGNING_KEY = "signing-key-9c1d";
+    const { body } = await call(worker, env, "/api/health");
+
+    expect(body.streamSigningKeySet).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("signing-key-9c1d");
+  });
 });
 
 describe("GET /api/guide", () => {

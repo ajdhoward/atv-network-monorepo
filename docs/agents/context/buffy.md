@@ -140,7 +140,12 @@ resolve, and `resolveStream` ends in `proxyTicket`. Tests: 9 route tests (mid-fi
 asserted, whole-file 200, synthesised `Accept-Ranges`, 416, expired/forged/ticketless 403s that never reach
 Drive, 503 unconfigured, 404 for unknown and non-Drive ids, the resolve→stream round trip, and a 502 whose
 log carries no id and no link) plus 8 unit tests. Unverified against Drive itself: no file, no credential, and
-P2 is still blocked. The passthrough list is deliberately longer than the four headers a 206 needs
+P2 is still blocked. Health now reports `streamSigningKeySet` beside `deviceTokenSet`, because P1 without the key
+is a deployment that looks fine and serves every Drive channel its old link. The Cloudflare terms question is
+answered in `decisions.md` (2026-11-24): §2.8 was retired in 2023, its replacement names the Developer Platform's
+paid services, and Workers Paid — no egress charge, one subrequest per media request, body streamed not buffered —
+is where this account sits; the reading and its two caveats (stay paid, stay household-scale) are written down
+there rather than carried in someone's head. The passthrough list is deliberately longer than the four headers a 206 needs
 (`Content-Encoding` and `Content-Disposition` included): a proxy that drops what describes the bytes is
 lying about them, and the route test pins both. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
 
