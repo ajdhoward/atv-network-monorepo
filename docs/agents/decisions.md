@@ -77,8 +77,17 @@ when it next works, which is why an entry records who is absent rather than trea
   id and its expiry stays inside the signed text in all three.
 - risk: a longer TTL is a longer-lived capability for one channel's bytes — which is what the 15 minutes were
   chosen to limit — while a client-side re-resolve puts playback position in the client, which it already
-  knows. Option (b) is unverifiable here: it depends on how a Fire TV's WebView reports an expired range, which
-  is L5's ground.
+  knows. Option (b) is unverifiable here: it depends on how a Fire TV's WebView reports an expired range, which is L5's ground.
+- evidence (2026-11-24, read from the code, no hardware): the failure is narrower than this entry first said and
+  the recovery is worse. A pause on its own starts no request — the element keeps the stream it holds — so the
+  expiry only bites at the next range request: a seek, or a resume after the TV has dropped its buffer. And
+  nothing re-resolves automatically: `playerManager.js`'s `error` handler shows the grid and
+  `main.ts`'s notice says "… would not play — press Enter to try again", so the viewer presses Enter, resolve
+  mints a fresh ticket, `play()` assigns a new `src`, and the position is 0. Option (b) is therefore three
+  changes, not one: remember the channel and `currentTime` when the active element errors, re-resolve once, and
+  restore the position on `loadedmetadata` — with a second failure still showing the notice instead of looping.
+  That also makes option (a) the cheaper fix to justify: the ticket is bound to one id and one channel's bytes,
+  and the household is private, so a longer life costs little that the 15 minutes were protecting.
 - cost: none
 - acks: no other agent active (`roster.md`), recorded as absence rather than consent.
 - outcome: open — the operator marks it. The finding comes from the 2026-11-24 P1 review; nothing has played a

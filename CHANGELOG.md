@@ -10,6 +10,13 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `pnpm budget` counts the Drive proxy. `mediaRequestsPerTvPerDay` (default 300) is a fourth traffic class —
+  one Worker request and one Drive subrequest each, no limiter token, because the signed ticket is the
+  admission — so a deployment serving proxied video no longer reports the same 0.43% worst share as one that
+  never played a channel. Household default is now 0.57% (KV reads).
+- `pnpm budget -- --tvs 10` works. pnpm 9.1.0 passes the `--` separator into the script, which read it as a
+  flag and exited, so the form the README and `docs/production-cutover.md` print had never run; a lone `--` is
+  now skipped.
 - `pnpm coverage` and `vitest.config.ts` (R3), so a review can carry a coverage number and name the files at
   zero instead of only a test count. It measures the four `src` trees and leaves `scripts/` out on purpose: its
   tests spawn the CLIs with `spawnSync`, v8 only sees the test process, and a report calling every script

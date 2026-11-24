@@ -207,6 +207,23 @@ child process (`--input-type=module --eval`) and compares version and checksums 
 unicode. No threshold was set on coverage: `pnpm coverage` is a review instrument, not a gate, and a floor
 nothing enforces is decoration.
 
+**`pnpm budget` was lying about the proxy (Q7).** The model counted guide loads, resolves and health checks and
+nothing for `/api/stream`, so a deployment serving proxied video printed the same 0.43% worst share as one that
+never played — after P1 that number is the one thing the $5 constraint rests on. Media requests are now a fourth
+class (`mediaRequestsPerTvPerDay`, default 300: a four-hour viewing day at about a request a minute plus seeks),
+each one a Worker request and a KV read with no limiter token, because the signed ticket is the admission and the
+bytes are Drive's egress, not this account's. Household default is now 0.57% (KV reads). While testing it I found
+that the documented `pnpm budget -- --tvs 10` had never run on this pnpm: 9.1.0 hands the `--` to the script,
+which read it as a flag and exited with "Unknown flag --". The CLI now skips a lone separator and a test runs the
+very argv pnpm produces. `pnpm dev -- --dry-run` was checked the same way and already tolerated it.
+
+**P4's pending decision got a code read instead of a guess.** A pause starts no request — the element keeps the
+stream it holds — so the expired ticket only bites at the next range request (a seek, or a resume after the TV
+dropped its buffer), and nothing re-resolves automatically: the grid comes back with a notice and the viewer
+presses Enter, which mints a fresh ticket and starts at 0. So option (b) is three changes (remember channel and
+`currentTime`, re-resolve once, restore on `loadedmetadata`, with a second failure still showing the notice)
+while option (a) is cheaper than it looked. Both are recorded in `decisions.md` under the entry; neither is built.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

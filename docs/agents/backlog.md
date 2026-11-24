@@ -130,6 +130,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** proposed — the entry is in `decisions.md`, because the TTL is part of P1's accepted shape.
   Unverified until L5: the behaviour being fixed is a real `<video>` element's Range behaviour after a pause.
+  A code read on 2026-11-24 narrowed the trigger to the next range request (a seek, or a resume after the
+  buffer is dropped) and confirmed the recovery is manual — the grid comes back with a notice, the viewer
+  presses Enter, and the position is lost. The detail is in `decisions.md`.
 
 ### P5 · A Drive channel with no signing key should fail loudly
 
@@ -188,6 +191,22 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **State:** proposed — the shared package is a contract other code imports, so deleting an export is the
   operator's call rather than a cleanup an agent does unasked. Types-only is the honest option: the seed script
   is plain `.mjs` and cannot import a `.ts` value without a build step.
+
+### Q7 · Model the Drive proxy in `pnpm budget`, and accept a pasted `--`
+
+- **Why:** P1 made this Worker the origin of every Drive channel's bytes and the traffic model never learned
+  about them: it counted guide loads, resolves and health checks, so a deployment serving proxied video
+  reported the same 0.43% worst share as one that never played. Separately, the documented
+  `pnpm budget -- --tvs 10` form failed — pnpm 9.1.0 passes the separator through and the CLI read it as a
+  flag. Either one makes the model's number, or the instruction that produces it, wrong.
+- **Done when:** media requests are a modelled class with a default and a flag, the assumption line prints
+  them, and a lone `--` in argv is ignored; a test covers each.
+- **Paths:** `scripts/lib/budget.mjs`, `scripts/budget.mjs`, `scripts/test/budget.test.ts`, `README.md`
+- **Size:** S
+- **State:** done — picked as this session's next step under the operator's standing "execute the next logical
+  steps" instruction, the same footing P3 was claimed on. Household default is now 0.57% (KV reads) rather
+  than 0.43%, with the proxy counted at 300 media requests per TV per day, each one a Worker request and a
+  Drive subrequest and no limiter token.
 
 ## Production cutover
 
