@@ -130,11 +130,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   than a viewing session — and `decisions.md` records which, with the reasoning.
 - **Paths:** `services/atv-core/src/stream-sign.ts`, `apps/tv-client/src/`, tests
 - **Size:** S
-- **State:** proposed — the entry is in `decisions.md`, because the TTL is part of P1's accepted shape.
-  Unverified until L5: the behaviour being fixed is a real `<video>` element's Range behaviour after a pause.
-  A code read on 2026-11-24 narrowed the trigger to the next range request (a seek, or a resume after the
-  buffer is dropped) and confirmed the recovery is manual — the grid comes back with a notice, the viewer
-  presses Enter, and the position is lost. The detail is in `decisions.md`.
+- **State:** done — `6edfab4`. The ticket's life is one hour, with the reasoning in `decisions.md`; the route
+  test's "stale" ticket is now derived from `DEFAULT_TTL_S` instead of a fixed 20-minute offset, which is what
+  the change caught. Still unverified until L5: a real `<video>` resuming after a pause. The longer life removes
+  the 15-minute trap; it cannot prove a Fire TV's Range behaviour.
 
 ### P5 · A Drive channel with no signing key should fail loudly
 
@@ -147,7 +146,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `services/atv-core/src/resolver.ts`, `services/atv-core/src/index.ts`, `services/atv-core/test/`,
   `scripts/`, `apps/admin-cms/src/`, `packages/ui-shared`
 - **Size:** S
-- **State:** proposed — a public `/api/resolve` shape change, so `decisions.md` decides it before any code.
+- **State:** done — `2c06b68`. Single resolve answers `503 stream_unconfigured` (the code `/api/stream` already
+  uses), the batch body carries an `unconfigured` list, the panel shows it as its own state and `pnpm streams`
+  names the missing secret.
 
 ## Safety and quality
 
@@ -178,23 +179,20 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   body stops reporting `"status": "ok"`. A status code alone is not enough: health answers `200` while
   reporting `degraded` — unseeded, or a schema mismatch that makes every guide request a 503 — and a
   status-code monitor would call that healthy.
-- **Recommendation (researched 2026-11-24; no account created):** UptimeRobot's free plan. $0 with no card,
-  50 monitors, a 5-minute interval, **keyword monitors included on Free** (its pricing page lists them), and
-  email plus mobile-app push alerts. Create one **keyword** monitor on
-  `https://atv-core-v2.acidwurx.workers.dev/api/health`, keyword `"status": "ok"` — **with the space** —
-  alerting when it is _not_ found. The space is the trap: the Worker serialises with
-  `JSON.stringify(data, null, 2)` (`json()` in `services/atv-core/src/index.ts`), so the body is pretty-printed
-  and `"status":"ok"` would match nothing and alert forever. Health stays public after R8 — the token guards
-  `/api/resolve` only — so no credential goes to the monitor. At cutover, repoint the monitor at the
-  production host.
+- **Recommendation (researched 2026-11-24; no account created):** UptimeRobot's free plan — $0, no card, 50
+  monitors, 5-minute intervals, keyword monitors included on Free, email and app push. The exact settings, the
+  keyword and the triage order are in [`../uptime.md`](../uptime.md). The keyword is `"ok"` **with the quotes**
+  rather than `"status": "ok"`: the pretty-printed spacing is a serialiser detail, and only the quoted value
+  survives a change to it. Health stays public after R8, so no credential goes to the monitor.
 - **Alternatives:** Better Stack (10 monitors, 3-minute checks, keyword included) and Checkly (checks as code)
   both work. Healthchecks.io is heartbeat-only and would need a cron job to ping it, which is a second thing to
   break. A GitHub Actions schedule plus an issue avoids a new account, but needs a workflow edit and GitHub
   disables scheduled workflows in a public repository after 60 days without activity.
 - **Paths:** none in this repo; the monitor lives in the operator's account
 - **Size:** S
-- **State:** proposed — a new service needs the operator's approval even when it is free, and nothing has been
-  signed up for. The two facts a decision needs are above: the exact URL, and the exact keyword.
+- **State:** done in the repository — `6940d3f`. `docs/uptime.md` is the setup sheet; nothing has been signed
+  up for here. The operator's part is three clicks in their own account: create the keyword monitor at five
+  minutes, alerting when the keyword is absent.
 
 ### Q6 · `@atv/ui-shared`'s runtime half is dead, and the schema version lives three times
 
@@ -207,9 +205,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   source of the constant, and nothing imports as a value what it does not execute.
 - **Paths:** `packages/ui-shared/src/index.ts`, `README.md` if the package description changes
 - **Size:** S
-- **State:** proposed — the shared package is a contract other code imports, so deleting an export is the
-  operator's call rather than a cleanup an agent does unasked. Types-only is the honest option: the seed script
-  is plain `.mjs` and cannot import a `.ts` value without a build step.
+- **State:** done — `32dedf3`. The package is types only, and all three packages still typecheck, which proves
+  nothing was importing either export as a value.
 
 ### Q7 · Model the Drive proxy in `pnpm budget`, and accept a pasted `--`
 
@@ -240,7 +237,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   a deploy without the explicit override — the file stays a declaration, not a deploy path.
 - **Paths:** `wrangler.production.toml`
 - **Size:** S
-- **State:** proposed — deploy config is the operator's call even when nothing here deploys anything.
+- **State:** done — `95f33b0`. The file mirrors the sandbox's bindings, migration and routes, and
+  `check-deploy-target` still refuses it without `ATV_ALLOW_PROD_DEPLOY=1`, so it stays a declaration rather
+  than a deploy path.
 
 ### Q9 · The Actions deploy's smoke step fails once the household token is enforced
 
@@ -254,8 +253,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   reason written down.
 - **Paths:** `.github/workflows/deploy.yml`, repository secrets, `docs/r8-rollout.md`
 - **Size:** S
-- **State:** proposed — a workflow edit and a repository secret are both the operator's call. The R8 runbook
-  now names this and offers the local `pnpm deploy` route as the way to keep deploying meanwhile.
+- **State:** done in the repository — `78047ba`. The sandbox smoke step receives `secrets.ATV_DEVICE_TOKEN`.
+  The operator's half remains: add that repository secret in the R8 sitting. Without it the step still goes
+  red, and the red now means the repository cannot authenticate rather than that the check is broken.
 
 ### Q10 · A household token that can never be accepted must not read as a wrong token
 
@@ -268,8 +268,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   Step 3 check would then read the difference, and the token prompt would stop being the bearer of bad news.
 - **Paths:** `services/atv-core/src/device-token.ts`, `services/atv-core/src/index.ts`, tests
 - **Size:** S
-- **State:** proposed — it adds an error answer to `/api/resolve`, which is a public shape, so it gets a
-  `decisions.md` entry when the operator takes it rather than a code change now.
+- **State:** done — `2c06b68`. `checkDeviceToken` answers `unpresentable`, `/api/resolve` turns it into
+  `503 device_token_invalid`, and tests cover it both with a header and without one — plus a secret whose only
+  whitespace is at the ends, which is still `allow`.
 
 ## Production cutover
 

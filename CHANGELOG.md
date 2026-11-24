@@ -115,6 +115,26 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- **P4 — the stream ticket lasts an hour.** A pause longer than fifteen minutes made the next `Range` hit an
+  expired ticket: `403 expired`, the player reported a source error, and recovery lost the position. An hour
+  covers ordinary viewing, the ticket is still bound to one id, and rotating the signing key still ends every
+  outstanding ticket at once. The route test now derives its stale ticket from `DEFAULT_TTL_S`, which is what
+  the change caught (`6edfab4`).
+- **Q10 and P5 — resolve stops blaming the caller for the deployment.** A household token containing whitespace
+  can never be sent in a header, so it now answers `503 device_token_invalid` instead of telling every TV its
+  value is wrong; a Drive link with no signing key answers `503 stream_unconfigured` instead of `200` with an
+  unplayable share page, and the batch body carries an `unconfigured` list that the panel and `pnpm streams`
+  name (`2c06b68`).
+- **Q6 — `@atv/ui-shared` is types only.** The schema constant and `validateConfig` were executed by nothing;
+  the constant that matters lives twice with a parity test, and the third copy was a place to edit by mistake
+  (`32dedf3`).
+- **Q8 — `wrangler.production.toml` declares what the Worker reads**: the rate limiter, the Durable Object and
+  its migration, the metrics dataset, the `/a` routes, the sampling rate and the snapshot cron, with
+  production's own name, route and KV ids. The deploy guard still refuses it without the override (`95f33b0`).
+- **Q9 — the CI smoke step receives `secrets.ATV_DEVICE_TOKEN`**, so a deploy that works no longer ends red on a
+  `401` it could not authenticate. The operator still has to add that repository secret (`78047ba`).
+- **Q3 — `docs/uptime.md`** pins the external keyword monitor, including the keyword `"ok"` with its quotes,
+  which survives both pretty-printed and compact bodies. The account is the operator's (`6940d3f`).
 - `pnpm continuity` reads commands in both directions: a script named in no document fails, and now a
   document naming a command that is not a script fails too, so a runbook cannot send someone to a command the
   repository has dropped. It reads code spans and fences only — prose like "with pnpm 9" is not a command —
@@ -253,6 +273,9 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- The operator took seven proposed items on 2026-11-24 — P4, P5, Q6, Q8, Q9, Q10 and Q3 — and each is a
+  `state: accepted` entry in `decisions.md` with its risk and cost, because three of them change a public shape
+  or a workflow. Deploying remains unauthorised: Q8 and Q9 change declarations, not production.
 - Q10 is proposed: a household token that can never be presented should answer as the deployment's own error
   (503), not as a wrong token. Today the only recovery is retyping a value that could never work, which is
   the most expensive kind of wrong for someone standing in front of a TV.

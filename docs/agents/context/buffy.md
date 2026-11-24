@@ -68,7 +68,7 @@ one thing a test can: a tile click focuses and plays but does not re-fire `onFoc
 belongs to `mouseenter`. `PlayerManager.detectProfile()` is gone; the review had flagged it as dead.
 
 **P1 has a design and its first file.** `decisions.md` (2026-11-24) proposes `/api/stream/<id>?exp&sig`: the
-resolve call (already token-protected) mints a 15-minute HMAC ticket, because a `<video src>` cannot send a
+resolve call (already token-protected) mints a one-hour HMAC ticket, because a `<video src>` cannot send a
 header; the proxy verifies the ticket then passes `Range` through to Drive. `stream-sign.ts` implements the
 ticket and its tests cover id binding, expiry, forgery and a missing secret. The route and the `/api/resolve`
 change wait for the operator to accept the entry — that is a shared shape, so it does not land on my say-so.
@@ -186,7 +186,7 @@ channel unreachable on exactly the deployment where the proxy works, while its o
 absolute fixture link. Fixed in `39f5a7a` with a test that fails without it; the fixture now carries a hostless
 ticket. Two proposals came out of the same pass and are waiting on the operator: **P5** (a keyless Drive
 resolve should answer `503 stream_unconfigured` instead of a share page, which makes the batch shape a fourth
-list) and **P4** (a 15-minute ticket can be outlived by a paused TV, so either the TTL or the client's recovery
+list) and **P4** (a one-hour ticket now covers a pause; the client's recovery is unchanged and L5 still owes
 has to change). L4's done-when now says `--probe`, because a plain run only proves a link is stored.
 
 **R3 is done, and coverage paid for itself on its first run.** `vitest.config.ts` plus `pnpm coverage`
@@ -364,3 +364,24 @@ the operator to ignore the page. Covered by three logic cases per flag in `healt
   asset fetch answered a bare platform 500 when they threw, with no request id, which is the one failure
   `wrangler tail` cannot help with. They now go through one `route()` call inside a single catch: add a new
   page route to that case switch, not beside it.
+
+## Session 2026-11-24 (the decision batch)
+
+The operator took seven proposed items and asked for them in my recommended order: P4, Q10, P5, Q6, Q8, Q9, Q3.
+All seven are `state: accepted` in `decisions.md`; six landed as behaviour or declarations, and Q3 is a document
+because the monitor lives in the operator's account. What is left is theirs, not mine: the R8 sitting (secret,
+client on every TV, enforcement), the repository `ATV_DEVICE_TOKEN`-style secret for CI smoke (same value as the
+Worker's), the UptimeRobot monitor, then L4 and P2.
+
+Lessons worth keeping:
+
+- **A constant change has coupled tests, and the suite finds them.** `DEFAULT_TTL_S` 900 → 3600 broke a route
+  test that hardcoded "20 minutes ago" as stale. Deriving staleness from the constant is the fix, not a longer
+  offset — and it is the kind of test coupling that only a full run reveals.
+- **`git commit -- <path>` requires tracked paths.** A brand-new file needs `git add` first; a chained commit
+  command stops at the first pathspec it cannot resolve, which is how the seventh commit was left behind for a
+  moment this session.
+- **A keyword monitor's keyword is a contract with the serialiser.** `"ok"` with quotes survives both pretty and
+  compact bodies; `"status": "ok"` did not, and that spacing was never a promise.
+- **Whitespace is not a token.** `Bearer` carries `\S+`, so a secret with a space can never be presented; that is
+  now a 503 (`device_token_invalid`) rather than a 401 that blames the household.

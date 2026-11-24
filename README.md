@@ -13,7 +13,7 @@ admin CMS, a React admin app, and shared types.
 - Worker + API: `services/atv-core`
 - TV client (Vite + TS): `apps/tv-client` — built to `apps/tv-client/dist` and served as Worker assets
 - Admin CMS (React): `apps/admin-cms` — built into `apps/tv-client/dist/admin` and served at `/admin/`
-- Shared types/schema: `packages/ui-shared`
+- Shared wire types (types only, no runtime): `packages/ui-shared`
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md), one section per branch until a deploy ships it.
 
@@ -190,7 +190,7 @@ A Drive link cannot play: the share URL is an HTML page, so a `<video>` pointed 
 Worker serves those bytes itself. When the stored link for an id is a Drive URL, `/api/resolve` returns a
 same-origin `/api/stream/<id>?exp=<unix>&sig=<hex>` instead of the link, and `/api/stream` verifies that
 ticket and streams the file with `Range` passed through, so seeking works. The ticket is HMAC-SHA256 over
-`<id>\n<exp>` under the Worker secret `ATV_STREAM_SIGNING_KEY`, bound to one id and good for 15 minutes: a
+`<id>\n<exp>` under the Worker secret `ATV_STREAM_SIGNING_KEY`, bound to one id and good for one hour: a
 `<video>` cannot send `Authorization`, which is why the media request carries a ticket while the resolve
 call that minted it needs the household token.
 

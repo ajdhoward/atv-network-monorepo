@@ -417,3 +417,118 @@ other publishes what L4 is for. B is right for `/admin` and wrong for the guide.
   enforce", which the prompt as shipped cannot do: it opens only on a 401, so a TV can take the token only once
   the secret exists. The order is client first, secret second, as [`../r8-rollout.md`](../r8-rollout.md) sets
   out; that runbook is the authority on the rollout and this record keeps the why.
+
+### 2026-11-24 — A one-hour ticket, because a pause is not an edge case (P4)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), from the evidence recorded on 2026-11-24
+- accepted by: operator, 2026-11-24 — "Do all the items that you suggested"
+- touches: `services/atv-core/src/stream-sign.ts`, `services/atv-core/test/routes.test.ts`, `AGENTS.md`,
+  `README.md`
+- why: a film paused past 15 minutes resumes by sending its next `Range` on an expired ticket; `/api/stream`
+  answers `403 expired`, the player reports a source error, and recovery loses the position. Pausing is normal
+  viewing, and 15 minutes made it look like a broken channel.
+- change: `DEFAULT_TTL_S` 900 → 3600. The route refuses on `exp <= now`; only that boundary moved. The route
+  test's "stale ticket" is now derived from the constant instead of a fixed 20-minute offset, which is what
+  caught the change.
+- risk: a leaked ticket URL stays usable for an hour rather than 15 minutes. Bounded: resolve is behind the
+  household token, the URL was already usable by that TV, the ticket is bound to one id, and rotating
+  `ATV_STREAM_SIGNING_KEY` ends every outstanding ticket at once.
+- cost: none.
+- outcome: accepted. L5 still has to confirm a real `<video>` resumes where it was; the TTL is the cheapest
+  half of P4 and the client's recovery is unchanged.
+
+### 2026-11-24 — An unservable household token answers 503, not "wrong token" (Q10)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `services/atv-core/src/device-token.ts`, `services/atv-core/src/index.ts`, tests
+- why: `bearerToken` accepts one token (`(\S+)`), so a secret with whitespace inside it can never be presented.
+  The household saw `401` on every TV holding the right value, which reads as a typo they can fix and sends them
+  to retype a value that cannot work.
+- change: `checkDeviceToken` gains `unpresentable` for a secret whose trimmed value still contains whitespace;
+  `/api/resolve` answers `503 {code:"device_token_invalid"}` with counter `resolve_token_unpresentable`. The
+  secret is never echoed. Whitespace at the ends is still trimmed and still `allow`.
+- risk: a new public error code. A client that knows only 401/404 sees 503, which is the honest answer — retrying
+  will not help.
+- cost: none.
+- outcome: accepted.
+
+### 2026-11-24 — A Drive link with no signing key answers 503, not a share page (P5)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `services/atv-core/src/stream.ts`, `services/atv-core/src/index.ts`, `scripts/check-streams.mjs`,
+  `apps/admin-cms/src/links.ts`
+- why: returning the stored link made resolve answer `200` for a channel whose only URL is a Drive share page a
+  `<video>` cannot play — "no stream configured" for a channel that is configured, and visible only by playing it.
+- change: `proxyTicket` throws `stream unconfigured` for a Drive link when the key is absent; single resolve
+  answers `503 stream_unconfigured` (the code `/api/stream` already uses); the batch body gains a fourth list,
+  `unconfigured`; the panel shows it as its own state instead of "no link"; `pnpm streams` names the secret.
+- risk: a deployment with Drive links and no key now reports those channels as failures. That is the point, and
+  `--allow-missing` deliberately does not silence it.
+- cost: none.
+- outcome: accepted.
+
+### 2026-11-24 — `@atv/ui-shared` exports types only (Q6)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `packages/ui-shared/src/index.ts`, `README.md`
+- why: every importer writes `import type`, so `CONFIG_SCHEMA_VERSION` and `validateConfig` were executed by
+  nothing, while coverage reported the package at 0%. The constant that matters is maintained in
+  `services/atv-core/src/config-meta.ts` and `scripts/lib/config-meta.mjs`, which have a parity test; the third
+  copy was a place to edit by mistake.
+- change: both exports deleted; the package keeps the wire types. Types-only is the honest option because the
+  seed script is plain `.mjs` and cannot import a `.ts` value without a build step.
+- risk: none found — nothing imported either as a value, and the typecheck of all three packages proves it.
+- cost: none.
+- outcome: accepted.
+
+### 2026-11-24 — `wrangler.production.toml` declares what the Worker reads (Q8)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `wrangler.production.toml`
+- why: it is the repository's statement of production's shape and the file the cutover doc tells the operator to
+  copy, yet it declared no rate-limiter binding, no `ATV_LIMITER` Durable Object or migration, no metrics dataset
+  and no `/a` routes — so a candidate built from it resolved without the strict limiter, wrote no counters and
+  answered the short install address with the TV shell.
+- change: the limiter, the DO binding and its `v1` migration, the analytics dataset, the `/a` routes, the 10%
+  sampling rate and the 10-minute cron now mirror `wrangler.toml`. Production's name, route and KV ids are
+  unchanged, and `check-deploy-target` still refuses a deploy from this file without the explicit override.
+- risk: the file is now a _complete_ declaration, so deploying from it would start the cron and create the limiter
+  class in production. Both are intended, and both are why the override stays a deliberate act.
+- cost: none.
+- outcome: accepted.
+
+### 2026-11-24 — CI's sandbox smoke receives the household token (Q9)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `.github/workflows/deploy.yml`, `docs/r8-rollout.md`, repository secrets
+- why: after R8 the sandbox smoke ran without `ATV_DEVICE_TOKEN`, so a successful deploy ended with a red job on a
+  `401` it could not authenticate. A red check that means "someone forgot a token" teaches people to ignore red.
+- change: the step receives `secrets.ATV_DEVICE_TOKEN`; smoke already sends the header only when the value is
+  present, so an unenforced deployment still passes and an enforced one is proven end to end. The operator adds
+  the repository secret in the R8 sitting; without it the red returns, and now means the repository cannot
+  authenticate rather than a broken check.
+- risk: the token exists in GitHub as well as on the Worker. Same value, private repository, no new scope.
+- cost: none.
+- outcome: accepted; the repository secret is the operator's to set.
+
+### 2026-11-24 — A keyword monitor with a quoted keyword (Q3)
+
+- state: accepted
+- proposed by: Buffy (Freebuff), operator accepted 2026-11-24
+- touches: `docs/uptime.md`, `docs/README.md`
+- why: health is only checked when a person runs smoke, so a dead guide is found by someone in front of the TV,
+  and a status-code monitor would call `degraded` healthy because health answers `200`.
+- change: `docs/uptime.md` is the setup sheet for one UptimeRobot free keyword monitor on `/api/health`, alerting
+  when the keyword is absent. The keyword is `"ok"` **with the quotes**, not `"status": "ok"`: the spacing is a
+  serialiser detail, and a monitor that alerts forever after a formatting change is worse than none. No credential
+  goes to the monitor; health stays public after R8.
+- risk: a keyword monitor is a substring check. `"ok"` matches the quoted status value and no key in the payload,
+  but a future field whose value is exactly `ok` while degraded would defeat it.
+- cost: none — a free plan, no card.
+- outcome: accepted; the account is the operator's, so creating the monitor is their remaining step.
