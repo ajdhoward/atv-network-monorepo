@@ -27,6 +27,12 @@ export const DEFAULTS = {
   days: 30,
   guideLoadsPerTvPerDay: 2,
   resolvesPerTvPerDay: 40,
+  // P1 made this Worker the origin of every Drive-backed channel's bytes, and a
+  // play is not one request: the player drives the proxy with ranged requests as
+  // it buffers and seeks. 300 is a four-hour viewing day at roughly one request
+  // per minute plus seeks, and it is deliberately generous at the top end — an
+  // HLS playlist would be far higher, which is why proxying one is out of scope.
+  mediaRequestsPerTvPerDay: 300,
   healthChecksPerDay: 288,
   cronRunsPerDay: 144,
   cpuMsPerRequest: 2,
@@ -43,11 +49,18 @@ export function estimate(overrides = {}) {
   const i = { ...DEFAULTS, ...overrides };
   const guideRequests = i.tvs * i.guideLoadsPerTvPerDay * i.days;
   const resolveRequests = i.tvs * i.resolvesPerTvPerDay * i.days;
+  const mediaRequests = i.tvs * i.mediaRequestsPerTvPerDay * i.days;
   const healthRequests = i.healthChecksPerDay * i.days;
-  const requests = guideRequests + resolveRequests + healthRequests;
+  const requests = guideRequests + resolveRequests + mediaRequests + healthRequests;
   // A guide build reads channels + config_meta; health reads config_meta,
-  // channels and the snapshot; a resolve reads gdrive_map.
-  const kvReads = guideRequests * 2 + resolveRequests + healthRequests * 3;
+  // channels and the snapshot; a resolve reads gdrive_map. A media request
+  // re-reads its channel's link to build the upstream request — the isolate
+  // memoises that for 60 s and this model assumes no memo — and spends no
+  // limiter token, because the signed ticket is the admission, so the Durable
+  // Object is not asked. Each media request is also one Drive subrequest: a
+  // per-request limit, not a monthly billed metric, and the bytes are Drive's
+  // egress rather than this account's.
+  const kvReads = guideRequests * 2 + resolveRequests + healthRequests * 3 + mediaRequests;
 
   const usage = {
     requests,

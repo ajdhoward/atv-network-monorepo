@@ -14,6 +14,7 @@ const VALUE_FLAGS = {
   days: "days",
   "guide-loads": "guideLoadsPerTvPerDay",
   resolves: "resolvesPerTvPerDay",
+  "media-requests": "mediaRequestsPerTvPerDay",
   "health-checks": "healthChecksPerDay",
   "cpu-ms": "cpuMsPerRequest",
   "do-gb-s": "doGbSecondsPerRequest",
@@ -23,6 +24,9 @@ const args = process.argv.slice(2);
 const overrides = {};
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
+  // pnpm 9 passes a `--` separator straight through to the script, and the
+  // README documents `pnpm budget -- --tvs 10`, so a lone separator is not a flag.
+  if (arg === "--") continue;
   if (!arg.startsWith("--")) {
     console.error(`✗ Unexpected argument ${arg}`);
     process.exit(1);
@@ -52,6 +56,7 @@ console.log(
   `assumptions: ${inputs.tvs} TV(s), ${inputs.days} day(s), ` +
     `${inputs.guideLoadsPerTvPerDay} guide load(s)/TV/day, ` +
     `${inputs.resolvesPerTvPerDay} resolve(s)/TV/day, ` +
+    `${inputs.mediaRequestsPerTvPerDay} media request(s)/TV/day, ` +
     `${inputs.healthChecksPerDay} health check(s)/day, ` +
     `cron ${inputs.cronRunsPerDay}x/day, ${inputs.cpuMsPerRequest} CPU ms/request`,
 );

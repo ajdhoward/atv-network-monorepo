@@ -381,9 +381,16 @@ included monthly allowances, checked against Cloudflare's pricing pages on 2026-
 leave them, so it can gate a decision rather than only print a table:
 
 ```bash
-pnpm budget                                  # household default: 3 TVs, 30 days
+pnpm budget                                   # household default: 3 TVs, 30 days
 pnpm budget -- --tvs 10 --resolves 120        # a busier network
+pnpm budget -- --media-requests 900           # a TV left playing long films
 ```
+
+Four kinds of request are counted: guide loads, resolves, Drive-proxy media requests and health checks.
+Media requests are the ones a player drives itself — one per buffering or seek step rather than one per
+play — so they default to 300 per TV per day and `--media-requests` changes that. Each is one Worker
+request plus one Drive subrequest, spends no limiter token (the signed ticket is the admission), and its
+bytes are Drive's egress rather than this account's.
 
 The model assumes no CDN cache and no isolate memo, so its figures are upper bounds. What keeps real
 usage far below them: the guide is memoised 30 s and cached at the edge for 60 s (plus
