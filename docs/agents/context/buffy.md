@@ -140,7 +140,9 @@ resolve, and `resolveStream` ends in `proxyTicket`. Tests: 9 route tests (mid-fi
 asserted, whole-file 200, synthesised `Accept-Ranges`, 416, expired/forged/ticketless 403s that never reach
 Drive, 503 unconfigured, 404 for unknown and non-Drive ids, the resolve→stream round trip, and a 502 whose
 log carries no id and no link) plus 8 unit tests. Unverified against Drive itself: no file, no credential, and
-P2 is still blocked. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
+P2 is still blocked. The passthrough list is deliberately longer than the four headers a 206 needs
+(`Content-Encoding` and `Content-Disposition` included): a proxy that drops what describes the bytes is
+lying about them, and the route test pins both. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
 
 - The GitHub integration's write proxy refuses some file bodies with a 403 its message does not explain: a
   page whose markup held a shell line of the form `curl -sS -X POST ${…}` was refused, while a 3-byte file

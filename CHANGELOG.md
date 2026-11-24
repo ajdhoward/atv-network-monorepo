@@ -16,7 +16,9 @@ Nothing here is merged or deployed.
   the ticket (HMAC-SHA256 over `<id>\n<exp>`, 15 minutes, bound to one id) under the new secret
   `ATV_STREAM_SIGNING_KEY` and leaves every non-Drive link exactly as it was — proxying a playlist without
   rewriting its segments would break it. With no secret, resolve keeps answering the stored link and the
-  route says `503 stream_unconfigured` rather than calling a valid ticket a forgery. Two gaps that the route
+  route says `503 stream_unconfigured` rather than calling a valid ticket a forgery. Everything that describes
+  the bytes is passed through, `Content-Encoding` and `Content-Disposition` included: dropping either makes
+  the response lie about a body the origin encoded, or hides the filename of a download. Two gaps that the route
   cannot close on its own: the secret is the operator's to set, and a file not shared link-wide still needs
   P2's service-account credential. Everything outside `driveFileId`/`mediaHeaders` is exercised against a
   stubbed origin, not against Drive.

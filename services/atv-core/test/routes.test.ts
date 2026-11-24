@@ -824,6 +824,33 @@ describe("GET /api/stream (P1 Drive proxy)", () => {
     expect(res.headers.get("access-control-expose-headers")).toContain("Content-Range");
   });
 
+  // These describe the bytes, not the request: a body the origin encoded must not
+  // arrive undeclared, and a download's filename must survive the hop or the
+  // player is given an attachment it cannot name.
+  it("passes Content-Encoding and Content-Disposition through", async () => {
+    const worker = await freshWorker();
+    const env = streamEnv();
+    upstream(
+      () =>
+        new Response("compressed", {
+          status: 200,
+          headers: {
+            "content-type": "video/mp4",
+            "content-length": "10",
+            "content-encoding": "gzip",
+            "content-disposition": 'attachment; filename="drive-news.mp4"',
+          },
+        }),
+    );
+
+    const { res } = await call(worker, env, await signStreamUrl("drive-news", SECRET));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-encoding")).toBe("gzip");
+    expect(res.headers.get("content-disposition")).toBe('attachment; filename="drive-news.mp4"');
+    expect(res.headers.get("content-type")).toBe("video/mp4");
+  });
+
   it("answers the whole-file request as a 200 without inventing a Range", async () => {
     const worker = await freshWorker();
     const env = streamEnv();

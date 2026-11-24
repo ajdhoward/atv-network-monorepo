@@ -81,10 +81,18 @@ export async function proxyTicket(
 
 // What a media response may carry through. Everything else the origin sends
 // (cookies, its own cache headers, its request id) belongs to the origin.
+//
+// `content-encoding` and `content-disposition` describe the bytes rather than the
+// request, so dropping them makes the response lie: a body the origin encoded
+// arrives undeclared, and a player is handed an attachment with no name. Both
+// are forwarded as the origin wrote them, because neither is this Worker's to
+// reinterpret.
 const PASSTHROUGH = [
   "content-type",
   "content-length",
   "content-range",
+  "content-encoding",
+  "content-disposition",
   "accept-ranges",
   "etag",
   "last-modified",
