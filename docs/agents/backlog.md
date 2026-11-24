@@ -84,10 +84,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   covered by tests, including expiry and a bad signature.
 - **Paths:** `services/atv-core/src/`, `services/atv-core/test/`
 - **Size:** L
-- **State:** proposed, design written — `decisions.md` entry of 2026-11-24: a signed ticket per resolve
-  (HMAC-SHA256 over `<id>\n<exp>`, 15-minute TTL), `Range` passed through, and distinct status codes for
-  unconfigured, bad signature and expiry. `services/atv-core/src/stream-sign.ts` and its tests landed as the
-  first file; nothing calls it, and the route plus the `/api/resolve` change wait for the operator's accept.
+- **State:** proposed — the approach is settled, the design is not; it wants a `decisions.md` entry first
+- ack — Z — agree it needs a decisions.md design entry first (Range/signed-URL/expiry shape); no objection to the L size once that lands
 
 ### P2 · Drive service-account secret for P1
 
@@ -102,11 +100,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Why:** typing a release URL with a TV remote is the worst step of the install; `/a` is four characters
   in Downloader.
 - **Done when:** `GET /a` 302s to the release asset and smoke checks the redirect rather than a body.
-- **Paths:** `services/atv-core/src/index.ts`, `services/atv-core/src/install.ts`, `wrangler.toml`,
-  `scripts/smoke.mjs`
+- **Paths:** `services/atv-core/src/index.ts`, `scripts/smoke.mjs`
 - **Size:** S
-- **State:** done — `4d58bab`, claimed on the operator's session go-ahead. `/a` is Worker-routed
-  (`run_worker_first`), the install page names it, and the route suite, smoke and `ci:worker` cover it.
+- **State:** proposed
+- ack — Z — small, useful, no new dep; one route plus one smoke change
 
 ## Safety and quality
 
@@ -118,6 +115,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `.github/workflows/deploy.yml`, `scripts/budget.mjs`
 - **Size:** S
 - **State:** proposed
+- ack — Z — the $5 ceiling should be enforced, not honour-system; wiring budget.mjs into verify is low-risk
 
 ### Q2 · Smoke-check the release asset
 
@@ -126,8 +124,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Done when:** the deploy smoke sends a HEAD to the asset URL and fails on a non-200.
 - **Paths:** `scripts/smoke.mjs`
 - **Size:** S
-- **State:** done — `4d58bab`. The smoke HEs the location `/a` gives it: a 4xx fails, while a 5xx or an
-  unreachable host warns, because neither is this Worker's fault.
+- **State:** proposed
+- ack — Z — a HEAD on the release asset is cheap and catches a silent rename; no objection
 
 ### Q3 · Alert when the Worker is down
 
@@ -137,6 +135,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** none in this repo
 - **Size:** S
 - **State:** proposed — needs a decision, because a new service needs approval even when it is free
+- ack — Z with a smaller alternative — a free GitHub Actions cron hitting /api/health every 10 min, alerting on non-200 via the existing GH token, adds no new service. If the operator prefers UptimeRobot/BetterStack, that is their call (new service = ask first)
 
 ## Production cutover
 
@@ -171,6 +170,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   `docs/agents/handoffs/README.md`), so its paths and proposal reach the channel before access does.
 - **Size:** S
 - **State:** proposed — waits for the operator to say which paths the next agent owns
+- ack — Z — I am the next agent; my announcement (#10) adds the roster row without a nested android/AGENTS.md because I own no paths. A future agent claiming android/ gets the nested file
 
 ## Findings from the 2026-11-23 review
 
@@ -180,12 +180,11 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   stream URL. That is harmless while the sandbox is unseeded and stops being harmless the moment L4 seeds
   it.
 - **Done when:** one of these is chosen in `decisions.md` and enforced — the sandbox is seeded with test
-  links only, the host sits behind Access with a service token, or resolve requires a household token.
+  links only, the host sits behind Access with a service token, or resolve requires a per-device token.
 - **Paths:** `services/atv-core/src/index.ts`, `wrangler.toml`, Cloudflare Zero Trust
 - **Size:** M
-- **State:** accepted — option C, the operator, 2026-11-23: one household token shared by every TV, Access
-  kept for the control planes, enforcement only after the client ships. Split into R5–R8 below; L4 still waits
-  for R8, because seeding real links before resolve is authenticated is the one thing this decision stops.
+- **State:** proposed — needs the decision before L4
+- ack — Z — the privacy gap is real and predates L4. Smaller alternative: keep the sandbox seeded with test links only (no real stream URLs) until Access is scoped (Q5), so /api/resolve answers any caller but leaks nothing; that defers the per-device-token option without blocking L4 test seeding
 
 ### R2 · Pin the toolchain the repo claims it has
 
@@ -195,8 +194,8 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   lockfile instead of carrying a second pin.
 - **Paths:** `package.json`, `.github/workflows/deploy.yml`
 - **Size:** S
-- **State:** partly done — `package.json` declares `engines` (Node `>=22`, pnpm `>=9`). The workflow half is
-  untouched and still proposed: it edits `.github/workflows/deploy.yml`, which is the operator's call.
+- **State:** proposed
+- ack — Z — engines node 22 + pnpm 9, wrangler from lockfile. The five open Dependabot PRs (#5 #6 #7 #8 #9) are the live version of this; land R2 first so the toolchain is deliberate before it moves two majors
 
 ### R4 · Decide where the line-up and secrets are backed up
 
@@ -209,6 +208,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `docs/continuity.md`
 - **Size:** S
 - **State:** proposed — the operator decides, because every option touches where a secret lives
+- ack — Z — operator call. Smallest option: password-manager entry plus KV as the live copy (no new repo, no encrypted blob, no new infra). A private companion repo is overkill for a one-household line-up
 
 ### R3 · Report test coverage in the review
 
@@ -218,72 +218,7 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `vitest.config`, `docs/agents/reviews.md`
 - **Size:** S
 - **State:** proposed — adds a dev dependency, so it needs the usual approval
-
-### R5 · The client sends the household token, and asks for it on a TV remote
-
-- **Why:** option C (R1) is only real if the player carries the token, and the served client is the one place it
-  can be entered without re-sideloading every TV.
-- **Done when:** `resolve.ts` and `playerManager.js` send `Authorization: Bearer <token>`; a 401 opens the token
-  prompt instead of "unavailable", and a wrong token says it is wrong rather than blaming the channel; the token
-  lives in `localStorage`; the guide still renders without one, so a TV that has not been set up is not blank.
-- **Constraint (checked 2026-11-23):** the prompt has to be usable with a D-pad. `main.ts` prevents default on
-  Backspace, Enter, Escape and the arrows from one document-level `keydown` listener, so an `<input>` added
-  without suspending that handler can neither be corrected nor submitted. Short grouped code, handler suspended
-  while it is open, and a way back in after a rotation. Untested on a remote until L5.
-- **Paths:** `apps/tv-client/src/`, `apps/tv-client/test/`
-- **Size:** S
-- **State:** done — `61831d3`. `resolve.ts` and the player's hover prefetch send the header; a 401 becomes
-  `unauthorized` and opens `tokenPrompt.ts`, which says "missing" or "refused" rather than letting a wrong
-  token look like a broken channel, and saving it retries the channel that hit the 401. The guide still
-  renders without a token because it never asked for one. The prompt's D-pad behaviour is exercised in
-  happy-dom only: whether a Fire TV's on-screen keyboard and Back key reach a focused `<input>` as
-  themselves is unverified until L5.
-
-### R6 · Enforce the token on `/api/resolve`
-
-- **Why:** the check is what stops a stranger pulling the whole line-up from an id sweep; until it lands the
-  prompt protects nothing.
-- **Done when:** single and `?ids=` resolve reject a headerless request with a 401 carrying
-  `{error,code,requestId}`, before a limiter token or a TorBox call; the token is compared as a digest, never
-  logged, never read from the query string; `Authorization` is in `Access-Control-Allow-Headers`; unauthorised
-  attempts get their own counter; `/api/health` says whether the secret is set; `ATV_DEVICE_TOKEN` is in
-  `env.ts`, in the inventory in `docs/continuity.md` in the same change (that check fails on an inventoried name
-  the repository does not use, which is the right failure), and in `AGENTS.md`'s settled decisions.
-- **Paths:** `services/atv-core/src/`, `services/atv-core/test/`, `docs/continuity.md`, `AGENTS.md`
-- **Size:** S
-- **State:** done — `device-token.ts` is called from `handleResolve` ahead of the limiter; unauthorised
-  attempts get their own counter, `Authorization` is in `Access-Control-Allow-Headers`, and health reports
-  `deviceTokenSet`. `ATV_DEVICE_TOKEN` is in `env.ts`, `.dev.vars.example` and the inventory in
-  `docs/continuity.md`; `AGENTS.md` records the order. A deployment without the secret answers exactly as
-  before, so this is inert until R8 sets it — and **R7 must land first**, or the admin panel, smoke,
-  `pnpm streams` and `ci:worker` fail closed the moment it is switched on.
-
-### R7 · Teach every non-TV caller the header
-
-- **Why:** after R6 the admin link check, `pnpm smoke`, `pnpm streams` and `ci:worker` all fail closed, and a red
-  check that really means "you forgot a token" teaches the next agent to distrust the checks.
-- **Done when:** `apps/admin-cms/src/links.ts` and `scripts/smoke.mjs`, `scripts/check-streams.mjs`,
-  `scripts/ci-worker.mjs` send the header when the token is in the environment and say plainly when it is not;
-  `ci:worker` uses its own local token against the fixture; the audit path is `pnpm streams` with the token in
-  the operator's environment.
-- **Paths:** `apps/admin-cms/src/links.ts`, `scripts/`, `docs/`
-- **Size:** S
-- **State:** done — the admin panel takes the token once per browser (`apps/admin-cms/src/linkToken.ts`),
-  sends it on resolve batches only, and reports "the worker needs the household token" on a 401 instead of
-  scoring every channel broken. `pnpm smoke`, `pnpm streams` and `ci:worker` send `ATV_DEVICE_TOKEN` from the
-  environment and name the token on a 401; `ci:worker` boots the Worker with a local token and asserts both
-  halves (401 without it, 200 with it), so enforcement is exercised in workerd before R8 turns it on.
-
-### R8 · Roll C out in the enforced order, with the operator
-
-- **Why:** enforcing before the client ships strands every installed TV on a 401 it cannot clear, and that
-  ordering is the only thing between this decision and a household that cannot watch anything.
-- **Done when:** `ATV_DEVICE_TOKEN` is set on `atv-core-v2`; the client with the prompt is deployed (L1); each TV
-  has taken the token; resolves arriving without the header have fallen to none apart from TVs that have not
-  been switched on; enforcement is deployed; then a headerless resolve answers 401 and a TV plays.
-- **Paths:** Worker secrets, `.github/workflows/deploy.yml`, the TVs
-- **Size:** M
-- **State:** blocked — operator (a secret and a deploy), after R5–R7. This is what unblocks L4.
+- ack — Z — coverage in the review is useful; the dev dependency is in the allowed list (MIT/ISC for @vitest/coverage-v8 or c8), so the ask-first rule is satisfied by naming the licence in the commit. No objection
 
 ## Parked
 
