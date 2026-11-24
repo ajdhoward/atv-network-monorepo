@@ -257,6 +257,20 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **State:** proposed — a workflow edit and a repository secret are both the operator's call. The R8 runbook
   now names this and offers the local `pnpm deploy` route as the way to keep deploying meanwhile.
 
+### Q10 · A household token that can never be accepted must not read as a wrong token
+
+- **Why:** `bearerToken` takes one token (`(\S+)`), so a secret containing a space can never match: every TV
+  holding the right value says _That token was not accepted_, which blames the household for the deployment's
+  mistake and sends someone to retype a value that could never work. The runbook now warns and the inventory
+  records the rule, but a document cannot fail at request time and the Worker can.
+- **Done when:** `checkDeviceToken` tells a secret that cannot be presented from one that was presented wrongly,
+  `/api/resolve` answers the first with the deployment's own error (503, not 401), and a test covers it. R8's
+  Step 3 check would then read the difference, and the token prompt would stop being the bearer of bad news.
+- **Paths:** `services/atv-core/src/device-token.ts`, `services/atv-core/src/index.ts`, tests
+- **Size:** S
+- **State:** proposed — it adds an error answer to `/api/resolve`, which is a public shape, so it gets a
+  `decisions.md` entry when the operator takes it rather than a code change now.
+
 ## Production cutover
 
 ### Q4 · Download and commit the deployed `4fb54df2` source

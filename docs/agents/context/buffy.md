@@ -293,6 +293,15 @@ Both branches were verified against a real `wrangler dev` (`19/19` either way, n
 `wrangler` has to be run as `pnpm exec wrangler` here because it is not on the shell PATH. That is the second
 check in this project fixed by asking what it does _not_ look at.
 
+**The token contract had a trap that only shows up on hardware.** `normaliseToken` trims and changes nothing
+else — correctly, it is a secret — but `bearerToken` takes one token (`(\S+)`), so a secret containing a space
+can never be presented: the right value is rejected and the prompt can only say "that token was not accepted",
+which blames the household. The runbook now recommends `openssl rand -hex 8` (16 characters, 64 bits, typable
+on a remote) and names the whitespace rule, `docs/continuity.md` and `.dev.vars.example` record it, and a test
+pins the current answer (`reject`). Q10 proposes the Worker give it its own error instead. What is _not_
+verified: how a Fire TV's on-screen keyboard delivers 16 characters, which is L5's ground — the shorter value
+is the mitigation, not a proof.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

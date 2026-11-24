@@ -115,6 +115,12 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- The R8 runbook's token advice is now a value you can type on a remote: `openssl rand -hex 8` (16
+  characters, 64 bits) instead of 64 characters, with the trade-off stated so the longer value stays a choice.
+  It also spells out a trap nothing said before — a token containing a space can never be accepted, because
+  `Bearer` carries one token (`\S+`), so the right value is rejected and every TV reports "that token was not
+  accepted". `docs/continuity.md` and `.dev.vars.example` record the no-whitespace rule, and a test pins the
+  behaviour: a secret with a space in it is a `reject` today.
 - The R8 runbook now says what happens to deploys _after_ the token lands: `deploy.yml`'s sandbox smoke step
   runs without `ATV_DEVICE_TOKEN`, so the deploy succeeds and the job goes red one step later on a `401` it
   cannot authenticate. The runbook gives both ways forward (a repository secret passed to that step, or the
@@ -235,6 +241,9 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- Q10 is proposed: a household token that can never be presented should answer as the deployment's own error
+  (503), not as a wrong token. Today the only recovery is retyping a value that could never work, which is
+  the most expensive kind of wrong for someone standing in front of a TV.
 - Q9 is proposed: once the household token is enforced, the Actions deploy's smoke step fails on a check it
   cannot make, which is the failure mode R7 removed for local callers. Named in the runbook and in the
   backlog so the red job is understood rather than debugged.
