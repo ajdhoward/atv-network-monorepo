@@ -13,6 +13,9 @@ export class PlayerManager {
     });
     this.buffer.style.visibility = "hidden";
     this.hoverTimer = null;
+    // What is on screen, for the overlays: the paused banner used to name the
+    // first channel in the lineup because nothing recorded this.
+    this.nowPlaying = null;
   }
   attach(root) {
     root.append(this.active, this.buffer);
@@ -44,7 +47,8 @@ export class PlayerManager {
     this.buffer.src = url;
     this.buffer.load();
   }
-  play(url) {
+  play(url, name) {
+    if (name) this.nowPlaying = name;
     this.bind(this.active);
     this.active.src = url;
     // textTracks is empty until metadata loads.

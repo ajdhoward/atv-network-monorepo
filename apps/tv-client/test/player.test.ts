@@ -49,4 +49,15 @@ describe("PlayerManager", () => {
     expect(pm.active.getAttribute("src")).toBe("https://cdn.example/live.m3u8");
     expect(play).toHaveBeenCalled();
   });
+
+  // The overlay banner reads this; without it the paused banner named the first
+  // channel in the lineup whatever was on screen.
+  it("remembers the channel it was asked to play", () => {
+    const pm = new PlayerManager();
+    pm.attach(document.createElement("div"));
+
+    pm.play("https://cdn.example/live.m3u8", "News 24");
+
+    expect(pm.nowPlaying).toBe("News 24");
+  });
 });

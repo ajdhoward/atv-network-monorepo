@@ -40,7 +40,10 @@ export function initOverlays(playerManager, channels) {
     }
     if (paused && e.key !== " ") {
       banner.style.transform = "translateY(0)";
-      document.getElementById("bannerNow").textContent = `Now Paused: ${channels[0]?.name}`;
+      // The channel on screen, not the first in the lineup. "this channel" keeps
+      // the banner honest when nothing has been played yet.
+      document.getElementById("bannerNow").textContent =
+        `Now Paused: ${playerManager.nowPlaying ?? "this channel"}`;
       // textContent, never innerHTML: names come from the seeded lineup and must
       // not be parsed as markup.
       document.getElementById("bannerNext").replaceChildren(

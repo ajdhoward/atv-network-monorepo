@@ -33,4 +33,24 @@ describe("initOverlays", () => {
     // The chip exists, so the text assertion is not passing on an empty banner.
     expect(next!.children).toHaveLength(1);
   });
+
+  it("names the channel that is playing, not the first in the lineup", () => {
+    const player = { active: document.createElement("video"), nowPlaying: "Sport UK" };
+    initOverlays(player, [channel("News 24"), channel("Sport UK")]);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " " }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+
+    expect(document.getElementById("bannerNow")!.textContent).toBe("Now Paused: Sport UK");
+  });
+
+  it("does not guess a channel before anything has played", () => {
+    const player = { active: document.createElement("video") };
+    initOverlays(player, [channel("News 24")]);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " " }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+
+    expect(document.getElementById("bannerNow")!.textContent).toBe("Now Paused: this channel");
+  });
 });

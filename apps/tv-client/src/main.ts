@@ -13,6 +13,9 @@ const grid = createGrid({
   onPlay: (channel) => void play(channel),
 });
 root.appendChild(grid.el);
+// The grid paints before the guide answers, so say what the empty screen is
+// waiting for instead of looking like a lineup with nothing in it.
+grid.notice("Loading guide…");
 
 // Pressing Enter twice, or moving to another tile while the first resolve is
 // still in the air, must not let the slower answer start the channel the viewer
@@ -48,7 +51,7 @@ async function play(channel: Channel) {
     }
     grid.notice("");
     grid.hide();
-    pm.play(result.url);
+    pm.play(result.url, channel.name);
   } catch {
     if (attempt === tuning) grid.notice(`${channel.name} is unavailable right now`);
   }
@@ -60,6 +63,7 @@ loadGuide()
     initOverlays(pm, channels.length ? channels : [{ name: "ATV" }]);
     if (!channels.length) grid.notice("No channels available right now.");
     else if (stale) grid.notice("Showing the last saved guide — reconnecting…");
+    else grid.notice("");
   })
   .catch(() => {
     grid.notice("Guide unavailable — reload to retry.");
