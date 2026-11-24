@@ -177,12 +177,12 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   stream URL. That is harmless while the sandbox is unseeded and stops being harmless the moment L4 seeds
   it.
 - **Done when:** one of these is chosen in `decisions.md` and enforced — the sandbox is seeded with test
-  links only, the host sits behind Access with a service token, or resolve requires a per-device token.
+  links only, the host sits behind Access with a service token, or resolve requires a household token.
 - **Paths:** `services/atv-core/src/index.ts`, `wrangler.toml`, Cloudflare Zero Trust
 - **Size:** M
-- **State:** proposed — the decision record is written: one household token shared by every TV, Access kept
-  for the control planes, enforcement only after the client ships. Awaiting the operator, before L4 seeds
-  real links.
+- **State:** accepted — option C, the operator, 2026-11-23: one household token shared by every TV, Access
+  kept for the control planes, enforcement only after the client ships. Split into R5–R8 below; L4 still waits
+  for R8, because seeding real links before resolve is authenticated is the one thing this decision stops.
 
 ### R2 · Pin the toolchain the repo claims it has
 
@@ -214,6 +214,58 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Paths:** `vitest.config`, `docs/agents/reviews.md`
 - **Size:** S
 - **State:** proposed — adds a dev dependency, so it needs the usual approval
+
+### R5 · The client sends the household token, and asks for it on a TV remote
+
+- **Why:** option C (R1) is only real if the player carries the token, and the served client is the one place it
+  can be entered without re-sideloading every TV.
+- **Done when:** `resolve.ts` and `playerManager.js` send `Authorization: Bearer <token>`; a 401 opens the token
+  prompt instead of "unavailable", and a wrong token says it is wrong rather than blaming the channel; the token
+  lives in `localStorage`; the guide still renders without one, so a TV that has not been set up is not blank.
+- **Constraint (checked 2026-11-23):** the prompt has to be usable with a D-pad. `main.ts` prevents default on
+  Backspace, Enter, Escape and the arrows from one document-level `keydown` listener, so an `<input>` added
+  without suspending that handler can neither be corrected nor submitted. Short grouped code, handler suspended
+  while it is open, and a way back in after a rotation. Untested on a remote until L5.
+- **Paths:** `apps/tv-client/src/`, `apps/tv-client/test/`
+- **Size:** S
+- **State:** accepted — split from R1 (operator, 2026-11-23). Unclaimed: `apps/tv-client/` is in no roster row.
+
+### R6 · Enforce the token on `/api/resolve`
+
+- **Why:** the check is what stops a stranger pulling the whole line-up from an id sweep; until it lands the
+  prompt protects nothing.
+- **Done when:** single and `?ids=` resolve reject a headerless request with a 401 carrying
+  `{error,code,requestId}`, before a limiter token or a TorBox call; the token is compared as a digest, never
+  logged, never read from the query string; `Authorization` is in `Access-Control-Allow-Headers`; unauthorised
+  attempts get their own counter; `/api/health` says whether the secret is set; `ATV_DEVICE_TOKEN` is in
+  `env.ts`, in the inventory in `docs/continuity.md` in the same change (that check fails on an inventoried name
+  the repository does not use, which is the right failure), and in `AGENTS.md`'s settled decisions.
+- **Paths:** `services/atv-core/src/`, `services/atv-core/test/`, `docs/continuity.md`, `AGENTS.md`
+- **Size:** S
+- **State:** accepted — split from R1. In the roster row's paths; must not be deployed before R5 is live (R8).
+
+### R7 · Teach every non-TV caller the header
+
+- **Why:** after R6 the admin link check, `pnpm smoke`, `pnpm streams` and `ci:worker` all fail closed, and a red
+  check that really means "you forgot a token" teaches the next agent to distrust the checks.
+- **Done when:** `apps/admin-cms/src/links.ts` and `scripts/smoke.mjs`, `scripts/check-streams.mjs`,
+  `scripts/ci-worker.mjs` send the header when the token is in the environment and say plainly when it is not;
+  `ci:worker` uses its own local token against the fixture; the audit path is `pnpm streams` with the token in
+  the operator's environment.
+- **Paths:** `apps/admin-cms/src/links.ts`, `scripts/`, `docs/`
+- **Size:** S
+- **State:** accepted — split from R1. Lands with R6 or immediately after it.
+
+### R8 · Roll C out in the enforced order, with the operator
+
+- **Why:** enforcing before the client ships strands every installed TV on a 401 it cannot clear, and that
+  ordering is the only thing between this decision and a household that cannot watch anything.
+- **Done when:** `ATV_DEVICE_TOKEN` is set on `atv-core-v2`; the client with the prompt is deployed (L1); each TV
+  has taken the token; resolves arriving without the header have fallen to none apart from TVs that have not
+  been switched on; enforcement is deployed; then a headerless resolve answers 401 and a TV plays.
+- **Paths:** Worker secrets, `.github/workflows/deploy.yml`, the TVs
+- **Size:** M
+- **State:** blocked — operator (a secret and a deploy), after R5–R7. This is what unblocks L4.
 
 ## Parked
 

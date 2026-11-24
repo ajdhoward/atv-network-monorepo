@@ -17,17 +17,20 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 - `2adcc4d` — `docs/continuity.md`, `docs/README.md`, `pnpm continuity` in `verify`.
 - `e75a7b1` — per-agent context files, the roster `Context` column and the check that enforces it.
 - `4d58bab` — `/a` short APK redirect (P3) and the release-asset smoke guard (Q2).
-- The last two are on `freebuff/9b6340e13dd9c5125e906312`, not merged to `main`. Nothing deployed: the
-  sandbox still serves the pre-`/install` build.
+- `e967b73`, `7330f49` — the R1 decision record, then its tightening (one shared household token rather than a
+  per-device one, and the installed-APK gap that enforcing early would open).
+- These are on `freebuff/9b6340e13dd9c5125e906312`, not merged to `main`. Nothing deployed: the sandbox still
+  serves the pre-`/install` build.
 
 ## What I am doing
 
-Nothing claimed. The queue is the backlog; the first three moves are L1 (deploy the sandbox), L2 (protect
-`main`) and the R1 decision (`/api/resolve` is unauthenticated on a public host). L1 and L2 are the
-operator's to authorise. R1 now has a written proposal in `decisions.md` (one household token on
-`/api/resolve` shared by every TV, Access kept for the control planes, enforcement only after the client
-ships) and only needs the operator's outcome; it must land before L4 seeds real links. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for
-Drive-backed channels.
+Nothing claimed in code. R1 is decided: the operator accepted option C on 2026-11-23 (one household token on
+`/api/resolve`, Access kept for the control planes, enforcement only after the client ships), and the work is
+split into backlog R5 (client header and D-pad prompt), R6 (enforce it in the Worker), R7 (admin, smoke,
+streams and `ci:worker` carry the header) and R8 (the operator's rollout, which is what unblocks L4). R5 owns
+`apps/tv-client/`, which no row claims, so it needs a claim first. L1 (deploy) and L2 (branch protection) stay
+the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed
+channels.
 
 ## What I learnt that cost time
 
@@ -50,6 +53,15 @@ Drive-backed channels.
 - Two of my own edits broke Markdown tables: deleting a table row without its newline leaves a blank line
   that splits the table, and inserting a row by anchoring on the blank line after it lands mid-line. Prettier
   does not repair either. Edit tables with a script that rewrites whole lines.
+- **An installed APK does pick up a client change, and the proof is three files.** `MainActivity` bundles
+  nothing and loads `BuildConfig.ATV_BASE_URL` with DOM storage enabled; the client registers no service
+  worker; Workers' asset default is `public, max-age=0, must-revalidate` with an ETag and `public/_headers`
+  overrides no cache header, so `/` revalidates on every launch and names a fresh hashed `/assets/*.js`. What
+  that does not give you is text entry: `main.ts` prevents default on Backspace, Enter, Escape and the arrows
+  from one document-level listener, so a token `<input>` needs that handler suspended or it can neither be
+  corrected nor submitted.
+- `docs/continuity.md`'s secret inventory is checked against the repository, so adding `ATV_DEVICE_TOKEN`
+  there before the code uses it fails `pnpm continuity`. It goes in with R6, not with the decision.
 
 ## What I tried that failed
 
@@ -73,8 +85,8 @@ Drive-backed channels.
 
 ## Next session, in order
 
-1. Merge `4d58bab` (or take it as a review of P3/Q2), then with the operator: L1 deploy, L2 branch
+1. Merge the branch (P3/Q2, the R1 record, this split), then with the operator: L1 deploy, L2 branch
    protection; re-run `pnpm smoke` against the deployed host, which now also checks `/a` and the asset.
-2. R1: take the operator's outcome on the written proposal, then the change, before L4.
+2. Claim and build R5 (the client), then R6/R7, and hand R8 to the operator; L4 seeds real links only after it.
 3. P1: the Drive proxy.
 4. Keep this file and the roster row honest, or the next session starts blind.

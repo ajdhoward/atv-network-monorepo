@@ -199,7 +199,7 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ### 2026-11-23 — `/api/resolve` stays private with one household token, not with Access on the player
 
-- state: proposed
+- state: accepted
 - proposed by: Buffy (Freebuff)
 - touches: `services/atv-core/src/index.ts` (`/api/resolve` auth check, `Access-Control-Allow-Headers`,
   `/api/health`), `services/atv-core/src/env.ts` (`ATV_DEVICE_TOKEN`), `apps/tv-client/src/` (token prompt,
@@ -247,12 +247,24 @@ other publishes what L4 is for. B is right for `/admin` and wrong for the guide.
   the household's limiter allowance — they get their own counter, so a wrong token is visible instead of
   quietly eating the budget.
 - rollout: enforcement has to land **after** the client that sends the header is live, or the change breaks the
-  thing it protects. The shell loads the served client, so a client-side prompt reaches an already-installed
-  APK on its next load with no re-sideload; an APK-side entry would leave every installed TV unable to supply
-  a token until someone sideloads again — the gap this avoids. Sequence: deploy the client and the prompt,
-  take the token on each TV, watch the metric for resolves that arrive without the header until it stops,
-  then enforce. Enforcing first leaves every installed TV on a 401 it cannot clear.
+  thing it protects. Delivery was checked rather than assumed (2026-11-23), and that half holds: `MainActivity`
+  bundles nothing and loads `BuildConfig.ATV_BASE_URL` into a `WebView` with DOM storage on, the client
+  registers no service worker anywhere, and Workers' asset default (`public, max-age=0, must-revalidate` plus
+  an ETag; `public/_headers` overrides no cache header) makes `/` revalidate on every launch, where the bundle
+  it names is a new hashed `/assets/*.js`. An installed APK therefore runs the new client on its next launch
+  with no re-sideload — an APK-side entry would have stranded every installed TV until someone sideloaded
+  again. Entry is the half that does not hold yet: the shell has no keyboard and no script bridge, so the
+  token is typed through the Fire TV on-screen keyboard on a D-pad, and the client's single document-level
+  `keydown` handler prevents default on Backspace, Enter, Escape and the arrows, so an `<input>` added without
+  suspending it can neither be corrected nor submitted. The prompt therefore has to ship in the same client
+  change (short grouped code, grid keys suspended while it is open, reachable again after a rotation),
+  because if it is unusable the only fallback is re-sideloading every TV — the outcome this ordering exists to
+  avoid. Sequence: deploy the client and the prompt, take the token on each TV, watch the metric for resolves
+  that arrive without the header until it stops, then enforce. Enforcing first leaves every installed TV on a
+  401 it cannot clear.
 - cost: none — no dependency, no service, no spend. M of work; after it L4 can seed real links on the sandbox
   and L5 can test playback with a token.
-- acks: none outstanding — sole active agent (see `roster.md`), recorded as absence rather than consent.
-- outcome: — awaiting the operator.
+- acks: operator (2026-11-23) — accepted option C. No other agent active (see `roster.md`), recorded as
+  absence rather than consent.
+- outcome: accepted — option C, operator, 2026-11-23. Split into backlog R5–R8; not enforced yet, so L4 still
+  waits for R8.
