@@ -157,9 +157,12 @@ async function buildGuidePayload(env: Env): Promise<GuidePayload> {
   const { byCountry, byCategory, list } = runRulesIndex(channels);
   // Stable order so the eTag and the cursor stay valid between isolates.
   const sorted = [...list].sort((a, b) => a.id.localeCompare(b.id));
+  // Computed once: `checksum` walks the whole seeded array, and a cold guide build
+  // used to do it three times — the eTag, the mismatch check and the log line.
+  const digest = checksum(raw);
   const payload: GuidePayload = {
     generatedAt: Date.now(),
-    eTag: `"guide-${sorted.length}-${checksum(raw)}"`,
+    eTag: `"guide-${sorted.length}-${digest}"`,
     schemaVersion: CONFIG_SCHEMA_VERSION,
     total: sorted.length,
     counts: {
@@ -168,14 +171,14 @@ async function buildGuidePayload(env: Env): Promise<GuidePayload> {
     },
     channels: sorted,
   };
-  if (meta && meta.checksum !== checksum(raw)) {
+  if (meta && meta.checksum !== digest) {
     payload.warning = "config_checksum_mismatch";
     console.warn(
       JSON.stringify({
         level: "warn",
         message: "channels changed since config_meta was written",
         metaChecksum: meta.checksum,
-        checksum: checksum(raw),
+        checksum: digest,
       }),
     );
   }
@@ -311,6 +314,18 @@ type BatchResolve = {
   invalid: string[];
 };
 
+// `resolveStream` signals both expected failures by throwing a message, and the
+// single and batch paths have to read the same two. One mapping means a new
+// message cannot be taught to only one of them.
+type ResolveFault = "missing" | "insecure" | "fault";
+
+function classifyResolveFault(err: unknown): ResolveFault {
+  const message = err instanceof Error ? err.message : "";
+  if (message === "not found") return "missing";
+  if (message.startsWith("insecure url")) return "insecure";
+  return "fault";
+}
+
 // `?ids=a,b` answers a whole grid sweep in one request, and therefore spends one
 // limiter token instead of one per channel. Links are returned only for ids that
 // resolved, so an unknown or insecure id discloses nothing.
@@ -335,9 +350,9 @@ async function resolveMany(raw: string, env: Env, requestId: string): Promise<Re
       const link = await resolveStream(id, env);
       out.resolved.push({ id, url: link.url, profile: link.profile });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (message === "not found") out.missing.push(id);
-      else if (message.startsWith("insecure url")) out.invalid.push(id);
+      const fault = classifyResolveFault(err);
+      if (fault === "missing") out.missing.push(id);
+      else if (fault === "insecure") out.invalid.push(id);
       // Anything else is a real fault: let the guard turn it into a 503 rather
       // than reporting a partial batch as if it were complete.
       else throw err;
@@ -369,17 +384,20 @@ async function handleResolve(
     count(env, "resolve_hit", id);
     return json({ id, url: link.url, profile: link.profile }, 200, { "Cache-Control": "no-store" });
   } catch (err) {
+    // The message is the response body for the two expected failures, exactly as
+    // it was thrown: only the branch is shared with the batch path.
     const message = err instanceof Error ? err.message : "resolve failed";
-    if (message === "not found") {
-      count(env, "resolve_miss", id);
-      return failure("not_found", message, requestId, 404);
+    switch (classifyResolveFault(err)) {
+      case "missing":
+        count(env, "resolve_miss", id);
+        return failure("not_found", message, requestId, 404);
+      case "insecure":
+        count(env, "resolve_insecure", id);
+        return failure("insecure_url", message, requestId, 502);
+      default:
+        logFailure(requestId, "/api/resolve", err);
+        return failure("resolve_failed", "resolve failed", requestId, 502);
     }
-    if (message.startsWith("insecure url")) {
-      count(env, "resolve_insecure", id);
-      return failure("insecure_url", message, requestId, 502);
-    }
-    logFailure(requestId, "/api/resolve", err);
-    return failure("resolve_failed", "resolve failed", requestId, 502);
   }
 }
 

@@ -29,6 +29,18 @@ function browserStore(): TokenStore | null {
   }
 }
 
+// Every access below fails the same two ways: no storage at all, or storage that
+// throws. One wrapper keeps the three callers from growing three slightly
+// different guards, and hands each the value it should be left with.
+function attempt<T>(run: (store: TokenStore) => T, fallback: T, store: TokenStore | null): T {
+  if (!store) return fallback;
+  try {
+    return run(store);
+  } catch {
+    return fallback;
+  }
+}
+
 // Anything a prompt produces is trimmed, and an empty or whitespace-only string
 // means "no token" rather than a header with nothing in it. No other rewriting:
 // the value is a secret, not a name.
@@ -39,11 +51,7 @@ export function normaliseToken(value: unknown): string | null {
 }
 
 export function readToken(store: TokenStore | null = browserStore()): string | null {
-  try {
-    return normaliseToken(store?.getItem(TOKEN_KEY));
-  } catch {
-    return null;
-  }
+  return attempt((s) => normaliseToken(s.getItem(TOKEN_KEY)), null, store);
 }
 
 // False means the token was blank or storage refused it, so the caller can say
@@ -51,21 +59,20 @@ export function readToken(store: TokenStore | null = browserStore()): string | n
 // launch after the household believes it is done.
 export function saveToken(token: string, store: TokenStore | null = browserStore()): boolean {
   const value = normaliseToken(token);
-  if (!value || !store) return false;
-  try {
-    store.setItem(TOKEN_KEY, value);
-    return true;
-  } catch {
-    return false;
-  }
+  if (!value) return false;
+  return attempt(
+    (s) => {
+      s.setItem(TOKEN_KEY, value);
+      return true;
+    },
+    false,
+    store,
+  );
 }
 
 export function clearToken(store: TokenStore | null = browserStore()): void {
-  try {
-    store?.removeItem(TOKEN_KEY);
-  } catch {
-    // A token that cannot be removed is still replaced by the next save.
-  }
+  // A token that cannot be removed is still replaced by the next save.
+  attempt((s) => s.removeItem(TOKEN_KEY), undefined, store);
 }
 
 // The header itself, in one place so the resolve call sites cannot disagree about
