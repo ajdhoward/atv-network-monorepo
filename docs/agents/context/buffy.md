@@ -6,7 +6,7 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 - **Roles:** Integrator, Cartographer, Scribe, Sentinel (sole active agent, so Author/Reviewer/Verifier are
   declared self-review in each change)
 - **Paths owned:** `services/atv-core/`, `scripts/`, `docs/`, `README.md`, `AGENTS.md`
-- **Last session:** 2026-11-23
+- **Last session:** 2026-11-24
 
 ## Where the project stands
 
@@ -355,8 +355,9 @@ the operator to ignore the page. Covered by three logic cases per flag in `healt
    `wrangler dev` is how a token was tested here; no secret has ever been set. L2 (branch protection) and L3
    (signing secrets) belong in the same conversation, L3 before R8's Step 2 if a new APK is needed.
 2. After R8, the panel's `Household token: NOT SET` flips from neutral grey to a problem — designed, not built.
-3. P4 and P5 are `proposed` in `decisions.md` and need the operator's outcome; P5 is a public shape, so none of
-   it is code yet. P2 (`ATV_STREAM_SIGNING_KEY` plus a Drive read) is what makes P1 real on the sandbox.
+3. P4 and P5 are done (`6edfab4`, `2c06b68`). P2 (`ATV_STREAM_SIGNING_KEY` plus a Drive read) is what makes P1
+   real on the sandbox; the fifth review ([`reviews/2026-11-24-p4.md`](../../reviews/2026-11-24-p4.md)) records
+   the rest.
 4. L5 is the only ground truth for playback, the prompt's on-screen keyboard and P4's expired-range behaviour.
 5. Keep this file and the roster row honest, or the next session starts blind.
 
@@ -399,3 +400,26 @@ names the token rather than the key when a 503 carries that code.
   distinguishes them, and `health.deviceTokenSet` cannot see an unpresentable value.
 - Both README's API table and the §6.1 parity matrix now list the batch `unconfigured` list and both 503 codes, so
   an operator reading either learns that a 503 can mean the household token.
+
+## Session 2026-11-24 (the verification the fixtures could not make)
+
+Ran the 503 diagnosis against real Workers in workerd, not a fixture. `wrangler dev --local` with
+`--var 'ATV_DEVICE_TOKEN:correct horse battery'` answers `503 device_token_invalid` to every request: `pnpm
+smoke` fails exactly one of 19 checks (`GET /api/resolve`, naming the token) while its `/api/stream`
+`stream_unconfigured` check still passes on the same Worker, and `pnpm streams` stops after one request naming
+the token. A control Worker with a presentable token, a real-shaped Drive id in `ATV_GDRIVE_MAP` and no signing
+key answers `503 stream_unconfigured (this deployment has no ATV_STREAM_SIGNING_KEY)`, smoke 19/19 — so the fix
+did not turn every 503 into a token. Neither script has ever been run against a deployment whose token is
+unenforced; that is still R8's sitting.
+
+- **`/api/health`'s `deviceTokenSet` is presence, not presentability.** It reads `true` on the Worker that
+  refuses every request; only the 503's `code` tells the two faults apart.
+- **`driveFileId` wants a realistic id** (`[A-Za-z0-9_-]{10,}`). A toy id like `abc` is not a Drive link, so it
+  resolves untouched and the first control run misled itself: it "passed" with no signing key at all.
+- **One `wrangler dev` per port, and its child outlives the parent.** 8791 was already taken in this VM by
+  another chat; killing the `pnpm` parent leaves `workerd` listening, so kill the PID that holds the port.
+- **`node_modules/.bin` can be empty after a workspace restore while `pnpm exec` still resolves from the
+  store**, and `npx wrangler` then fetches a different version (4.168.0 here against the pinned 4.166.0).
+  `pnpm install --frozen-lockfile` rebuilds the links in seconds.
+- **`pnpm ci:worker` outlives the five-minute command cap** (300 limiter requests in workerd); start it detached
+  with a log and poll it. Finished 31/31 — its own smoke 19/19 plus 12 route, cron and limiter checks.

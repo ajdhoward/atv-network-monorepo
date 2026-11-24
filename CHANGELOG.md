@@ -115,6 +115,14 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- The fifth review of the day is recorded ([`docs/reviews/2026-11-24-p4.md`](docs/reviews/2026-11-24-p4.md)):
+  306 tests in 32 files, 89.75% lines — 0.30 points lower only because Q6 deleted exercised code, with the three
+  files at zero unchanged — `ci:worker` 31/31, worst budget share 0.57%, eleven changes since the last record.
+  Its finding was a check that read a response's status instead of its body's `code`; the fix (`6233cbf`) was
+  verified against two real Workers in workerd, one with a whitespace token and one with a keyless Drive link.
+  It also corrected P1's and L4's claim that a keyless Drive channel still resolves. Q11 proposes the CI state
+  neither script can reach.
+
 - **P4 — the stream ticket lasts an hour.** A pause longer than fifteen minutes made the next `Range` hit an
   expired ticket: `403 expired`, the player reported a source error, and recovery lost the position. An hour
   covers ordinary viewing, the ticket is still bound to one id, and rotating the signing key still ends every

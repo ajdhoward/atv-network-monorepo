@@ -21,7 +21,7 @@ A window has to start somewhere, and "every five changes" only counts if the com
 written down. Keep the line below current in the same change that adds a record; `pnpm continuity` counts from
 it and warns at five, so the trigger is arithmetic instead of a judgement about whether enough has happened.
 
-Last review: `6ad6e40`, 2026-11-24 ([`reviews/2026-11-24-p3.md`](../reviews/2026-11-24-p3.md)) — the next
+Last review: `6233cbf`, 2026-11-24 ([`reviews/2026-11-24-p4.md`](../reviews/2026-11-24-p4.md)) — the next
 window starts after the commits that record it, by design.
 
 ## Who

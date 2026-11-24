@@ -67,8 +67,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Why:** a TorBox-mapped channel answers 502 and a Drive-mapped one 404 until these exist; `/api/health`
   counts them as missing.
 - **Done when:** `pnpm streams --probe` reports every channel ready, or the gaps are the ones the operator
-  expects. `--probe` is not optional here: a 200 from `/api/resolve` only means a link is stored, and a Drive
-  channel with no `ATV_STREAM_SIGNING_KEY` still resolves — to a share page the probe fails as HTML.
+  expects. `--probe` is not optional here: a 200 from `/api/resolve` only means a link is stored or mintable.
+  Since P5 a keyless Drive channel answers `503 stream_unconfigured` rather than the share page, so the two
+  faults are distinguishable — but a stored link that is not the file the operator meant is still only found
+  by following it.
 - **Paths:** Worker secrets (never the repo)
 - **Size:** S
 - **State:** blocked — operator, out of band
@@ -98,8 +100,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   cover a mid-file 206, a whole-file 200, a 416, each refusal and a resolve→stream round trip. `pnpm smoke`
   now asks for the route with no ticket and expects the refusal health implies (`403 missing` with the key,
   `503 stream_unconfigured` without), because a shadowed route answers `200` with the TV shell and every other
-  post-deploy check still passes. Not exercised against Drive itself, and two gaps stay open: with no `ATV_STREAM_SIGNING_KEY` a Drive channel still
-  resolves to its unusable link, and a file not shared link-wide needs P2's service-account credential.
+  post-deploy check still passes. Not exercised against Drive itself: a Drive channel with no
+  `ATV_STREAM_SIGNING_KEY` now answers `503 stream_unconfigured` (P5) instead of resolving to its unusable
+  link, and a file not shared link-wide still needs P2's service-account credential.
 
 ### P2 · Drive service-account secret for P1
 
@@ -271,6 +274,19 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **State:** done — `2c06b68`. `checkDeviceToken` answers `unpresentable`, `/api/resolve` turns it into
   `503 device_token_invalid`, and tests cover it both with a header and without one — plus a secret whose only
   whitespace is at the ends, which is still `allow`.
+
+### Q11 · Exercise an unpresentable token in `ci:worker`
+
+- **Why:** both 503 codes are unit-tested, and `ci:worker` boots the Worker with a presentable token, so the one
+  state that confused an operator — every request refused because the deployment's own token contains
+  whitespace — has never been seen in workerd. `6233cbf` fixed the scripts that read it, and the review proved
+  the fix by hand against two local Workers; the check itself still cannot reach it.
+- **Done when:** `ci:worker` runs a short separate pass whose Worker gets `--var ATV_DEVICE_TOKEN:has space` and
+  asserts `pnpm streams` and `pnpm smoke` both name the token and neither names the signing key.
+- **Paths:** `scripts/ci-worker.mjs`, `scripts/test/`, `.github/workflows/deploy.yml` if it becomes a CI step
+- **Size:** S
+- **State:** proposed — a second Worker boot doubles the slowest check's runtime, so the operator decides
+  whether it runs on every push or only in the deploy workflow.
 
 ## Production cutover
 
