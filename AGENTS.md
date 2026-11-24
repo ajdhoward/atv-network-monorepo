@@ -26,18 +26,8 @@ You need nothing but this file and three small logs. Read and act in this order:
    `decisions.md` if you changed a shared shape, and leave `docs/agents/context/<you>.md` current: what you
    finished, what you learnt, what is next. It is the only memory your next session gets.
 
-Message to paste when bringing a new coder agent in:
-
-```text
-You are joining an existing project: github.com/ajdhoward/atv-network-monorepo.
-Read AGENTS.md, then docs/agents/roster.md, docs/agents/decisions.md and docs/agents/backlog.md.
-Review the backlog: ack or object to the items in it, or add one, before you claim work.
-Announce yourself by adding one row to the roster (name, tool, roles, date, paths you will
-own, task) and committing it before any other edit. Claim only those paths, propose before
-changing a shared shape, and follow the ack rule for consensus. Pull before you push,
-never force-push, and never edit another agent's row, branch or commits. Report what you
-verified and what you could not.
-```
+The paste-ready invitation for a new coder agent is on `/onboard` and in
+[`docs/agents/onboarding.md`](docs/agents/onboarding.md) — same text, one copy.
 
 ## What this is for
 
@@ -101,9 +91,8 @@ Rationale for each is in `decisions.md`; do not re-open them without new informa
   per isolate for 30 minutes and never seeded or sent to a device. Precedence is `ATV_GDRIVE_MAP`, then
   `torbox_map`, then KV `gdrive_map`.
 - **Resolve needs the household token.** `/api/resolve` requires `Authorization: Bearer <ATV_DEVICE_TOKEN>`
-  once that secret is set, and answers any caller while it is not. That order is deliberate: enforcement
-  must never land before every TV has taken the token (R8), or a household loses the TV to a 401 it cannot
-  clear.
+  once that secret is set, and answers any caller while it is not — enforcement must never land before every
+  TV has taken the token (R8).
 - **Google Drive has no direct-play URL.** The agreed approach is a Worker proxy with signed URLs and
   Range passthrough; it is not built, and "just use the Drive link" is not a shortcut.
 - **Sandbox first.** `pnpm deploy` targets `atv-core-v2`; the live `atv-core-orchestrator` is not built

@@ -64,6 +64,22 @@ describe("PlayerManager", () => {
     expect(onError).toHaveBeenCalledWith("News 24");
   });
 
+  // After a swap the old element keeps its src, so its stream can still fail.
+  // Reporting that would pull the guide up over a channel that is playing.
+  it("ignores an error from the element that just went off screen", () => {
+    const onError = vi.fn();
+    const pm = new PlayerManager({ onError });
+    pm.attach(document.createElement("div"));
+    pm.play("https://cdn.example/a.m3u8", "News 24");
+    pm.swap();
+
+    pm.buffer.dispatchEvent(new Event("error"));
+    expect(onError).not.toHaveBeenCalled();
+
+    pm.active.dispatchEvent(new Event("error"));
+    expect(onError).toHaveBeenCalledWith("News 24");
+  });
+
   it("still swaps when no error handler was given", () => {
     const pm = new PlayerManager();
     pm.attach(document.createElement("div"));

@@ -168,7 +168,7 @@ No deploy happens until this table is filled in from Phase 0 evidence and the ga
 | Area                                | Incumbent (from Phase 0) | Repo Worker                                                                                     | Verdict                                 |
 | ----------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `GET /api/guide`                    | shape recorded           | `channels/nextCursor/eTag/counts`, `max-age=30`, `s-maxage=60`, SWR 300, 304 on `If-None-Match` | must match or client updated            |
-| `GET /api/resolve?id=`              | shape recorded           | `{id,url,profile}`, 400/404/502/429, `no-store`                                                 | must match                              |
+| `GET /api/resolve?id=`              | shape recorded           | `{id,url,profile}`, 400/404/502/429, `no-store`; 401 once `ATV_DEVICE_TOKEN` is set (R6)        | must match, or every TV needs the token |
 | `GET /api/resolve?ids=`             | likely absent            | batch of 20, `{resolved,missing,invalid}`                                                       | additive, fine                          |
 | `GET /api/health`                   | may differ or be absent  | `status/config/resolve/guideSnapshot`                                                           | additive, fine                          |
 | `GET /api/status`                   | shape recorded           | confirm the repo serves the same contract the TV client expects                                 | **verify**                              |

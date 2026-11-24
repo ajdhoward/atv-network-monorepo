@@ -42,7 +42,13 @@ export class PlayerManager {
     video.addEventListener("ended", () => this.swap());
     // The grid is hidden while a stream plays, so a media error would otherwise
     // leave a black screen with nothing on it but the Back key.
-    video.addEventListener("error", () => this.onError?.(this.nowPlaying));
+    video.addEventListener("error", () => {
+      // Only the element on screen speaks for the channel. After a swap the old
+      // one is hidden but keeps its src, and its stream dying must not pull the
+      // guide up over a channel that is playing fine.
+      if (video !== this.active) return;
+      this.onError?.(this.nowPlaying);
+    });
   }
   detectProfile() {
     const is4K = window.screen.width >= 3840 || window.devicePixelRatio >= 2;
@@ -86,7 +92,9 @@ export class PlayerManager {
     this.active.src = url;
     // textTracks is empty until metadata loads.
     this.active.addEventListener("loadedmetadata", () => this.setupForcedSubs(), { once: true });
-    this.active.play();
+    // A refused autoplay or a dead source rejects here as well as firing `error`;
+    // on a TV with no console an unhandled rejection is an invisible failure.
+    void this.active.play().catch(() => {});
   }
   /**
    * Promotes the hidden element and plays what it holds: normally nothing, or the
@@ -100,7 +108,7 @@ export class PlayerManager {
     this.active.style.visibility = "visible";
     this.buffer.style.visibility = "hidden";
     this.bind(this.active);
-    this.active.play();
+    void this.active.play().catch(() => {});
   }
   setupForcedSubs() {
     for (const track of this.active.textTracks) {
