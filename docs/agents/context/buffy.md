@@ -53,7 +53,9 @@ call; `setViewportSize` does nothing on this tab — use a CDP `Emulation.setDev
 `styles.ts`; the "Bind to …" hint is a sibling so no button nests, and the click semantics stayed `enter()`,
 so keyboard and mouse share one rule. Checked with real Tab presses in the browser: the order is token →
 Check stream links → the four folders, Enter descends, a second Enter is a no-op, and the root crumb becomes
-tabbable once inside a folder and takes you back.
+tabbable once inside a folder and takes you back. The row emoji is inside an `aria-hidden` span, because an
+emoji in button text is part of the accessible name (a row used to announce "file folder Idents"); the
+button's text content still reads `📁 Idents`, so mouse and keyboard behaviour did not move.
 
 **The grid now has tests** (`apps/tv-client/test/grid.test.ts`, 8), including the click path — which taught me the
 one thing a test can: a tile click focuses and plays but does not re-fire `onFocus`, because the hover prefetch

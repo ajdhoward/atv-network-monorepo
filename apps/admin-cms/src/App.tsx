@@ -187,7 +187,9 @@ export default function App() {
               style={folderButton}
               onClick={() => setCrumbs((current) => enter(current, f))}
             >
-              📁 {f}
+              {/* Decoration only. An exposed emoji makes a screen reader announce
+                  "file folder Idents", so the accessible name is just the name. */}
+              <span aria-hidden="true">📁</span> {f}
             </button>
             <button disabled>Bind to gdrive.identsFolder</button>
           </div>

@@ -55,6 +55,9 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- A Drive tree row announced itself as "file folder Idents" before the folder name, because an emoji in
+  button text is part of its accessible name. The 📁 now sits in an `aria-hidden="true"` span, so a screen
+  reader reads the folder name alone; the visible label and the click semantics are unchanged.
 - The Drive folder rows are real `<button type="button">` elements, so the tree can be walked with Tab and
   opened with Enter instead of needing a mouse; `styles.ts` holds the shared reset as `folderButton`. The
   binding hint stays a sibling rather than nesting a button, and the click semantics are the breadcrumb's own
