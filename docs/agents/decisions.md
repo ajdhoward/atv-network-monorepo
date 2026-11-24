@@ -35,7 +35,7 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ### 2026-11-24 — Does the Drive proxy break Cloudflare's video terms or plan limits?
 
-- state: accepted
+- state: proposed
 - proposed by: Buffy (Freebuff)
 - touches: `docs/agents/decisions.md` only — no route, no code, no secret, no spend
 - why: P1 makes `atv-core-v2` the origin of every video byte a TV watches. Cloudflare prohibited streaming
@@ -78,8 +78,9 @@ when it next works, which is why an entry records who is absent rather than trea
   silent — is now reported by `/api/health` as `streamSigningKeySet`.
 - cost: none
 - acks: no other agent active (`roster.md`), recorded as absence rather than consent.
-- outcome: recorded at the operator's request (2026-11-24). No action follows; revisit on a plan change or if
-  this deployment grows past one household.
+- outcome: open — the operator marks it (accepted, rejected, or decided against an objection). Everything
+  above is the agent's proposal and reading, not a ruling; revisit on a plan change or if this deployment
+  grows past one household.
 
 ### 2026-11-24 — Drive proxy: a signed stream URL per resolve
 
