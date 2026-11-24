@@ -33,6 +33,57 @@ when it next works, which is why an entry records who is absent rather than trea
 
 ## Log
 
+### 2026-11-24 — A Drive channel with no signing key should say so, not hand out a link that cannot play
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/resolver.ts`, `services/atv-core/src/index.ts` (`/api/resolve`, and its batch
+  response), `services/atv-core/test/`, `scripts/`, `apps/admin-cms/src/`, `packages/ui-shared` — a public shape,
+  so nothing is built before this entry is decided
+- why: P1 deliberately kept resolve answering the stored link while `ATV_STREAM_SIGNING_KEY` is unset, so the
+  deploy changed nothing before the operator acted. That was right for the deploy and wrong for the household:
+  a Drive channel then answers `200` with a share page a `<video>` cannot play, and the TV reports "unavailable"
+  for a channel that is configured. `streamSigningKeySet` on `/api/health` and `Drive proxy: OFF` in the panel
+  now name the cause, but only to someone looking at health — resolve itself still reads as healthy, and the
+  audit that decides whether L4 is finished (`pnpm streams`) reads resolve.
+- change: with a Drive link and no key, that channel fails instead of resolving: single-id
+  `503 stream_unconfigured` (the code `/api/stream` already returns), and in the batch form a fourth list,
+  `unconfigured`, beside `resolved`/`missing`/`invalid`. `streamCoverage` stops counting such a channel as
+  configured. `smoke`, `pnpm streams` and the panel learn the new list.
+- risk: it is a public shape change and it makes a keyless Drive channel fail where it used to "resolve". That
+  is the intent, but the moment it lands, a deployment without the key serves nothing for Drive channels, so it
+  should land with the key (`ATV_STREAM_SIGNING_KEY`, P2's neighbour) or be accepted as an intentional
+  regression on a sandbox nobody watches. Non-Drive links are untouched, which is where every TorBox channel
+  sits.
+- cost: none
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: open — the operator marks it.
+
+### 2026-11-24 — A 15-minute ticket against a TV that can pause for longer
+
+- state: proposed
+- proposed by: Buffy (Freebuff)
+- touches: `services/atv-core/src/stream-sign.ts` (`DEFAULT_TTL_S`), and `apps/tv-client/src/` if the fix is on
+  the client's side
+- why: P1's ticket lives 15 minutes from the resolve that minted it. A player opens the media URL once and then
+  asks for byte ranges as it buffers and seeks; a film paused for longer than the TTL resumes by sending a
+  `Range` on a URL that has expired, `/api/stream` answers `403 expired`, and the player's error path re-resolves
+  the channel from the beginning. So the cost of a long pause is losing the position, not a frozen screen —
+  quieter, and worse to diagnose.
+- change: one of three, chosen on evidence from a real TV rather than preference: (a) a TTL longer than a
+  viewing session (hours, still bound to one id, still useless for another channel), (b) keep 15 minutes and
+  have the client re-resolve and seek back to the position it held when the media element errored, or (c) a
+  long TTL for the session and a short one for any URL that leaves the household. The ticket stays bound to an
+  id and its expiry stays inside the signed text in all three.
+- risk: a longer TTL is a longer-lived capability for one channel's bytes — which is what the 15 minutes were
+  chosen to limit — while a client-side re-resolve puts playback position in the client, which it already
+  knows. Option (b) is unverifiable here: it depends on how a Fire TV's WebView reports an expired range, which
+  is L5's ground.
+- cost: none
+- acks: no other agent active (`roster.md`), recorded as absence rather than consent.
+- outcome: open — the operator marks it. The finding comes from the 2026-11-24 P1 review; nothing has played a
+  proxied channel on hardware yet.
+
 ### 2026-11-24 — Does the Drive proxy break Cloudflare's video terms or plan limits?
 
 - state: proposed

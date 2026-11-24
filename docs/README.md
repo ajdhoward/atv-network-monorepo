@@ -21,6 +21,7 @@ continuity` fails when a document here is not listed below.
 | [agents/handoffs/_template.md](agents/handoffs/_template.md)         | The template an agent with no access fills in                         |
 | [reviews/2026-11-23-evaluation.md](reviews/2026-11-23-evaluation.md) | The first full evaluation of the repository                           |
 | [reviews/2026-11-24.md](reviews/2026-11-24.md)                       | Review of the option C branch: scorecard, findings, what changed      |
+| [reviews/2026-11-24-p1.md](reviews/2026-11-24-p1.md)                 | Review of the Drive proxy layer: the probe that could not follow it   |
 
 `README.md` and `AGENTS.md` sit at the root: the first is what the project is, the second how work on it
 is done.

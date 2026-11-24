@@ -94,6 +94,10 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- L4's done-when is `pnpm streams --probe`, not a plain run. A 200 from `/api/resolve` says a link is stored,
+  and P1 exists because a stored Drive link is not playable: with no `ATV_STREAM_SIGNING_KEY` the channel
+  resolves to its share page, which the probe fails as HTML. The audit that decides whether L4 is finished had
+  to be the one that follows the link.
 - The R8 runbook's commands were exercised against a local `wrangler dev` with a plain `--var` test token (no
   deploy, no secret) and two needed fixing: Steps 3 and 5 now set `BASE` and Step 5 re-derives `ID`, so each
   block runs in a fresh shell, and `pnpm streams` is documented as exiting 1 without `atv-config.json`. The same
@@ -113,6 +117,12 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- `pnpm streams --probe` follows the link P1's resolve answers for a Drive channel. The ticket is a path,
+  `/api/stream/<id>?exp&sig`, because the TV resolves it against the page and only the minting host can verify
+  the signature; Node's `fetch` has no page and threw on it, so the audit called every Drive channel an
+  unreachable link on exactly the deployment where the proxy works. The probe resolves against the audited
+  origin now, and its fixture carries a hostless ticket the way resolve really answers — the new test fails
+  without the fix.
 - The rest of the panel's decorations were read aloud too: the stream-link list said "white heavy check mark"
   or "cross mark" before every channel whose label already states the state (✅/❌/⚠️ are `aria-hidden`
   now), and a stat card said "em dash" where a count belongs — the dash is hidden and a clipped "not checked
@@ -175,6 +185,10 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- Two proposals are open for the operator beside the Drive proxy they belong to: a keyless Drive resolve should
+  answer `503 stream_unconfigured` rather than a share page it cannot play (which makes the batch shape a
+  fourth list), and a ticket that lives 15 minutes can be outlived by a paused TV, so either the TTL or the
+  client's recovery has to change. Both are `proposed` in `decisions.md`, with P4 and P5 in the backlog.
 - `/api/resolve` stays private with **one household token** (option C). Cloudflare Access is kept for the
   control planes only: a WebView page load cannot carry an Access header, a token compiled into the bundle
   is published to anyone who opens the JS, and Access in front of the player risks objective 1 to protect

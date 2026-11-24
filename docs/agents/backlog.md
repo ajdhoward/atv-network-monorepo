@@ -66,7 +66,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 
 - **Why:** a TorBox-mapped channel answers 502 and a Drive-mapped one 404 until these exist; `/api/health`
   counts them as missing.
-- **Done when:** `pnpm streams` reports every channel ready, or the gaps are the ones the operator expects.
+- **Done when:** `pnpm streams --probe` reports every channel ready, or the gaps are the ones the operator
+  expects. `--probe` is not optional here: a 200 from `/api/resolve` only means a link is stored, and a Drive
+  channel with no `ATV_STREAM_SIGNING_KEY` still resolves — to a share page the probe fails as HTML.
 - **Paths:** Worker secrets (never the repo)
 - **Size:** S
 - **State:** blocked — operator, out of band
@@ -115,6 +117,32 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** done — `4d58bab`, claimed on the operator's session go-ahead. `/a` is Worker-routed
   (`run_worker_first`), the install page names it, and the route suite, smoke and `ci:worker` cover it.
+
+### P4 · A paused TV outlives its stream ticket
+
+- **Why:** P1 mints a 15-minute ticket per resolve. A film paused for longer resumes by sending a `Range` on
+  an expired URL, which `/api/stream` answers `403 expired`; the player treats that as a source error and the
+  retry path resolves again, so playback restarts at the beginning. A long pause is normal viewing, not an
+  edge case, and nothing has exercised it: no TV has played a proxied channel yet (L5).
+- **Done when:** a film paused past the ticket's life resumes where it was, or the ticket's life is longer
+  than a viewing session — and `decisions.md` records which, with the reasoning.
+- **Paths:** `services/atv-core/src/stream-sign.ts`, `apps/tv-client/src/`, tests
+- **Size:** S
+- **State:** proposed — the entry is in `decisions.md`, because the TTL is part of P1's accepted shape.
+  Unverified until L5: the behaviour being fixed is a real `<video>` element's Range behaviour after a pause.
+
+### P5 · A Drive channel with no signing key should fail loudly
+
+- **Why:** P1 kept answering the stored link while `ATV_STREAM_SIGNING_KEY` is unset, so the deploy changed
+  nothing before the operator acted. The household result is a channel that resolves `200` to a share page a
+  `<video>` cannot play — "no stream configured" for a channel that is configured. `/api/health` and the panel
+  report the flag, but anything reading resolve status alone still sees a healthy channel.
+- **Done when:** a Drive link with no key answers `503 stream_unconfigured` (`/api/stream`'s existing code),
+  the batch form carries a fourth `unconfigured` list, and `smoke`, `pnpm streams` and the panel understand it.
+- **Paths:** `services/atv-core/src/resolver.ts`, `services/atv-core/src/index.ts`, `services/atv-core/test/`,
+  `scripts/`, `apps/admin-cms/src/`, `packages/ui-shared`
+- **Size:** S
+- **State:** proposed — a public `/api/resolve` shape change, so `decisions.md` decides it before any code.
 
 ## Safety and quality
 

@@ -108,6 +108,11 @@ P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for D
   that does not give you is text entry: `main.ts` prevents default on Backspace, Enter, Escape and the arrows
   from one document-level listener, so a token `<input>` needs that handler suspended or it can neither be
   corrected nor submitted.
+- **Node's `fetch` throws on a relative URL** (`Failed to parse URL`), and P1 made a relative URL the normal
+  answer from resolve. Any script that follows a resolved link has to resolve it against the audited origin
+  first; a fixture with an absolute `http://127.0.0.1:<port>/…` link hides the bug completely. `--probe` is
+  also the only audit that sees a keyless Drive channel: it follows the stored share page and fails it as HTML,
+  where a plain run prints PASS for a channel that cannot play.
 - `docs/continuity.md`'s secret inventory is checked against the repository, so adding `ATV_DEVICE_TOKEN`
   there before the code uses it fails `pnpm continuity`. It goes in with R6, not with the decision.
 - **A gate that runs before the commit does not cover the commit.** `pnpm continuity`'s tracked-file rule reads
@@ -168,6 +173,17 @@ without `atv-config.json`. Unrun: `wrangler secret put`/`delete` and `wrangler t
 anything on a TV. The same session found the live sandbox is pre-R5/R6 and that `/install` and `/a` answer
 `200` through the SPA fallback — L1's state says so, so nobody reads a status code as a deploy.
 
+**The P1 layer got its own review** (`docs/reviews/2026-11-24-p1.md`, `23bfffd..HEAD`, 23 commits), because the
+five-change trigger fired again inside the same day. It found one real defect: `pnpm streams --probe` could not
+follow the link P1's resolve answers for a Drive channel. The ticket is a path (`/api/stream/<id>?exp&sig`),
+which the TV resolves against its page, and Node's `fetch` throws on a path — so the audit called every Drive
+channel unreachable on exactly the deployment where the proxy works, while its own suite stayed green on an
+absolute fixture link. Fixed in `39f5a7a` with a test that fails without it; the fixture now carries a hostless
+ticket. Two proposals came out of the same pass and are waiting on the operator: **P5** (a keyless Drive
+resolve should answer `503 stream_unconfigured` instead of a share page, which makes the batch shape a fourth
+list) and **P4** (a 15-minute ticket can be outlived by a paused TV, so either the TTL or the client's recovery
+has to change). L4's done-when now says `--probe`, because a plain run only proves a link is stored.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it
@@ -206,11 +222,15 @@ the operator to ignore the page. Covered by three logic cases per flag in `healt
 
 ## Next session, in order
 
-1. Merge the branch (P3/Q2, the R1 record, this split), then with the operator: L1 deploy, L2 branch
-   protection; re-run `pnpm smoke` against the deployed host, which now also checks `/a` and the asset.
-2. Claim and build R5 (the client), then R6/R7, and hand R8 to the operator; L4 seeds real links only after it.
-3. P1: the Drive proxy.
-4. Keep this file and the roster row honest, or the next session starts blind.
+1. The operator's, in one sitting, from `docs/r8-rollout.md`: L1 deploy, the R5 client on every TV, then
+   `ATV_DEVICE_TOKEN`, the token typed on each TV, then confirm headerless resolves are 401. `--var` in a local
+   `wrangler dev` is how a token was tested here; no secret has ever been set. L2 (branch protection) and L3
+   (signing secrets) belong in the same conversation, L3 before R8's Step 2 if a new APK is needed.
+2. After R8, the panel's `Household token: NOT SET` flips from neutral grey to a problem — designed, not built.
+3. P4 and P5 are `proposed` in `decisions.md` and need the operator's outcome; P5 is a public shape, so none of
+   it is code yet. P2 (`ATV_STREAM_SIGNING_KEY` plus a Drive read) is what makes P1 real on the sandbox.
+4. L5 is the only ground truth for playback, the prompt's on-screen keyboard and P4's expired-range behaviour.
+5. Keep this file and the roster row honest, or the next session starts blind.
 
 - **The router guarded its API handlers and nothing else.** `/a`, `/install`, `/join`, `/onboard` and the
   asset fetch answered a bare platform 500 when they threw, with no request id, which is the one failure
