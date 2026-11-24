@@ -4,13 +4,34 @@ import { ROOT, enter } from "./folders";
 import { fetchHealth, summariseHealth } from "./health";
 import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck, type LinkProgress } from "./links";
 import { readLinkToken, saveLinkToken } from "./linkToken";
-import { colour, crumb, folderButton, font, grid, muted, panel, sectionHeading } from "./styles";
+import {
+  colour,
+  crumb,
+  folderButton,
+  font,
+  grid,
+  muted,
+  panel,
+  sectionHeading,
+  visuallyHidden,
+} from "./styles";
 
 function Card({ label, value }: { label: string; value: number | string }) {
   return (
     <div style={panel}>
       <div style={{ fontSize: 13, ...muted }}>{label}</div>
-      <div style={{ fontSize: 24 }}>{value}</div>
+      {/* A dash is "not measured yet". Spoken, it is the literal words "em dash"
+          where a count belongs, so it carries its meaning as text instead. */}
+      <div style={{ fontSize: 24 }}>
+        {typeof value === "string" ? (
+          <>
+            <span aria-hidden="true">{value}</span>
+            <span style={visuallyHidden}>not checked yet</span>
+          </>
+        ) : (
+          value
+        )}
+      </div>
     </div>
   );
 }
@@ -147,8 +168,12 @@ export default function App() {
           <ul style={{ paddingLeft: 18 }}>
             {checks.map((check) => (
               <li key={check.id}>
-                {LINK_ICON[check.state]} <strong>{check.name}</strong>{" "}
-                <code style={{ fontSize: 12 }}>{check.id}</code> - {LINK_LABEL[check.state]}
+                {/* The emoji is the at-a-glance state; `LINK_LABEL` already says
+                    the same thing in words, so a screen reader gets the label
+                    and not "white heavy check mark". */}
+                <span aria-hidden="true">{LINK_ICON[check.state]}</span>{" "}
+                <strong>{check.name}</strong> <code style={{ fontSize: 12 }}>{check.id}</code> -{" "}
+                {LINK_LABEL[check.state]}
               </li>
             ))}
           </ul>

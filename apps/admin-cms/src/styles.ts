@@ -57,6 +57,20 @@ export const folderButton: CSSProperties = {
   cursor: "pointer",
 };
 
+// Text only a screen reader gets: the words for a glyph that cannot be read
+// aloud usefully (a placeholder dash, a state icon). Clipped, never displayed.
+export const visuallyHidden: CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  border: 0,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+};
+
 export const grid: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",

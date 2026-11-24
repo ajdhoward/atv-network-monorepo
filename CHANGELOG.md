@@ -55,6 +55,11 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- The rest of the panel's decorations were read aloud too: the stream-link list said "white heavy check mark"
+  or "cross mark" before every channel whose label already states the state (✅/❌/⚠️ are `aria-hidden`
+  now), and a stat card said "em dash" where a count belongs — the dash is hidden and a clipped "not checked
+  yet" says what it means. `apps/admin-cms/index.html` also gained `lang="en"`, which the panel never had, so
+  a screen reader was free to guess the language of all of the above.
 - The breadcrumb steps announced their separator along with the folder — "slash ATV Network", "slash News" —
   because the `/` was inside the button's text. It is an `aria-hidden` span now and each crumb's name is the
   folder alone. The slashes still show, and the Tab order is the one the tree pass checked: root crumb once
