@@ -24,12 +24,13 @@ Working memory for the next session. Canonical state is in the logs; this is wha
 
 ## What I am doing
 
-Nothing claimed in code. R1 is decided: the operator accepted option C on 2026-11-23 (one household token on
-`/api/resolve`, Access kept for the control planes, enforcement only after the client ships), and the work is
-split into backlog R5 (client header and D-pad prompt), R6 (enforce it in the Worker), R7 (admin, smoke,
-streams and `ci:worker` carry the header) and R8 (the operator's rollout, which is what unblocks L4). R5 owns
-`apps/tv-client/`, which no row claims, so it needs a claim first. L1 (deploy) and L2 (branch protection) stay
-the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed
+**R5 is claimed** (my roster row now holds `apps/tv-client/`), the first code step of option C. Landed so
+far: `apps/tv-client/src/token.ts`, the `localStorage` store the prompt and both resolve call sites will
+share — key, trim, refused-write case and the `Authorization` header in one place. Next inside R5: send it
+from `resolve.ts` and `playerManager.js`, map 401 to "this TV needs its token", then the D-pad prompt (the
+`main.ts` keydown handler has to be suspended while it is open). Then R6 (enforce in the Worker), R7 (admin,
+smoke, streams, `ci:worker`), and R8 is the operator's. L1 (deploy) and L2 (branch protection) stay the
+operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed
 channels.
 
 ## What I learnt that cost time

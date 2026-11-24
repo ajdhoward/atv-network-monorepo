@@ -228,7 +228,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   while it is open, and a way back in after a rotation. Untested on a remote until L5.
 - **Paths:** `apps/tv-client/src/`, `apps/tv-client/test/`
 - **Size:** S
-- **State:** accepted — split from R1 (operator, 2026-11-23). Unclaimed: `apps/tv-client/` is in no roster row.
+- **State:** claimed — Buffy's roster row now holds `apps/tv-client/`. Started with the store
+  (`apps/tv-client/src/token.ts`): one place for the key, the trim, the refused-write case and the
+  `Authorization` header, so the prompt and both resolve call sites share it instead of three copies.
 
 ### R6 · Enforce the token on `/api/resolve`
 

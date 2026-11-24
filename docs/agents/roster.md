@@ -26,9 +26,9 @@ self-review is weaker than review by someone who did not write it.
 
 ## Active
 
-| Agent | Tool / model                             | Roles                                      | Joined     | Paths owned                                            | Current work                                                                                                                    | Branch / PR         | Context                              |
-| ----- | ---------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------ |
-| Buffy | Freebuff (Codebuff), cloud chat 9b6340e1 | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `scripts/`, `docs/`, root briefs | R1 accepted as option C (operator 2026-11-23) and split into R5–R8. Next: R6/R7 once R5 is claimed, and L1/L2 with the operator | `freebuff/9b6340e1` | [context/buffy.md](context/buffy.md) |
+| Agent | Tool / model                             | Roles                                      | Joined     | Paths owned                                                               | Current work                                                                                                                         | Branch / PR         | Context                              |
+| ----- | ---------------------------------------- | ------------------------------------------ | ---------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- | ------------------------------------ |
+| Buffy | Freebuff (Codebuff), cloud chat 9b6340e1 | Integrator, Cartographer, Scribe, Sentinel | 2026-11-23 | `services/atv-core/`, `apps/tv-client/`, `scripts/`, `docs/`, root briefs | R5 claimed: the client's household token, starting with the store in `apps/tv-client/src/token.ts`. R6/R7 next, R8 with the operator | `freebuff/9b6340e1` | [context/buffy.md](context/buffy.md) |
 
 ## Done
 
