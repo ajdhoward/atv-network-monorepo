@@ -20,6 +20,18 @@ Nothing here is merged or deployed.
   refused write reported instead of swallowed, and the `Authorization` header in one place so the prompt
   and both resolve call sites cannot disagree. The first file of R5; the guide still renders without it.
 
+### Fixed
+
+- Two races that spent duplicate work: a cold isolate issued one KV read per channel in a grid sweep, and a
+  hover prefetch plus the Enter that followed it minted two TorBox links for one file. Both now share one
+  in-flight call, dropped when it settles so a failure is retried rather than remembered.
+- A superseded tune could win the screen: Enter, arrow, Enter left the slower answer free to hide the grid and
+  play the channel already left. Only the newest attempt paints a notice, hides the grid or plays.
+- The admin panel reported the worker `UNREACHABLE`, listed problems and showed four zeros before its first
+  answer arrived. It now says `CHECKING…` with unmeasured figures as a dash until a response settles.
+- The TV grid painted an empty lineup with a blank status line while the guide loaded, and the paused banner
+  named the first channel in the lineup rather than the one on screen.
+
 ### Decided
 
 - `/api/resolve` stays private with **one household token** (option C). Cloudflare Access is kept for the
