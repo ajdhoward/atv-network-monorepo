@@ -63,6 +63,11 @@ channels.
   corrected nor submitted.
 - `docs/continuity.md`'s secret inventory is checked against the repository, so adding `ATV_DEVICE_TOKEN`
   there before the code uses it fails `pnpm continuity`. It goes in with R6, not with the decision.
+- **Two concurrency gaps were left alone on 2026-11-23, deliberately.** `PlayerManager.onTileHover`'s prefetch
+  can land after `play()` and sit in the hidden buffer element that the next `ended` swap promotes, so a stale
+  hover can become the stream; changing it is a decision about what prebuffering is for, not a static-analysis
+  fix. And `kvJson`'s memo is keyed by the KV key alone, not by namespace: safe while the key names differ
+  between `ATV_CONFIG` and `ATV_CACHE`, wrong the day one name is used in both.
 
 ## What I tried that failed
 
