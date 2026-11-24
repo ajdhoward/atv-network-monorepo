@@ -28,6 +28,7 @@ Copy numbers, do not describe them.
 | Measure                    | Where it comes from                                     |
 | -------------------------- | ------------------------------------------------------- |
 | Tests and files            | `pnpm test`                                             |
+| Coverage                   | `pnpm coverage`: lines % overall, and every file at 0   |
 | Typecheck, lint, format    | the three commands                                      |
 | Worker smoke checks        | `pnpm run ci:worker`                                    |
 | Budget headroom            | `pnpm budget`: the worst share                          |
@@ -55,6 +56,8 @@ Copy numbers, do not describe them.
   review itself.
 - Process edits go to `AGENTS.md`, `roles.md`, this file, or `decisions.md` when the change is a settled
   shape.
+- Every record carries a coverage number and names the files at zero (R3). A test count says nothing
+  about the files with no test, so the scorecard has to show both.
 - A rejection is recorded with its reason, so it does not come back next quarter.
 
 The record is short on purpose: a review that takes longer to write than to do will stop happening.

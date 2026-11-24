@@ -92,6 +92,7 @@ pnpm install
 pnpm typecheck                       # worker + tv-client + admin-cms + tests
 pnpm lint                            # ESLint
 pnpm test                            # worker routes, deploy guard and guide loader (Vitest)
+pnpm coverage                        # the same suite, with per-file coverage for the review scorecard
 pnpm run build:deploy                # client + admin + pack admin under dist/admin
 npx wrangler dev --config wrangler.toml --port 8788 --local
 ```
