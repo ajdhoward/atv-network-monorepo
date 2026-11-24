@@ -14,13 +14,23 @@ const grid = createGrid({
 });
 root.appendChild(grid.el);
 
+// Pressing Enter twice, or moving to another tile while the first resolve is
+// still in the air, must not let the slower answer start the channel the viewer
+// already left: only the newest tune may paint the notice, hide the grid or
+// play.
+let tuning = 0;
+
 async function play(channel: Channel) {
+  const attempt = ++tuning;
   grid.notice(`Tuning ${channel.name}…`);
   try {
     const result = await resolveWithRetry(channel.id, {
       maxWaitMs: DEFAULT_RETRY_MS,
-      onRetry: () => grid.notice(`${channel.name} is busy — retrying…`),
+      onRetry: () => {
+        if (attempt === tuning) grid.notice(`${channel.name} is busy — retrying…`);
+      },
     });
+    if (attempt !== tuning) return;
     if (result.kind === "retry") {
       // Still limited after the retry: the channel is fine, the allowance is
       // not, so keep the grid up and let Enter try again rather than saying it
@@ -40,7 +50,7 @@ async function play(channel: Channel) {
     grid.hide();
     pm.play(result.url);
   } catch {
-    grid.notice(`${channel.name} is unavailable right now`);
+    if (attempt === tuning) grid.notice(`${channel.name} is unavailable right now`);
   }
 }
 
