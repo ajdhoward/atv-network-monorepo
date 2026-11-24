@@ -69,10 +69,8 @@ export type LogPacket = {
   linkResolveMs: number;
   ts: number;
 };
-export const CONFIG_SCHEMA_VERSION = 1;
-export function validateConfig(c: any): c is SystemConfig {
-  if (!c || c.version !== 1) return false;
-  if (typeof c.gdrive?.identsFolder !== "string") return false;
-  if (!Array.isArray(c.channels)) return false;
-  return true;
-}
+// Types only (Q6). This package had two runtime exports — a schema constant and a
+// `validateConfig` — that nothing imported as a value: every consumer writes
+// `import type`, and the constant is duplicated for real in
+// `services/atv-core/src/config-meta.ts` and `scripts/lib/config-meta.mjs`, which
+// have a parity test. A third copy with no reader was a place to edit by mistake.
