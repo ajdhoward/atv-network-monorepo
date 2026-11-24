@@ -1,0 +1,19 @@
+# Local Worker secrets for `wrangler dev`.
+#
+# `wrangler dev` loads `.dev.vars` from the repository root, so that is where a
+# developer's own values go — copy this file to `.dev.vars` and fill them in.
+# `.gitignore` covers `.dev.vars` and `.dev.vars.*`, and `pnpm continuity` fails if
+# one of them ever gets tracked; this template is the only one allowed in the tree.
+#
+# A deploy never reads this file: deployed values go in with `wrangler secret put`
+# (see docs/continuity.md for every name and how to rebuild it). Nothing here is
+# needed to run the app locally against the seeded fixture — only a channel that
+# resolves through TorBox or the operator map needs one of these.
+
+# TorBox API token. Without it, a channel mapped in `torbox_map` answers 502.
+ATV_TORBOX_API_KEY=
+
+# Operator stream links: a JSON object of channel id to https URL, e.g.
+# {"atv-1": "https://…"}. Without it, a channel with no KV `gdrive_map` entry
+# answers 404. Values are stream links, so they never enter git.
+ATV_GDRIVE_MAP=

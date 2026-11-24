@@ -79,6 +79,39 @@ describe("continuity check", () => {
     expect(result.stdout).toContain("no context/ link: Zed");
   });
 
+  // `wrangler dev` loads `.dev.vars`, which is where a local TorBox token would
+  // sit. It is not a `.env`, and the pattern that catches `.env` files did not
+  // reach it.
+  it("catches a wrangler secrets file that got tracked", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.writeFileSync(path.join(dir, ".dev.vars"), "ATV_TORBOX_API_KEY=left-in-git\n");
+    git(["add", ".dev.vars"]);
+    const result = run(dir);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(".dev.vars");
+  });
+
+  // The templates carry names and no values, so they are the two files of this
+  // kind that belong in git: forbidding them is what made `.env.example` red.
+  it("keeps the env templates that are meant to be tracked", () => {
+    const dir = fixture();
+    const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.com"]);
+    git(["config", "user.name", "Test"]);
+    fs.writeFileSync(path.join(dir, ".env.example"), "ATV_BASE_URL=\n");
+    fs.writeFileSync(path.join(dir, ".dev.vars.example"), "ATV_TORBOX_API_KEY=\n");
+    git(["add", ".env.example", ".dev.vars.example"]);
+    const result = run(dir);
+    expect(result.stdout).not.toContain(".env.example");
+    expect(result.stdout).not.toContain(".dev.vars.example");
+    expect(result.status).toBe(0);
+  });
+
   it("catches a line-up or keystore that got tracked", () => {
     const dir = fixture();
     const git = (args: string[]) => spawnSync("git", args, { cwd: dir, encoding: "utf8" });

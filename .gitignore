@@ -12,6 +12,12 @@ android/local.properties
 *.jks
 *.p12
 .env
+# Wrangler's local secrets file. `wrangler dev` loads it, so this is exactly where a
+# developer's TorBox token or stream map would sit — and this repository is public.
+# The `.example` template carries the names and no values, so it is tracked.
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 *.log
 .DS_Store
 

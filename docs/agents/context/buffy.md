@@ -63,6 +63,10 @@ channels.
   corrected nor submitted.
 - `docs/continuity.md`'s secret inventory is checked against the repository, so adding `ATV_DEVICE_TOKEN`
   there before the code uses it fails `pnpm continuity`. It goes in with R6, not with the decision.
+- **A gate that runs before the commit does not cover the commit.** `pnpm continuity`'s tracked-file rule reads
+  `git ls-files`, so it passed while `.env.example` was untracked and failed the moment it was committed — the
+  branch was red on a check I had just reported green. Run the tracked-file checks after `git add`, or on a
+  clean tree; `git stash`-style reasoning is not enough because untracked files are invisible to it.
 - **Two concurrency gaps were left alone on 2026-11-23, deliberately.** `PlayerManager.onTileHover`'s prefetch
   can land after `play()` and sit in the hidden buffer element that the next `ended` swap promotes, so a stale
   hover can become the stream; changing it is a decision about what prebuffering is for, not a static-analysis

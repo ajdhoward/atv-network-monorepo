@@ -42,6 +42,11 @@ Nothing here is merged or deployed.
 - The TV client's colours lived per file — `#d3e429` in the grid, `#9a9a9a` and `#666` both meaning muted, two
   different blacks behind video. Unchanged in value, named once in `theme.ts`.
 
+- `pnpm continuity` was red on this branch: the new `.env.example` matched the rule forbidding a tracked `.env`,
+  so the guard reported a template as a leaked secret. Templates are allowed now and real files still are not,
+  and `.dev.vars` — the file `wrangler dev` loads — is both ignored and guarded, because that is where a
+  developer's TorBox token or stream map would have landed in a public repository.
+
 ### Removed
 
 - `video.js` from `@atv/tv-client`: declared, never imported — the player is a plain `<video>` element that

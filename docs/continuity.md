@@ -20,20 +20,20 @@ is a secret, record here **its name, where it lives, and how to rebuild it**. Ne
 
 ## In the repository: the source of truth
 
-| What                                      | Where                                                    |
-| ----------------------------------------- | -------------------------------------------------------- |
-| The code, the build, the deploy workflows | this repository, `main`                                  |
-| The brief and the process                 | `AGENTS.md`, `docs/agents/`                              |
-| What is next, claimed and done            | `docs/agents/backlog.md`, `docs/agents/roster.md`        |
-| What was decided and why                  | `docs/agents/decisions.md`                               |
-| Reviews of the process                    | `docs/agents/reviews.md`, `docs/reviews/`                |
-| How a new agent arrives                   | `/onboard`, `docs/agents/onboarding.md`                  |
-| How an agent with no access contributes   | `docs/agents/handoffs/`, `pnpm handoff`                  |
-| The sandbox target, KV ids, cron, routes  | `wrangler.toml`                                          |
-| Local environment variable names          | [`.env.example`](../.env.example)                        |
-| Production's shape, and the cutover rules | `wrangler.production.toml`, `docs/production-cutover.md` |
-| The APK, versioned and signed per build   | the `atv-launcher-latest` release asset                  |
-| The monthly cost model                    | `scripts/lib/budget.mjs`, `pnpm budget`                  |
+| What                                      | Where                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------ |
+| The code, the build, the deploy workflows | this repository, `main`                                                        |
+| The brief and the process                 | `AGENTS.md`, `docs/agents/`                                                    |
+| What is next, claimed and done            | `docs/agents/backlog.md`, `docs/agents/roster.md`                              |
+| What was decided and why                  | `docs/agents/decisions.md`                                                     |
+| Reviews of the process                    | `docs/agents/reviews.md`, `docs/reviews/`                                      |
+| How a new agent arrives                   | `/onboard`, `docs/agents/onboarding.md`                                        |
+| How an agent with no access contributes   | `docs/agents/handoffs/`, `pnpm handoff`                                        |
+| The sandbox target, KV ids, cron, routes  | `wrangler.toml`                                                                |
+| Local environment and secret names        | [`.env.example`](../.env.example), [`.dev.vars.example`](../.dev.vars.example) |
+| Production's shape, and the cutover rules | `wrangler.production.toml`, `docs/production-cutover.md`                       |
+| The APK, versioned and signed per build   | the `atv-launcher-latest` release asset                                        |
+| The monthly cost model                    | `scripts/lib/budget.mjs`, `pnpm budget`                                        |
 
 ## Deliberately not in the repository
 

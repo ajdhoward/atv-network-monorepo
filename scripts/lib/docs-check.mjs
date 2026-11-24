@@ -86,7 +86,16 @@ export function activeRowsWithoutContext(rosterText) {
     .map((row) => (row.split("|")[1] ?? "?").trim());
 }
 
-const FORBIDDEN = [/^atv-config\.json$/, /(^|\/)\.env(\.|$)/, /\.(p12|jks|keystore|apk)$/];
+const FORBIDDEN = [
+  /^atv-config\.json$/,
+  // A real env file, not a template: `.env.example`, `.env.sample` and
+  // `.env.template` carry names only and are meant to be tracked.
+  /(^|\/)\.env(\.(?!example$|sample$|template$)|$)/,
+  // Wrangler's local secrets file, which `wrangler dev` loads. Its `.example`
+  // template is tracked; anything else is a secret on disk.
+  /(^|\/)\.dev\.vars(?!\.example$)(\.[^/]*)?$/,
+  /\.(p12|jks|keystore|apk)$/,
+];
 
 export function forbiddenTracked(files) {
   return files.filter((file) => FORBIDDEN.some((pattern) => pattern.test(file)));
