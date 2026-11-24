@@ -55,6 +55,11 @@ Nothing here is merged or deployed.
 
 ### Fixed
 
+- The Drive folder tree went in and never came out: each row click appended to one path, so clicking Idents
+  twice gave `/ATV Network/Idents/Idents` and the only way back was a reload. `apps/admin-cms/src/folders.ts`
+  now decides what a click means — a folder already on the path is a step back to it, anything else descends —
+  and the breadcrumb slices the path. The path line that repeated the root crumb is gone, and the token field
+  wraps instead of pushing its button past the edge of a 420px screen.
 - A route that threw was a bare platform 500 with no request id to search for: `/a`, `/install`, `/join`,
   `/onboard` and the asset fetch sat outside every handler guard. The whole dispatch now falls through one
   catch that logs the id and answers 503 JSON, and `apkUrl` raises a named error when `GITHUB_USERNAME` is

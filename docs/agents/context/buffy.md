@@ -41,6 +41,14 @@ streams and `ci:worker` read `ATV_DEVICE_TOKEN` from the environment and name th
 is the useful one: it starts the Worker with `--var ATV_DEVICE_TOKEN:…` and asserts 401 headerless and 200
 with the header, so enforcement is exercised in workerd on every run rather than only in the route suite.
 
+**I looked at the admin panel for the first time.** Served the built assets through `wrangler dev` on this
+chat's preview port and shot it in the browser at 420px and 1280px, holding `/api/health` to catch the
+CHECKING state. Two things the code review could not see: the folder tree printed its path twice (a root crumb
+and a `<code>` line saying the same thing), and the token input's 280px floor plus its button overflowed a
+420px screen. The tree now steps back instead of appending, and both are in the screenshots under
+`artifacts/`. Playwright routes die when the call ends, so a held response has to be photographed in the same
+call; `setViewportSize` does nothing on this tab — use a CDP `Emulation.setDeviceMetricsOverride`.
+
 **The grid now has tests** (`apps/tv-client/test/grid.test.ts`, 8), including the click path — which taught me the
 one thing a test can: a tile click focuses and plays but does not re-fire `onFocus`, because the hover prefetch
 belongs to `mouseenter`. `PlayerManager.detectProfile()` is gone; the review had flagged it as dead.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { HealthPayload } from "@atv/ui-shared";
+import { ROOT, enter } from "./folders";
 import { fetchHealth, summariseHealth } from "./health";
 import { LINK_ICON, LINK_LABEL, checkLinks, type LinkCheck, type LinkProgress } from "./links";
 import { readLinkToken, saveLinkToken } from "./linkToken";
@@ -28,11 +29,10 @@ export default function App() {
   // as a missing token instead of blaming the channels.
   const [linkToken, setLinkToken] = useState(() => readLinkToken() ?? "");
   const [tokenNote, setTokenNote] = useState<string | null>(null);
-  // A folder tree needs a way back. This used to append to one string, so a
-  // second click on the same folder produced `/ATV Network/Idents/Idents` and
-  // nothing could return to the root.
+  // A folder tree needs a way back. The path is a list so a crumb can slice it;
+  // `enter` decides what a click means, including a repeat click on the folder we
+  // are already in.
   const [crumbs, setCrumbs] = useState<string[]>([]);
-  const path = ["/ATV Network", ...crumbs].join("/");
   const [pin] = useState(() => Math.floor(100000 + Math.random() * 900000));
   const folders = ["Idents", "News", "Lineup", "Backups"];
 
@@ -100,7 +100,9 @@ export default function App() {
       <label htmlFor="link-token" style={{ ...muted, display: "block", marginBottom: 4 }}>
         Household token — kept in this browser, needed once the worker enforces it
       </label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+      {/* Wraps, because the input's 280px floor plus the button is wider than a
+          420px screen and used to push the button off the panel edge. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
         <input
           id="link-token"
           type="password"
@@ -162,7 +164,7 @@ export default function App() {
             onClick={() => setCrumbs([])}
             disabled={!crumbs.length}
           >
-            /ATV Network
+            /{ROOT}
           </button>
           {crumbs.map((segment, index) => (
             <button
@@ -176,13 +178,10 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div>
-          <code>{path}</code>
-        </div>
         {folders.map((f) => (
           <div
             key={f}
-            onClick={() => setCrumbs([...crumbs, f])}
+            onClick={() => setCrumbs((current) => enter(current, f))}
             style={{ cursor: "pointer", padding: 6 }}
           >
             📁 {f} <button disabled>Bind to gdrive.identsFolder</button>
