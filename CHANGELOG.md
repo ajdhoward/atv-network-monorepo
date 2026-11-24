@@ -115,6 +115,12 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- `pnpm continuity` now fails when a `package.json` script is named in no document, in either `pnpm <name>`
+  or `pnpm run <name>` form. Its first run named `build:client` and `build:admin` — both real, both
+  discoverable only by reading `package.json` — and `README.md` now lists them.
+- The fourth review of the day is recorded ([`docs/reviews/2026-11-24-p3.md`](docs/reviews/2026-11-24-p3.md)):
+  297 tests in 32 files, 90.05% lines, `ci:worker` 31/31, worst budget share 0.57%, ten changes since the
+  last record.
 - The R8 runbook's token advice is now a value you can type on a remote: `openssl rand -hex 8` (16
   characters, 64 bits) instead of 64 characters, with the trade-off stated so the longer value stays a choice.
   It also spells out a trap nothing said before — a token containing a space can never be accepted, because

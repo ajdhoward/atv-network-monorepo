@@ -293,6 +293,14 @@ Both branches were verified against a real `wrangler dev` (`19/19` either way, n
 `wrangler` has to be run as `pnpm exec wrangler` here because it is not on the shell PATH. That is the second
 check in this project fixed by asking what it does _not_ look at.
 
+**Continuity has now been caught looking only at what it knew three times**, so assume a fourth blind spot
+exists rather than that the check is finished: it verified documents are indexed, then that inventoried secrets
+still exist, then that every secret the Worker reads is inventoried, and at review `2026-11-24-p3` that every
+`package.json` script is named in a document (its first run found `build:client` and `build:admin`). The rule
+reads Markdown only, in `pnpm <name>`/`pnpm run <name>` form, so a script documented in a code comment does not
+count — document it in `README.md`. When adding any new machinery, ask what reads it back; if nothing does,
+that is the next blind spot.
+
 **The token contract had a trap that only shows up on hardware.** `normaliseToken` trims and changes nothing
 else — correctly, it is a secret — but `bearerToken` takes one token (`(\S+)`), so a secret containing a space
 can never be presented: the right value is rejected and the prompt can only say "that token was not accepted",
