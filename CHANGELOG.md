@@ -32,6 +32,13 @@ Nothing here is merged or deployed.
 - The TV grid painted an empty lineup with a blank status line while the guide loaded, and the paused banner
   named the first channel in the lineup rather than the one on screen.
 
+- The admin panel trusted the guide, the one payload it does not control: a channel with no id became an
+  `?ids=undefined` batch and a nameless row. It now narrows the payload the way the TV client does, reports
+  how far the link walk has got, and navigates the folder tree with crumbs instead of appending to a string
+  until nothing could return to the root.
+- The TV client's colours lived per file — `#d3e429` in the grid, `#9a9a9a` and `#666` both meaning muted, two
+  different blacks behind video. Unchanged in value, named once in `theme.ts`.
+
 ### Decided
 
 - `/api/resolve` stays private with **one household token** (option C). Cloudflare Access is kept for the
