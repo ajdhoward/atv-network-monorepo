@@ -187,14 +187,14 @@ resolve check gets a `401`, reports that the worker is enforcing the household t
 deploy succeeds and the job goes red one step later. Nothing is broken; the job cannot prove what it cannot
 authenticate.
 
-Two ways forward, both the operator's to choose (Q9 in [`agents/backlog.md`](agents/backlog.md)):
+**The workflow now passes the token** (Q9): that step receives `secrets.ATV_DEVICE_TOKEN`. Add the repository
+secret in this same sitting — _Settings → Secrets and variables → Actions → New repository secret_, same name,
+same value as the Worker's. Without it the step still goes red after enforcement, and that red is now the
+correct signal: the repository cannot authenticate, not that the check is unfixable.
 
-- **Add the repository secret** `ATV_DEVICE_TOKEN` and pass it to that step, so CI proves resolve as well as
-  the routes. It puts the same value in GitHub as on the Worker — not a second token — which is acceptable in a
-  private repository and is the option that keeps the check strict.
-- **Until then, deploy locally:** `export ATV_DEVICE_TOKEN=…` and run `pnpm deploy`, which executes the same
-  gates and lets `pnpm smoke` pass. Every L4 seed and every client change after this rollout lands that way,
-  otherwise the Actions run finishes red for a reason that is not a defect.
+A fallback stays useful: **deploy locally** with `export ATV_DEVICE_TOKEN=…` and `pnpm deploy`, which executes
+the same gates and lets `pnpm smoke` pass without the repository secret. Every L4 seed and every client change
+after this rollout can land that way.
 
 ### Back out
 

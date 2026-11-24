@@ -141,6 +141,12 @@ jobs:
       # content is an operator step, a broken route is not.
       - name: Smoke test (sandbox)
         if: ${{ inputs.target == 'v2' && steps.deploy.outputs.deployment-url != '' }}
+        env:
+          # Q9: once the household token is enforced, a headerless resolve answers
+          # 401 and this step failed on a deploy that worked. Smoke sends the header
+          # only when the value is present, so a deployment that has not turned the
+          # token on yet still passes, and one that has is proven end to end.
+          ATV_DEVICE_TOKEN: ${{ secrets.ATV_DEVICE_TOKEN }}
         run: pnpm smoke ${{ steps.deploy.outputs.deployment-url }} --allow-empty
       # Production only: Cloudflare Access answers unauthenticated paths with a
       # redirect, so the smoke test needs a service token. Secrets cannot appear in
