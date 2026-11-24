@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { checksum } from "../src/config-meta";
 import type { Env } from "../src/env";
 import { apkUrl } from "../src/install";
-import { signStreamUrl } from "../src/stream-sign";
+import { DEFAULT_TTL_S, signStreamUrl } from "../src/stream-sign";
 
 type Seed = Record<string, unknown>;
 
@@ -931,7 +931,12 @@ describe("GET /api/stream (P1 Drive proxy)", () => {
     const calls = upstream(() => new Response("should not be fetched"));
 
     const ticket = await signStreamUrl("drive-news", SECRET);
-    const stale = await signStreamUrl("drive-news", SECRET, { now: Date.now() - 20 * 60 * 1000 });
+    // Derived from the TTL rather than a fixed offset: a ticket minted 20 minutes
+    // ago was stale at 15 minutes and is valid at 60 (P4), and this test is about
+    // the refusal, not about how long the life happens to be.
+    const stale = await signStreamUrl("drive-news", SECRET, {
+      now: Date.now() - (DEFAULT_TTL_S + 60) * 1000,
+    });
     const forged = ticket.replace(
       /sig=(.)/,
       (_all, first: string) => `sig=${first === "0" ? "1" : "0"}`,

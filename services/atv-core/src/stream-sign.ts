@@ -8,15 +8,18 @@
 //
 // HMAC-SHA256 under a Worker secret binds the ticket to one id — a URL cannot be
 // pointed at another channel — and `exp` is inside the signed text, so it cannot
-// be extended without the secret. The default is 15 minutes: long enough for a
-// TV that resolves a link and then buffers, short enough that a leaked URL is not
-// a standing invitation.
+// be extended without the secret. The default is one hour (P4): a `<video>` that
+// pauses for a while and then sends its next `Range` on an expired ticket gets a
+// 403, which the player reports as a broken source — the grid returns and the
+// position is lost. Fifteen minutes made an ordinary pause look like a fault.
+// An hour still bounds a leaked URL, and rotating the secret ends every
+// outstanding ticket at once.
 //
 // The secret is passed in rather than read here, the same shape as
 // `device-token.ts`: no binding, no `Env`, and the wiring change is where
 // `ATV_STREAM_SIGNING_KEY` enters `env.ts` and the continuity inventory together.
 
-export const DEFAULT_TTL_S = 15 * 60;
+export const DEFAULT_TTL_S = 60 * 60;
 
 // `unconfigured` is the deployment's fault and gets its own answer: a 403 there
 // would read as "this link is wrong" when the operator has simply not set the

@@ -94,7 +94,7 @@ Rationale for each is in `decisions.md`; do not re-open them without new informa
   once that secret is set, and answers any caller while it is not. Client first, secret second: the prompt only
   opens on a 401, so the client that can take the token goes on every TV before the secret lands (R8).
 - **Google Drive has no direct-play URL.** The Worker proxies it at `/api/stream/<id>`: `/api/resolve` mints
-  a signed 15-minute ticket because a `<video>` cannot send a header, and `Range` is forwarded so seeking
+  a signed one-hour ticket because a `<video>` cannot send a header, and `Range` is forwarded so seeking
   works. `ATV_STREAM_SIGNING_KEY` is required, and "just use the Drive link" is not a shortcut.
 - **Sandbox first.** `pnpm deploy` targets `atv-core-v2`; the live `atv-core-orchestrator` is not built
   from this repo, and `docs/production-cutover.md` governs any replacement.
