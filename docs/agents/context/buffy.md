@@ -259,6 +259,22 @@ The review trigger is no longer a memory. `docs/agents/reviews.md` carries `Last
 `pnpm continuity` counts from it, warning at five and never failing — a due review is information, and starting
 one is the operator's call. This window reached seven changes before anyone counted, twice now.
 
+**The production cutover runbook had not caught up with three releases of this branch.** It is the only
+authority for replacing the live network, and it did not contain `ATV_STREAM_SIGNING_KEY` at all, had no
+`/api/stream` row in the parity gate or the functional matrix, and its §5.1 said to copy
+`wrangler.production.toml` — which declares neither `ATV_RATE_LIMITER`, nor the `ATV_LIMITER` Durable Object
+with its migration, nor `ATV_METRICS`, and whose `run_worker_first` omits `/a` and `/a/*`. Followed literally,
+a cutover puts production live with every Drive channel resolving to a link a `<video>` cannot play, no
+per-client limiter, and the short install address answering the TV shell. All of that is now written into the
+doc: the secrets and the decision each forces, the parity row that explains resolve's Drive answer changing
+with the key, four proxy checks in §6.1, the proxy's request class in §6.4/§11, a risk-register row, and the
+exact bindings and routes the candidate config must add. `Q8` proposes fixing the config file itself rather
+than every cutover remembering — deploy config is the operator's call, so it is proposed, not edited.
+
+The lesson is the same shape as this morning's runbook fix: a `blocked` document rots exactly like a `blocked`
+step, and nothing checks it. `pnpm smoke` would have caught `/a` on the candidate and §6.2 the limiter, so the
+failures were loud but late — on the day of the cutover, with the household waiting.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

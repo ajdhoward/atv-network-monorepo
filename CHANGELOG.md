@@ -109,6 +109,13 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- `docs/production-cutover.md` caught up with P1, R6 and `/a`. It had no `ATV_STREAM_SIGNING_KEY` anywhere, no
+  `/api/stream` row in the parity table or the functional matrix, and it told the operator to copy a
+  `wrangler.production.toml` that declares none of this build's bindings and omits `/a` from `run_worker_first`.
+  A cutover followed literally would have put production live with every Drive channel resolving to an
+  unplayable link and the short install address answering the TV shell instead of the APK. The parity section
+  now names the trap — with the key set, resolve answers a ticket path instead of a Drive URL, so the client
+  has to be the current one — and §5.1 says exactly which bindings and routes the candidate has to add.
 - `docs/agents/reviews.md` records the commit the last review read, and `pnpm continuity` counts changes from
   it, warning at five. The trigger had been missed twice because it was a judgement about whether enough had
   happened; with the commit in the file it is arithmetic. It stays a warning: starting a review is the
@@ -218,6 +225,9 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- Q8 is proposed: `wrangler.production.toml` is the repo's declaration of production's shape and no longer
+  describes the Worker this branch builds. The cutover doc now says what to add by hand; the item is about the
+  file telling the truth on its own.
 - Q3 (alert when the Worker is down) has a recommendation instead of an open question: a free UptimeRobot
   **keyword** monitor on `/api/health` for `"status": "ok"`, because health answers `200` while reporting
   `degraded`. The keyword needs the space — the body is pretty-printed — or it would alert forever. Still

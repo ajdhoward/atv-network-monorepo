@@ -225,6 +225,21 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   than 0.43%, with the proxy counted at 300 media requests per TV per day, each one a Worker request and a
   Drive subrequest and no limiter token.
 
+### Q8 · `wrangler.production.toml` no longer describes the Worker this repo builds
+
+- **Why:** it is the repository's declaration of production's shape and the file `docs/production-cutover.md`
+  tells the operator to copy. It declares neither `ATV_RATE_LIMITER`, nor the `ATV_LIMITER` Durable Object
+  with its migration, nor `ATV_METRICS`, and its `run_worker_first` omits `/a` and `/a/*` — so a candidate
+  built from it would answer the short install address with the TV shell and resolve without the per-client
+  limiter. Everything it does declare is the incumbent's: its name, its route and the two KV ids.
+  The cutover doc now lists what to add by hand; this item is about the file telling the truth on its own.
+- **Done when:** it declares every binding `wrangler.toml` declares, with production's own names and ids, its
+  `run_worker_first` matches, and `node scripts/check-deploy-target.mjs wrangler.production.toml` still refuses
+  a deploy without the explicit override — the file stays a declaration, not a deploy path.
+- **Paths:** `wrangler.production.toml`
+- **Size:** S
+- **State:** proposed — deploy config is the operator's call even when nothing here deploys anything.
+
 ## Production cutover
 
 ### Q4 · Download and commit the deployed `4fb54df2` source
