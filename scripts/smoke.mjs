@@ -177,6 +177,34 @@ try {
       : `HTTP ${resolve.res.status}`,
   );
 
+  // P1's media route is the one that fails silently if anything shadows it: the
+  // asset layer answers 200 with the TV shell, the player reports the channel as
+  // broken, and every other check here still passes. No ticket and no Drive file
+  // are needed to prove the request reached the handler, because health already
+  // says whether the signing key exists, so the refusal is known in advance.
+  const stream = await get("/api/stream/__smoke__");
+  const streamBody = parse(stream.text);
+  const streamCode = streamBody?.code ?? "no code";
+  if (healthBody?.streamSigningKeySet === true) {
+    record(
+      "GET /api/stream (no ticket → 403)",
+      stream.res.status === 403 && streamBody?.code === "missing",
+      `HTTP ${stream.res.status}, ${streamCode}`,
+    );
+  } else if (healthBody?.streamSigningKeySet === false) {
+    record(
+      "GET /api/stream (no signing key → 503)",
+      stream.res.status === 503 && streamBody?.code === "stream_unconfigured",
+      `HTTP ${stream.res.status}, ${streamCode}`,
+    );
+  } else {
+    record(
+      "GET /api/stream (refused)",
+      stream.res.status === 403 || stream.res.status === 503,
+      `HTTP ${stream.res.status}, ${streamCode} — health has no streamSigningKeySet (pre-P1 deployment?)`,
+    );
+  }
+
   const ident = await get("/api/idents/random");
   record(
     "GET /api/idents/random",
