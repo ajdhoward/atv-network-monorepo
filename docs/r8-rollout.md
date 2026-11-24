@@ -13,9 +13,13 @@ Target: the sandbox `atv-core-v2` (`wrangler.toml`). Production is not touched b
 **The client goes on every TV before the secret is set.** The TV takes its token from a prompt that only
 opens when `/api/resolve` answers `401` (`apps/tv-client/src/main.ts`, `tokenPrompt.ts`), so a TV running a
 build from before R5 has no way to take a token: setting the secret first strands it on a screen that says
-the channel is unavailable, recoverable only by re-sideloading the APK or deleting the secret. That is what
-"enforcement must never land before every TV has taken the token" protects against in practice — the prompt
-is the taking, and the client that carries the prompt has to be there first.
+the channel is unavailable, recoverable only by re-sideloading the APK or deleting the secret.
+
+This is the correction to the older rule "enforcement must never land before every TV has taken the token".
+Read literally it asks for the token before the secret that makes the prompt appear, which no TV can do: the
+prompt is the taking, so it is the client that carries the prompt that has to be everywhere first, and the
+token is typed after the secret, one TV at a time. This runbook is the authority on that order; `AGENTS.md`
+and the R1 record in `decisions.md` both summarise it as _client first, secret second_ and point here.
 
 ## Before you start
 

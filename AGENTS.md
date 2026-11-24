@@ -91,8 +91,8 @@ Rationale for each is in `decisions.md`; do not re-open them without new informa
   per isolate for 30 minutes and never seeded or sent to a device. Precedence is `ATV_GDRIVE_MAP`, then
   `torbox_map`, then KV `gdrive_map`.
 - **Resolve needs the household token.** `/api/resolve` requires `Authorization: Bearer <ATV_DEVICE_TOKEN>`
-  once that secret is set, and answers any caller while it is not — enforcement must never land before every
-  TV has taken the token (R8).
+  once that secret is set, and answers any caller while it is not. Client first, secret second: the prompt only
+  opens on a 401, so the client that can take the token goes on every TV before the secret lands (R8).
 - **Google Drive has no direct-play URL.** The Worker proxies it at `/api/stream/<id>`: `/api/resolve` mints
   a signed 15-minute ticket because a `<video>` cannot send a header, and `Range` is forwarded so seeking
   works. `ATV_STREAM_SIGNING_KEY` is required, and "just use the Drive link" is not a shortcut.

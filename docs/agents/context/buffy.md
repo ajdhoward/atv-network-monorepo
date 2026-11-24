@@ -73,9 +73,11 @@ header; the proxy verifies the ticket then passes `Range` through to Drive. `str
 ticket and its tests cover id binding, expiry, forgery and a missing secret. The route and the `/api/resolve`
 change wait for the operator to accept the entry — that is a shared shape, so it does not land on my say-so.
 
-**Next: R8, which is the operator's** — set `ATV_DEVICE_TOKEN` on `atv-core-v2`, deploy the R5 client, get the
-token onto each TV, confirm headerless resolves have stopped, then enforcement is already live (there is no
-second switch: the secret _is_ the switch). Then L1 (deploy), L2 (branch protection), L4 (seed real links).
+**Next: R8, which is the operator's** — deploy the R5 client (L1), get it onto every TV, then set
+`ATV_DEVICE_TOKEN` on `atv-core-v2`, then take the token on each TV from the 401 prompt and confirm headerless
+resolves have stopped. Client first, secret second: the prompt only opens on a 401, so a TV cannot take the
+token before the secret exists, and enforcement is live the moment it does (there is no second switch: the
+secret _is_ the switch). Then L2 (branch protection), L4 (seed real links).
 P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for Drive-backed channels.
 
 ## What I learnt that cost time

@@ -280,9 +280,10 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 
 - **Why:** enforcing before the client ships strands every installed TV on a 401 it cannot clear, and that
   ordering is the only thing between this decision and a household that cannot watch anything.
-- **Done when:** `ATV_DEVICE_TOKEN` is set on `atv-core-v2`; the client with the prompt is deployed (L1); each TV
-  has taken the token; resolves arriving without the header have fallen to none apart from TVs that have not
-  been switched on; enforcement is deployed; then a headerless resolve answers 401 and a TV plays.
+- **Done when:** the client with the prompt is deployed (L1) and installed on every TV; then `ATV_DEVICE_TOKEN`
+  is set on `atv-core-v2`, which is the switch; each TV has taken the token from the 401 prompt; resolves
+  arriving without the header have fallen to none apart from TVs that have not been switched on; and a
+  headerless resolve answers 401 while a TV plays.
 - **Paths:** Worker secrets, `.github/workflows/deploy.yml`, the TVs
 - **Runbook:** [`../r8-rollout.md`](../r8-rollout.md). The order in it is client first, secret second: the
   token is entered from a prompt that only opens on a 401, so the secret cannot land before every TV carries

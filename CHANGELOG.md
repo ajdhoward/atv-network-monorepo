@@ -94,6 +94,11 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- The token order is stated one way everywhere now. `AGENTS.md` and the R1 record in `decisions.md` said
+  "enforcement must never land before every TV has taken the token", which the shipped prompt cannot do: it
+  opens only on a 401, so a TV can take the token only after the secret exists. Both now say client first,
+  secret second and point at `docs/r8-rollout.md`, which is the authority on the rollout; the R1 record keeps
+  a `corrected` line so the original wording is not quietly rewritten.
 - `package.json` declares `engines` — Node `>=22` and pnpm `>=9` — the toolchain the repository already
   assumes in `AGENTS.md` and in CI, so an install on the wrong Node or pnpm says so instead of assuming it —
   a warning, not a failure: there is no `engine-strict` in the repository, and blocking mismatches is the
