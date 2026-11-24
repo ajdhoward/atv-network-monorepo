@@ -94,6 +94,11 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- The R8 runbook's commands were exercised against a local `wrangler dev` with a plain `--var` test token (no
+  deploy, no secret) and two needed fixing: Steps 3 and 5 now set `BASE` and Step 5 re-derives `ID`, so each
+  block runs in a fresh shell, and `pnpm streams` is documented as exiting 1 without `atv-config.json`. The same
+  read of the sandbox showed `/install` and `/a` answering `200` through the SPA fallback on a build from before
+  R5/R6, which L1's state now records so a status code is not mistaken for a deploy.
 - The token order is stated one way everywhere now. `AGENTS.md` and the R1 record in `decisions.md` said
   "enforcement must never land before every TV has taken the token", which the shipped prompt cannot do: it
   opens only on a 401, so a TV can take the token only after the secret exists. Both now say client first,

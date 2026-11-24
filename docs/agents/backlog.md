@@ -33,10 +33,16 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 
 - **Why:** both pages exist and are tested, but no host serves them, so the phone install and the guest
   agent path are unreachable in practice.
-- **Done when:** `GET /install` and `GET /join` answer 200 on the workers.dev host and `pnpm smoke` passes.
+- **Done when:** `GET /install` and `GET /join` answer 200 **with their page body** on the workers.dev host and
+  `pnpm smoke` passes. A status code alone proves nothing: the asset layer's SPA fallback answers any path.
 - **Paths:** `.github/workflows/deploy.yml` (manual `workflow_dispatch`, target `v2`)
 - **Size:** S
-- **State:** blocked — needs the operator's go-ahead, because it publishes a public host
+- **State:** blocked — needs the operator's go-ahead, because it publishes a public host. On 2026-11-24 the
+  deployed sandbox answered `200` for `/install`, `/a`, `/admin/` and `/` while serving the 639-byte SPA shell,
+  because `not_found_handling = "single-page-application"` answers every unmatched path — check the body (an
+  APK link; `/a` must be a `302` to the release) or run `pnpm smoke`, which does. The same read showed the host
+  is on a build from before R5/R6: the live bundle is 9.6 kB with no token prompt, `/api/health` has neither
+  `deviceTokenSet` nor `streamSigningKeySet`, and a headerless `/api/resolve` answers `404`, not `401`.
 
 ### L2 · Protect `main` with `verify` and a pull request
 

@@ -2,8 +2,13 @@
 
 This is the operator's runbook for R8 in [`agents/backlog.md`](agents/backlog.md): put the identity-checked
 client in front of the household, then turn on `ATV_DEVICE_TOKEN` on the sandbox Worker. It names secrets and
-never holds one — no value, no token, no stream link. **Nothing in this runbook has been executed**; it is a
-plan written from the code and the deploy workflow, and every command here is one the operator runs.
+never holds one — no value, no token, no stream link. Every command here is one the operator runs. The ones
+that need no credentials were exercised on 2026-11-24 against a local `wrangler dev` started with a plain
+`--var ATV_DEVICE_TOKEN:` test value (no deploy, no secret): the health snapshot and its parse, the status
+checks, the guide-id derivation, the headerless `401` carrying `WWW-Authenticate: Bearer realm="atv"`, the
+with-token `200`, all three Step 5 curls, and `pnpm smoke` with and without the token (18/18 and 17/18).
+`wrangler secret put`/`delete` and `wrangler tail` were not run — they need the operator's credentials — and
+no step has been run against the sandbox or a TV.
 
 Target: the sandbox `atv-core-v2` (`wrangler.toml`). Production is not touched by any step here; moving
 `atv.acidwurx.org` is [`production-cutover.md`](production-cutover.md) and nothing else.
@@ -127,6 +132,7 @@ holds only the name.
 ### Check
 
 ```bash
+BASE=https://atv-core-v2.acidwurx.workers.dev
 curl -sS -o /dev/null -w 'health:%{http_code}\n' "$BASE/api/health"
 curl -sS "$BASE/api/health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const h=JSON.parse(s);console.log({deviceTokenSet:h.deviceTokenSet,streamSigningKeySet:h.streamSigningKeySet})})'
 ```
@@ -191,6 +197,10 @@ also makes every stored token irrelevant.
 Enforcement is the default once the secret exists, so this step is evidence, not a switch:
 
 ```bash
+# BASE and ID again, so this block runs in a fresh shell; ID is public.
+BASE=https://atv-core-v2.acidwurx.workers.dev
+ID=$(curl -sS "$BASE/api/guide?limit=1" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).channels[0].id))')
+
 # Every headerless resolve is refused, before the limiter and before any provider call.
 curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/api/resolve?id=$ID"          # 401
 curl -sS -o /dev/null -w '%{http_code}\n' "$BASE/api/resolve?ids=$ID"         # 401 (batch too)
@@ -214,8 +224,8 @@ pnpm smoke "$BASE"                         # with ATV_DEVICE_TOKEN exported
 ATV_DEVICE_TOKEN="$ATV_DEVICE_TOKEN" pnpm streams    # ids and statuses only; needs the local lineup
 ```
 
-`pnpm streams` reads `atv-config.json`; without that file it cannot enumerate channels and is not a
-substitute for the per-TV check. Neither command prints a link.
+`pnpm streams` reads `atv-config.json`; without that file it exits 1 with `Cannot read atv-config.json` and
+offers `--ids a,b`, and it is not a substitute for the per-TV check. Neither command prints a link.
 
 ### Back out
 

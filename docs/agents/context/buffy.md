@@ -158,6 +158,16 @@ set `ATV_DEVICE_TOKEN` → type it into each TV's prompt → confirm headerless 
 the secret before the R5 build is what strands a TV; each step has a check and a back-out (roll back the
 deployment, delete the secret). Nothing in it has been run, and no secret was touched while writing it.
 
+**The runbook's commands were exercised, not run against the sandbox** (2026-11-24). A local `wrangler dev` with
+a plain `--var ATV_DEVICE_TOKEN:` test value — no deploy, no secret — behaved exactly as written: the health
+snapshot and parse, the status checks, the guide-id derivation, the headerless `401` with
+`WWW-Authenticate: Bearer realm="atv"`, the with-token `200`, all three Step 5 curls, and `smoke` 18/18 with
+the token and 17/18 without, naming the token. Two fixes came out of it: Steps 3 and 5 now set `BASE` (and
+Step 5 re-derives `ID`) instead of leaning on an earlier shell, and `pnpm streams` is documented as exiting 1
+without `atv-config.json`. Unrun: `wrangler secret put`/`delete` and `wrangler tail` (credentials), and
+anything on a TV. The same session found the live sandbox is pre-R5/R6 and that `/install` and `/a` answer
+`200` through the SPA fallback — L1's state says so, so nobody reads a status code as a deploy.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it
