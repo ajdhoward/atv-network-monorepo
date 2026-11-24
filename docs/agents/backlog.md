@@ -240,6 +240,21 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
 - **Size:** S
 - **State:** proposed — deploy config is the operator's call even when nothing here deploys anything.
 
+### Q9 · The Actions deploy's smoke step fails once the household token is enforced
+
+- **Why:** `deploy.yml`'s sandbox smoke runs `pnpm smoke` with no `ATV_DEVICE_TOKEN`, which was correct before
+  R8 and is wrong after it: smoke's resolve check gets a `401`, names the token and exits 1, so a successful
+  deploy ends with a red job. That is the same "a red check that means you forgot a token teaches people to
+  distrust checks" failure R7 fixed for local callers, now sitting on the CI path that L4 and every later
+  client change will use.
+- **Done when:** either the repository secret `ATV_DEVICE_TOKEN` is set and passed to that step — so CI proves
+  resolve as well as the routes — or the step stops claiming a check it cannot make and says why, with the
+  reason written down.
+- **Paths:** `.github/workflows/deploy.yml`, repository secrets, `docs/r8-rollout.md`
+- **Size:** S
+- **State:** proposed — a workflow edit and a repository secret are both the operator's call. The R8 runbook
+  now names this and offers the local `pnpm deploy` route as the way to keep deploying meanwhile.
+
 ## Production cutover
 
 ### Q4 · Download and commit the deployed `4fb54df2` source

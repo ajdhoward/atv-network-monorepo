@@ -275,6 +275,15 @@ The lesson is the same shape as this morning's runbook fix: a `blocked` document
 step, and nothing checks it. `pnpm smoke` would have caught `/a` on the candidate and §6.2 the limiter, so the
 failures were loud but late — on the day of the cutover, with the household waiting.
 
+**R8 leaves one loose end in CI, now written down as Q9.** `deploy.yml`'s sandbox smoke step runs `pnpm smoke`
+with no `ATV_DEVICE_TOKEN` — correct before R8, wrong after it: smoke's resolve check gets a `401`, names the
+token and exits 1, so the deploy succeeds and the job goes red one step later. It is the same "red check that
+means you forgot a token" failure R7 removed for local callers, now on the CI path that L4 and every later
+client change will use. The runbook's Step 3 carries both ways forward (repository secret passed to the step,
+which keeps the check strict and duplicates the value into GitHub; or the local `pnpm deploy` route until
+Q9 is decided). The workflow itself matches what the runbook says about Step 1: manual dispatch, target `v2`,
+`kv:staging`, an optional seed, and smoke with `--allow-empty` — all verified by reading it, not by running it.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

@@ -109,6 +109,10 @@ Nothing here is merged or deployed.
 
 ### Changed
 
+- The R8 runbook now says what happens to deploys _after_ the token lands: `deploy.yml`'s sandbox smoke step
+  runs without `ATV_DEVICE_TOKEN`, so the deploy succeeds and the job goes red one step later on a `401` it
+  cannot authenticate. The runbook gives both ways forward (a repository secret passed to that step, or the
+  local `pnpm deploy` route meanwhile) and points at Q9, because a workflow edit is not an agent's call.
 - `docs/production-cutover.md` caught up with P1, R6 and `/a`. It had no `ATV_STREAM_SIGNING_KEY` anywhere, no
   `/api/stream` row in the parity table or the functional matrix, and it told the operator to copy a
   `wrangler.production.toml` that declares none of this build's bindings and omits `/a` from `run_worker_first`.
@@ -225,6 +229,9 @@ Nothing here is merged or deployed.
 
 ### Decided
 
+- Q9 is proposed: once the household token is enforced, the Actions deploy's smoke step fails on a check it
+  cannot make, which is the failure mode R7 removed for local callers. Named in the runbook and in the
+  backlog so the red job is understood rather than debugged.
 - Q8 is proposed: `wrangler.production.toml` is the repo's declaration of production's shape and no longer
   describes the Worker this branch builds. The cutover doc now says what to add by hand; the item is about the
   file telling the truth on its own.
