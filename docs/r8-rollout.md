@@ -169,6 +169,23 @@ print the resolve body — it contains a stream URL. `pnpm smoke "$BASE"` with `
 must pass; without it, its resolve check now fails and says the worker is enforcing the household token,
 which is the correct answer.
 
+### After this step, a deploy from Actions fails its last check
+
+The workflow's sandbox smoke step (`deploy.yml`, _Smoke test (sandbox)_) runs `pnpm smoke` with no
+`ATV_DEVICE_TOKEN`. That was right before this step and is wrong after it: with the secret set, smoke's
+resolve check gets a `401`, reports that the worker is enforcing the household token, and exits 1 — so the
+deploy succeeds and the job goes red one step later. Nothing is broken; the job cannot prove what it cannot
+authenticate.
+
+Two ways forward, both the operator's to choose (Q9 in [`agents/backlog.md`](agents/backlog.md)):
+
+- **Add the repository secret** `ATV_DEVICE_TOKEN` and pass it to that step, so CI proves resolve as well as
+  the routes. It puts the same value in GitHub as on the Worker — not a second token — which is acceptable in a
+  private repository and is the option that keeps the check strict.
+- **Until then, deploy locally:** `export ATV_DEVICE_TOKEN=…` and run `pnpm deploy`, which executes the same
+  gates and lets `pnpm smoke` pass. Every L4 seed and every client change after this rollout lands that way,
+  otherwise the Actions run finishes red for a reason that is not a defect.
+
 ### Back out
 
 Delete the secret; enforcement disappears immediately because there is no second switch:
