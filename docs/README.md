@@ -7,6 +7,7 @@ continuity` fails when a document here is not listed below.
 | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | [continuity.md](continuity.md)                                       | What must survive a lost session, and where every secret's name lives |
 | [production-cutover.md](production-cutover.md)                       | The only authority for replacing production                           |
+| [r8-rollout.md](r8-rollout.md)                                       | The operator's runbook for turning on the household token (R8)        |
 | [agents/onboarding.md](agents/onboarding.md)                         | Where a new agent starts                                              |
 | [agents/roles.md](agents/roles.md)                                   | The seven roles and their coverage                                    |
 | [agents/roster.md](agents/roster.md)                                 | Who is here, their roles, and the paths they own                      |

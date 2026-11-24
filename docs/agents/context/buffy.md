@@ -150,6 +150,12 @@ with its outcome open, because that log's own rule is that the operator marks th
 (`Content-Encoding` and `Content-Disposition` included): a proxy that drops what describes the bytes is
 lying about them, and the route test pins both. `pnpm ci:worker` was run to confirm the built Worker still boots with the new route.
 
+**The R8 runbook is written, not executed** (`docs/r8-rollout.md`). Order: L1 deploy → client on every TV →
+set `ATV_DEVICE_TOKEN` → type it into each TV's prompt → confirm headerless resolves are 401 and
+`resolve_unauthorized` is not still climbing. It is client-first because the prompt only opens on a 401, so
+the secret before the R5 build is what strands a TV; each step has a check and a back-out (roll back the
+deployment, delete the secret). Nothing in it has been run, and no secret was touched while writing it.
+
 **The panel shows both flags.** `summariseHealth` maps `streamSigningKeySet` to
 `driveProxy: "live" | "off" | "unknown"` and `deviceTokenSet` to `householdToken: "set" | "unset" | "unknown"`;
 an absent flag is `unknown`, never `off`/`unset`, so an older deployment is not blamed for a key or token it

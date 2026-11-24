@@ -284,6 +284,9 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   has taken the token; resolves arriving without the header have fallen to none apart from TVs that have not
   been switched on; enforcement is deployed; then a headerless resolve answers 401 and a TV plays.
 - **Paths:** Worker secrets, `.github/workflows/deploy.yml`, the TVs
+- **Runbook:** [`../r8-rollout.md`](../r8-rollout.md). The order in it is client first, secret second: the
+  token is entered from a prompt that only opens on a 401, so the secret cannot land before every TV carries
+  the R5 build without stranding the ones that do not.
 - **Size:** M
 - **State:** blocked — operator (a secret and a deploy), after R5–R7. This is what unblocks L4.
 

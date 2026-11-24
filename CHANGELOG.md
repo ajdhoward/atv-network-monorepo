@@ -10,6 +10,11 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `docs/r8-rollout.md` — the operator's runbook for R8, written rather than executed: L1 deploy, the client
+  on every TV, then `ATV_DEVICE_TOKEN`, the token typed on each TV, and the evidence that headerless
+  resolves are refused. Every step carries its own check and its back-out (roll back the deployment, delete
+  the secret). It is ordered client-first on purpose: the token prompt only opens on a 401, so setting the
+  secret before a TV carries the R5 build is what strands it.
 - `/api/health` reports `streamSigningKeySet` beside `deviceTokenSet` (presence only, never the value). P1
   deploys darker than it looks — with no signing key every Drive channel quietly resolves to its stored link —
   and this is the one field a monitor can read to tell a live proxy from a deployed-but-dead one.
