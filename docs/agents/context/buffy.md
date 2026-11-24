@@ -125,7 +125,10 @@ is the assertion that keeps the decorations out of the announcement while their 
 traps: `no-misleading-character-class` rejects a character class holding `⚠️` (emoji plus variation
 selector), so the icon list comes from `LINK_ICON`; and react/react-dom live in `apps/admin-cms/node_modules`,
 not at the root, so version checks have to `cd` there first. `package.json` also got the `engines` half of R2
-(Node `>=22`, pnpm `>=9`); the workflow half is still the operator's.
+(Node `>=22`, pnpm `>=9`); the workflow half is still the operator's. Note it is a warning, not a gate: no
+`.npmrc` sets `engine-strict`, so pnpm only prints the mismatch. Enforcement belongs with the workflow change.
+The mutation check is worth repeating on any aria-hidden work: replacing every `aria-hidden="true"` in
+`App.tsx` failed all four tests, which is what shows the test has teeth rather than just green.
 
 ## What I tried that failed
 

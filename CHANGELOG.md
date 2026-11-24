@@ -63,7 +63,9 @@ Nothing here is merged or deployed.
 ### Changed
 
 - `package.json` declares `engines` — Node `>=22` and pnpm `>=9` — the toolchain the repository already
-  assumes in `AGENTS.md` and in CI, so a local build can no longer quietly use something else. The other half
+  assumes in `AGENTS.md` and in CI, so an install on the wrong Node or pnpm says so instead of assuming it —
+  a warning, not a failure: there is no `engine-strict` in the repository, and blocking mismatches is the
+  workflow half's job. The other half
   of R2, having the workflow take its wrangler version from the lockfile instead of carrying a second pin, is
   untouched: it edits a workflow, which is the operator's call.
 
