@@ -154,6 +154,21 @@ describe("GET /api/health", () => {
     expect(body.config.seeded).toBe(false);
     expect(body.guideSnapshot).toBeNull();
   });
+
+  // R8 needs to see the rollout from outside: half-done is "secret set, TVs not
+  // yet", and that is invisible unless health says so. Presence, never the value.
+  it("says whether the household token is set, without revealing it", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ channels });
+
+    expect((await call(worker, env, "/api/health")).body.deviceTokenSet).toBe(false);
+
+    (env as any).ATV_DEVICE_TOKEN = "household-secret-7f3a";
+    const { body } = await call(worker, env, "/api/health");
+
+    expect(body.deviceTokenSet).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("household-secret");
+  });
 });
 
 describe("GET /api/guide", () => {
@@ -650,6 +665,85 @@ describe("GET /api/resolve", () => {
     (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
     await call(worker, env, "/api/resolve?id=__smoke__");
     expect(points.map((p) => p.blobs[0])).toEqual(["resolve_miss"]);
+  });
+
+  // R6 / option C. The order inside the handler is what these assert: a
+  // stranger's request must not spend the household's allowance, reach a
+  // provider, or learn anything about the secret.
+  const TOKEN = "household-secret-7f3a";
+
+  it("401s a headerless resolve before the limiter or a provider call", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_DEVICE_TOKEN = TOKEN;
+    const strict = fakeLimiter({ success: true });
+    (env as any).ATV_LIMITER = strict.namespace;
+    const coarse = vi.fn(async () => ({ success: true }));
+    (env as any).ATV_RATE_LIMITER = { limit: coarse };
+
+    const { res, body } = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { "CF-Connecting-IP": "203.0.113.9" },
+    });
+
+    expect(res.status).toBe(401);
+    expect(body.code).toBe("unauthorized");
+    expect(body.requestId).toBe(res.headers.get("x-request-id"));
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("www-authenticate")).toContain("Bearer");
+    // A TV's cross-origin fetch cannot send a header the preflight forbids.
+    expect(res.headers.get("access-control-allow-headers")).toContain("Authorization");
+    expect(strict.names).toEqual([]);
+    expect(coarse).not.toHaveBeenCalled();
+  });
+
+  it("401s the batch form, a wrong token and a foreign scheme alike", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_DEVICE_TOKEN = TOKEN;
+
+    const attempts: [string, string | undefined][] = [
+      ["/api/resolve?ids=news-us", undefined],
+      ["/api/resolve?id=news-us", "Bearer not-the-token"],
+      ["/api/resolve?id=news-us", `Basic ${TOKEN}`],
+    ];
+    for (const [path, header] of attempts) {
+      const { res, body } = await call(worker, env, path, {
+        headers: header ? { Authorization: header } : {},
+      });
+      expect(res.status).toBe(401);
+      expect(body.code).toBe("unauthorized");
+    }
+  });
+
+  it("serves a resolve and a batch with the household token", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_DEVICE_TOKEN = TOKEN;
+
+    const single = await call(worker, env, "/api/resolve?id=news-us", {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    const batch = await call(worker, env, "/api/resolve?ids=news-us,missing-id", {
+      headers: { Authorization: `bearer ${TOKEN}` },
+    });
+
+    expect(single.res.status).toBe(200);
+    expect(single.body.url).toBeTruthy();
+    expect(batch.res.status).toBe(200);
+    expect(batch.body.resolved.map((entry: any) => entry.id)).toEqual(["news-us"]);
+    expect(batch.body.missing).toEqual(["missing-id"]);
+  });
+
+  it("counts an unauthorised attempt on its own counter", async () => {
+    const worker = await freshWorker();
+    const { env } = makeEnv({ gdrive_map: map });
+    (env as any).ATV_DEVICE_TOKEN = TOKEN;
+    const points: any[] = [];
+    (env as any).ATV_METRICS = { writeDataPoint: (point: any) => points.push(point) };
+
+    await call(worker, env, "/api/resolve?id=news-us");
+
+    expect(points.map((p) => p.blobs[0])).toEqual(["resolve_unauthorized"]);
   });
 });
 

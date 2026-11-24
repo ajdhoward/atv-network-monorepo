@@ -26,6 +26,10 @@ export interface Env {
   // Optional TorBox API token, set as a Worker secret. Only the Worker ever sees
   // it: a resolve returns the temporary CDN link, never this value.
   ATV_TORBOX_API_KEY?: string;
+  // Optional household token (option C/R6). While it is unset `/api/resolve`
+  // answers any caller, which is what keeps a deploy ahead of the TVs safe; once
+  // it is set every resolve needs `Authorization: Bearer <this>`.
+  ATV_DEVICE_TOKEN?: string;
 }
 
 // KV's `json` read is generic over an unknown-typed value; this keeps the cast

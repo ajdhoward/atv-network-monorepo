@@ -10,6 +10,11 @@ Nothing here is merged or deployed.
 
 ### Added
 
+- `/api/resolve` enforces the household token (R6): a missing or wrong `Authorization: Bearer …` gets a 401
+  `{error,code,requestId}` **before** the limiter or any provider call, so a stranger's id sweep spends none of
+  the household's allowance and mints no TorBox links. Unauthorised attempts have their own counter,
+  `Authorization` is in `Access-Control-Allow-Headers`, and `/api/health` reports `deviceTokenSet` (presence
+  only, never the value). With no `ATV_DEVICE_TOKEN` set nothing changes, so this can ship before R8 sets it.
 - `services/atv-core/src/device-token.ts` — the R6 check, before it is wired in: reads the credential out of an
   `Authorization` header (scheme case-insensitive, no value with spaces), compares SHA-256 digests byte by
   byte so the timing says nothing about a near miss, and answers `allow`, `reject` or `unenforced` when the

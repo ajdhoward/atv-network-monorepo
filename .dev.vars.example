@@ -11,6 +11,12 @@
 # needed to run the app locally against the seeded fixture — only a channel that
 # resolves through TorBox or the operator map needs one of these.
 
+# Household token for /api/resolve (option C). While it is empty nothing is
+# enforced, which is how the sandbox behaves until R8 sets the real secret; once
+# it is set, every resolve needs `Authorization: Bearer <this>` and a TV gets it
+# from the prompt on the guide screen.
+ATV_DEVICE_TOKEN=
+
 # TorBox API token. Without it, a channel mapped in `torbox_map` answers 502.
 ATV_TORBOX_API_KEY=
 

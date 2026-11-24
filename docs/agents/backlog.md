@@ -247,11 +247,12 @@ Sizes: **S** is an afternoon, **M** a day or two, **L** wants a plan in `decisio
   the repository does not use, which is the right failure), and in `AGENTS.md`'s settled decisions.
 - **Paths:** `services/atv-core/src/`, `services/atv-core/test/`, `docs/continuity.md`, `AGENTS.md`
 - **Size:** S
-- **State:** in progress — `services/atv-core/src/device-token.ts` holds the comparison (header parsing, digest
-  compare, and `unenforced` when no secret is configured) with its tests; nothing calls it yet, so behaviour
-  is unchanged. Next in R6: wire it into `handleResolve` ahead of the limiter, add `Authorization` to
-  `Access-Control-Allow-Headers`, its own counter and the "secret set" flag on health, then `ATV_DEVICE_TOKEN`
-  in `env.ts` and `docs/continuity.md` in the same change. Must not be deployed before R5 is live (R8).
+- **State:** done — `device-token.ts` is called from `handleResolve` ahead of the limiter; unauthorised
+  attempts get their own counter, `Authorization` is in `Access-Control-Allow-Headers`, and health reports
+  `deviceTokenSet`. `ATV_DEVICE_TOKEN` is in `env.ts`, `.dev.vars.example` and the inventory in
+  `docs/continuity.md`; `AGENTS.md` records the order. A deployment without the secret answers exactly as
+  before, so this is inert until R8 sets it — and **R7 must land first**, or the admin panel, smoke,
+  `pnpm streams` and `ci:worker` fail closed the moment it is switched on.
 
 ### R7 · Teach every non-TV caller the header
 

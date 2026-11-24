@@ -30,12 +30,18 @@ store is injectable (`createTokenPrompt({ store })`), which is what made the pro
 build has no global `localStorage` even under happy-dom. Unverified: whether a Fire TV's on-screen keyboard
 and Back key reach a focused `<input>` as themselves — L5 hardware only.
 
-**Next is R6** (enforce in the Worker): `ATV_DEVICE_TOKEN` compared as a digest, 401 before a limiter token or
-a TorBox call, `Authorization` in `Access-Control-Allow-Headers`, its own counter, health says whether the
-secret is set, and `docs/continuity.md`'s inventory plus `AGENTS.md` take the name in the same change. Then
-R7 (admin, smoke, streams, `ci:worker`), and R8 is the operator's. L1 (deploy) and L2 (branch protection)
-stay the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays" for
-Drive-backed channels.
+**R6 is done.** `checkDeviceToken` runs in `handleResolve` before the limiter and before any provider call;
+the 401 carries `{error,code,requestId}` and a Bearer challenge, unauthorised attempts have their own counter,
+`Authorization` is in `Access-Control-Allow-Headers`, and `/api/health` reports `deviceTokenSet`. Nothing
+changes without the secret, so it is inert until R8. Verified in workerd: `ci:worker`'s resolve still 200s
+because no `.dev.vars` token is set there, which is the unenforced path doing its job.
+
+**Next is R7** (teach every non-TV caller): `apps/admin-cms/src/links.ts`, `scripts/smoke.mjs`,
+`scripts/check-streams.mjs` and `scripts/ci-worker.mjs` must send the header when the token is in the
+environment and say plainly when it is not, so the day R8 sets the secret no check turns red for the wrong
+reason. Then R8 is the operator's (secret, then the TVs, then enforcement). L1 (deploy) and L2 (branch
+protection) stay the operator's. P1 (the Drive proxy) is the only thing left between "resolves" and "plays"
+for Drive-backed channels.
 
 ## What I learnt that cost time
 

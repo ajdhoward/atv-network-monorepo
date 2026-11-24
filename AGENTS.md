@@ -100,6 +100,10 @@ Rationale for each is in `decisions.md`; do not re-open them without new informa
 - **Stream links resolve server-side.** TorBox links expire in about three hours, so they are cached
   per isolate for 30 minutes and never seeded or sent to a device. Precedence is `ATV_GDRIVE_MAP`, then
   `torbox_map`, then KV `gdrive_map`.
+- **Resolve needs the household token.** `/api/resolve` requires `Authorization: Bearer <ATV_DEVICE_TOKEN>`
+  once that secret is set, and answers any caller while it is not. That order is deliberate: enforcement
+  must never land before every TV has taken the token (R8), or a household loses the TV to a 401 it cannot
+  clear.
 - **Google Drive has no direct-play URL.** The agreed approach is a Worker proxy with signed URLs and
   Range passthrough; it is not built, and "just use the Drive link" is not a shortcut.
 - **Sandbox first.** `pnpm deploy` targets `atv-core-v2`; the live `atv-core-orchestrator` is not built

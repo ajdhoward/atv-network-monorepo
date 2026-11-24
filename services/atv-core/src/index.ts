@@ -1,6 +1,7 @@
 import type { ChannelDef, HealthPayload } from "@atv/ui-shared";
 import { backupConfig } from "./backup";
 import { CONFIG_SCHEMA_VERSION, checksum, type ConfigMeta } from "./config-meta";
+import { checkDeviceToken } from "./device-token";
 import { kvJson, readJson, type Env } from "./env";
 import { apkUrl, handleInstall, handleInstallQr } from "./install";
 import { handleJoin } from "./join";
@@ -18,7 +19,8 @@ const CORS: Record<string, string> = {
   // If-None-Match and the ETag/X-Request-Id response headers are not
   // CORS-safelisted, so a cross-origin client could not use the 304 path or
   // read the request id without these two lines.
-  "Access-Control-Allow-Headers": "Content-Type, If-None-Match",
+  // Authorization is not safelisted either: R6's resolve needs it from the TV.
+  "Access-Control-Allow-Headers": "Content-Type, If-None-Match, Authorization",
   // Retry-After is not safelisted either: a cross-origin client must be able to
   // read it to schedule the retry a 429 asks for.
   "Access-Control-Expose-Headers": "ETag, X-Request-Id, Retry-After",
@@ -368,6 +370,21 @@ async function handleResolve(
   requestId: string,
   request: Request,
 ): Promise<Response> {
+  // Option C, before the limiter and before any provider call: an unauthenticated
+  // request must not spend the household's allowance or mint a TorBox link. The
+  // header is the only place the token is read from — never a query string, where
+  // it would land in logs and referrers — and it is never echoed back.
+  const verdict = await checkDeviceToken(
+    request.headers.get("Authorization"),
+    env.ATV_DEVICE_TOKEN,
+  );
+  if (verdict === "reject") {
+    count(env, "resolve_unauthorized");
+    return failure("unauthorized", "household token required", requestId, 401, {
+      // RFC 6750's challenge: which scheme, and nothing about the secret.
+      "WWW-Authenticate": 'Bearer realm="atv"',
+    });
+  }
   const limit = await allowRequest(env, request, "resolve", requestId);
   if (!limit.ok) {
     count(env, "resolve_rate_limited");
@@ -468,6 +485,9 @@ async function handleHealth(env: Env): Promise<Response> {
       checksumMatches,
     },
     resolve,
+    // Presence only: this is how an operator sees that R8 is half-done, and it
+    // says nothing about the value.
+    deviceTokenSet: !!env.ATV_DEVICE_TOKEN?.trim(),
     guideSnapshot: snapshot
       ? { generatedAt: snapshot.generatedAt ?? null, total: snapshot.total ?? null }
       : null,

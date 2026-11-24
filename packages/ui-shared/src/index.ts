@@ -51,6 +51,9 @@ export type HealthPayload = {
     checksumMatches: boolean | null;
   };
   resolve: ResolveCoverage;
+  // Whether ATV_DEVICE_TOKEN is configured, so a rollout can be watched (R8).
+  // Presence only, never the value; a deployment older than this field omits it.
+  deviceTokenSet?: boolean;
   guideSnapshot: { generatedAt: number | null; total: number | null } | null;
 };
 // Single-channel wire shape of GET /api/resolve?id=.
